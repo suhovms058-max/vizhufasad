@@ -17,6 +17,47 @@ const UploadIcon = () => (
   <svg viewBox="0 0 24 24" aria-hidden="true"><path d="M12 16V4m0 0L7 9m5-5 5 5M5 14v5h14v-5" /></svg>
 );
 
+const PhotoScene = () => (
+  <div className="stepScene photoScene" aria-hidden="true">
+    <svg viewBox="0 0 180 112">
+      <path className="sceneFrame" d="M22 36V20h18M140 20h18v16M22 76v16h18M140 92h18V76" />
+      <circle className="sceneSun" cx="134" cy="39" r="7" />
+      <path className="sceneHouse" d="M52 67 89 38l38 29v25H52Z" />
+      <path className="sceneDetail" d="M67 62v30M111 62v30M81 92V69h17v23" />
+      <circle className="sceneFocus" cx="90" cy="66" r="42" />
+    </svg>
+    <span>СФОТОГРАФИРУЙТЕ ДОМ</span>
+  </div>
+);
+
+const StyleScene = () => (
+  <div className="stepScene styleScene" aria-hidden="true">
+    <svg viewBox="0 0 180 112">
+      <path className="sceneHouse" d="M29 67 67 38l39 29v25H29Z" />
+      <path className="sceneDetail" d="M44 62v30M83 59v33M58 92V70h18v22" />
+      <rect className="swatch swatchOne" x="121" y="27" width="28" height="18" rx="2" />
+      <rect className="swatch swatchTwo" x="121" y="48" width="28" height="18" rx="2" />
+      <rect className="swatch swatchThree" x="121" y="69" width="28" height="18" rx="2" />
+      <path className="scenePointer" d="m104 56 12 3-7 4-3 8Z" />
+    </svg>
+    <span>ПОДБЕРИТЕ ОБРАЗ</span>
+  </div>
+);
+
+const ResultScene = () => (
+  <div className="stepScene resultScene" aria-hidden="true">
+    <svg viewBox="0 0 180 112">
+      <rect className="resultBack" x="30" y="25" width="91" height="61" rx="2" />
+      <rect className="resultCard" x="47" y="34" width="98" height="66" rx="2" />
+      <path className="resultHouse" d="M62 77 83 59l22 18v15H62Z" />
+      <path className="sceneDetail" d="M71 70v22M95 70v22M78 92V78h10v14" />
+      <circle className="resultCheck" cx="132" cy="45" r="15" />
+      <path className="checkStroke" d="m125 45 5 5 9-11" />
+    </svg>
+    <span>СРАВНИТЕ И ВЫБЕРИТЕ</span>
+  </div>
+);
+
 type PackageId = "trial" | "visual" | "selection" | "realization";
 
 const packageNames: Record<PackageId, string> = {
@@ -138,9 +179,9 @@ export default function App() {
           <p>Мы убрали из процесса всё сложное. Вы показываете дом и рассказываете, что нравится. Остальное делаем мы.</p>
         </div>
         <div className="steps">
-          <article><b>01</b><div className="stepIcon"><UploadIcon /></div><h3>Загрузите фото</h3><p>Снимок дома с телефона — прямо, без препятствий перед фасадом.</p></article>
-          <article><b>02</b><div className="stepIcon paletteIcon"><i /><i /><i /></div><h3>Выберите направление</h3><p>Современный, классический, скандинавский или свой пример.</p></article>
-          <article><b>03</b><div className="stepIcon"><Check /></div><h3>Получите варианты</h3><p>Сравните решения и выберите фасад, который хочется реализовать.</p></article>
+          <article><b>01</b><PhotoScene /><h3>Загрузите фото</h3><p>Снимок дома с телефона — прямо, без препятствий перед фасадом.</p></article>
+          <article><b>02</b><StyleScene /><h3>Выберите направление</h3><p>Современный, классический, скандинавский или свой пример.</p></article>
+          <article><b>03</b><ResultScene /><h3>Получите варианты</h3><p>Сравните решения и выберите фасад, который хочется реализовать.</p></article>
         </div>
       </section>
 

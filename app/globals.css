@@ -86,12 +86,28 @@ h2 { font-size: clamp(48px, 5vw, 76px); margin-top: 24px; }
 .steps article { position: relative; padding: 32px 28px; min-height: 360px; border-right: 1px solid var(--line); }
 .steps article:first-child { border-left: 1px solid var(--line); }
 .steps article > b { font-size: 10px; letter-spacing: .12em; color: #96978f; }
-.stepIcon { width: 54px; height: 54px; display: grid; place-items: center; border: 1px solid var(--line); margin: 76px 0 30px; color: var(--copper); }
-.stepIcon svg { width: 22px; }
-.paletteIcon { display: flex; gap: 3px; padding: 0 10px; }
-.paletteIcon i { flex: 1; height: 28px; background: var(--copper); }
-.paletteIcon i:nth-child(2) { background: #d6c6ac; }
-.paletteIcon i:nth-child(3) { background: #40423f; }
+.stepScene { position: relative; height: 132px; margin: 38px -8px 26px; overflow: hidden; background: rgba(255,255,255,.28); border: 1px solid rgba(23,23,20,.1); transition: transform .35s ease, background .35s ease; }
+.steps article:hover .stepScene { transform: translateY(-4px); background: rgba(255,255,255,.52); }
+.stepScene::after { content: ""; position: absolute; inset: auto 0 0; height: 3px; background: var(--copper); transform: scaleX(.25); transform-origin: left; transition: transform .45s ease; }
+.steps article:hover .stepScene::after { transform: scaleX(1); }
+.stepScene svg { display: block; width: 100%; height: 106px; color: var(--ink); }
+.stepScene span { position: absolute; left: 12px; bottom: 10px; font-size: 7px; font-weight: 600; letter-spacing: .16em; color: #777970; }
+.stepScene svg * { vector-effect: non-scaling-stroke; }
+.sceneFrame, .sceneDetail, .scenePointer, .checkStroke { fill: none; stroke: currentColor; stroke-width: 1.35; }
+.sceneFrame { stroke: var(--copper); }
+.sceneFocus { fill: none; stroke: rgba(186,105,70,.28); stroke-width: 1; stroke-dasharray: 3 5; }
+.sceneSun { fill: #d7bea2; stroke: none; }
+.sceneHouse { fill: #e6ded1; stroke: var(--ink); stroke-width: 1.35; }
+.swatch { stroke: none; }
+.swatchOne { fill: var(--copper); }
+.swatchTwo { fill: #d7c5aa; }
+.swatchThree { fill: #4a4c47; }
+.scenePointer { fill: var(--paper); stroke: var(--copper); }
+.resultBack { fill: #d6c6b3; stroke: none; transform: rotate(-5deg); transform-origin: center; }
+.resultCard { fill: #f8f5ef; stroke: var(--ink); stroke-width: 1.2; }
+.resultHouse { fill: #d9c1a6; stroke: var(--ink); stroke-width: 1.2; }
+.resultCheck { fill: var(--copper); stroke: none; }
+.checkStroke { stroke: white; stroke-width: 1.8; }
 .steps h3, .priceCard h3 { font-family: 'Playfair Display', serif; font-size: 25px; margin: 0 0 16px; }
 .steps p { font-size: 12px; color: #70716b; line-height: 1.7; margin: 0; }
 
@@ -227,7 +243,7 @@ h2 { font-size: clamp(48px, 5vw, 76px); margin-top: 24px; }
   .process { gap: 45px; }
   .steps { grid-template-columns: 1fr; }
   .steps article { min-height: 0; border-left: 1px solid var(--line); border-bottom: 1px solid var(--line); }
-  .stepIcon { margin: 36px 0 22px; }
+  .stepScene { max-width: 320px; margin: 28px 0 22px; }
   h2 { font-size: clamp(43px, 13vw, 62px); }
   .deliverGrid { gap: 75px; }
   .materialCard { right: -12px; bottom: -35px; width: 170px; }
