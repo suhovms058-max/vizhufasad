@@ -1,14 +1,14 @@
-@import url('https://fonts.googleapis.com/css2?family=Bodoni+Moda:ital,opsz,wght@0,6..96,500;0,6..96,600;1,6..96,500&family=Inter:wght@400;500;600&display=swap');
+@import url('https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600&family=Playfair+Display:ital,wght@0,600;1,500&display=swap');
 
 :root {
-  --ink: #f1ece3;
-  --basalt: #151714;
-  --paper: #1b1d1a;
-  --paper-2: #242620;
-  --line: rgba(241, 236, 227, 0.16);
-  --copper: #c87652;
-  --cream: #eee4d5;
-  --sage: #9ea598;
+  --ink: #171714;
+  --basalt: #1f211f;
+  --paper: #f2efe8;
+  --paper-2: #e8e3da;
+  --line: rgba(23, 23, 20, 0.16);
+  --copper: #ba6946;
+  --cream: #f5eadc;
+  --sage: #9ca397;
 }
 
 * { box-sizing: border-box; }
@@ -23,7 +23,7 @@ svg { width: 20px; fill: none; stroke: currentColor; stroke-width: 1.7; stroke-l
 
 .header { height: 96px; display: flex; align-items: center; justify-content: space-between; border-bottom: 1px solid var(--line); }
 .logo { display: flex; align-items: center; gap: 12px; font-weight: 600; letter-spacing: .12em; font-size: 15px; }
-.logoMark { width: 40px; height: 40px; display: grid; place-items: center; background: var(--copper); color: #171815; font-family: 'Bodoni Moda', serif; letter-spacing: -.06em; }
+.logoMark { width: 40px; height: 40px; display: grid; place-items: center; background: var(--basalt); color: var(--cream); font-family: 'Playfair Display', serif; letter-spacing: -.06em; }
 .logo small { display: block; font-size: 8px; color: #72746f; letter-spacing: .16em; margin-top: 4px; }
 nav { display: flex; align-items: center; gap: 34px; font-size: 12px; }
 nav a { opacity: .72; transition: .2s; }
@@ -34,7 +34,7 @@ nav a:hover { opacity: 1; }
 .hero { display: grid; grid-template-columns: .8fr 1.25fr; min-height: 760px; align-items: center; gap: 70px; padding-block: 72px 80px; }
 .eyebrow { display: flex; align-items: center; gap: 11px; font-size: 10px; font-weight: 600; letter-spacing: .2em; color: #74766f; }
 .eyebrow > span { width: 28px; height: 1px; background: var(--copper); }
-h1, h2 { font-family: 'Bodoni Moda', Georgia, serif; font-weight: 500; letter-spacing: -.055em; margin: 0; line-height: .94; }
+h1, h2 { font-family: 'Playfair Display', Georgia, serif; font-weight: 600; letter-spacing: -.045em; margin: 0; line-height: .98; }
 h1 { font-size: clamp(62px, 6.1vw, 104px); margin: 26px 0 30px; }
 h1 em, h2 em { color: var(--copper); font-weight: 500; }
 .heroCopy > p { max-width: 560px; font-size: 17px; line-height: 1.65; color: #64655f; }
@@ -73,10 +73,10 @@ h1 em, h2 em { color: var(--copper); font-weight: 500; }
 .signalGrid > * { border-right: 1px solid #ffffff17; padding: 0 38px; }
 .signalGrid > *:first-child { padding-left: 0; }
 .signalGrid > *:last-child { border: 0; }
-.signalGrid p { font-family: 'Bodoni Moda', serif; font-size: 28px; line-height: 1.1; margin: 0; }
+.signalGrid p { font-family: 'Playfair Display', serif; font-size: 28px; line-height: 1.1; margin: 0; }
 .signalGrid p i { color: #c78262; }
 .signalGrid div { display: flex; flex-direction: column; gap: 7px; }
-.signalGrid strong { font-family: 'Bodoni Moda', serif; font-size: 23px; }
+.signalGrid strong { font-family: 'Playfair Display', serif; font-size: 23px; }
 .signalGrid span { font-size: 10px; color: #969993; }
 
 .process { display: grid; grid-template-columns: .8fr 1.4fr; gap: 100px; }
@@ -86,29 +86,13 @@ h2 { font-size: clamp(48px, 5vw, 76px); margin-top: 24px; }
 .steps article { position: relative; padding: 32px 28px; min-height: 360px; border-right: 1px solid var(--line); }
 .steps article:first-child { border-left: 1px solid var(--line); }
 .steps article > b { font-size: 10px; letter-spacing: .12em; color: #96978f; }
-.stepScene { position: relative; height: 132px; margin: 38px -8px 26px; overflow: hidden; background: rgba(255,255,255,.28); border: 1px solid rgba(23,23,20,.1); transition: transform .35s ease, background .35s ease; }
-.steps article:hover .stepScene { transform: translateY(-4px); background: rgba(255,255,255,.52); }
-.stepScene::after { content: ""; position: absolute; inset: auto 0 0; height: 3px; background: var(--copper); transform: scaleX(.25); transform-origin: left; transition: transform .45s ease; }
-.steps article:hover .stepScene::after { transform: scaleX(1); }
-.stepScene svg { display: block; width: 100%; height: 106px; color: var(--ink); }
-.stepScene span { position: absolute; left: 12px; bottom: 10px; font-size: 7px; font-weight: 600; letter-spacing: .16em; color: #777970; }
-.stepScene svg * { vector-effect: non-scaling-stroke; }
-.sceneFrame, .sceneDetail, .scenePointer, .checkStroke { fill: none; stroke: currentColor; stroke-width: 1.35; }
-.sceneFrame { stroke: var(--copper); }
-.sceneFocus { fill: none; stroke: rgba(186,105,70,.28); stroke-width: 1; stroke-dasharray: 3 5; }
-.sceneSun { fill: #d7bea2; stroke: none; }
-.sceneHouse { fill: #e6ded1; stroke: var(--ink); stroke-width: 1.35; }
-.swatch { stroke: none; }
-.swatchOne { fill: var(--copper); }
-.swatchTwo { fill: #d7c5aa; }
-.swatchThree { fill: #4a4c47; }
-.scenePointer { fill: var(--paper); stroke: var(--copper); }
-.resultBack { fill: #d6c6b3; stroke: none; transform: rotate(-5deg); transform-origin: center; }
-.resultCard { fill: #f8f5ef; stroke: var(--ink); stroke-width: 1.2; }
-.resultHouse { fill: #d9c1a6; stroke: var(--ink); stroke-width: 1.2; }
-.resultCheck { fill: var(--copper); stroke: none; }
-.checkStroke { stroke: white; stroke-width: 1.8; }
-.steps h3, .priceCard h3 { font-family: 'Bodoni Moda', serif; font-size: 25px; margin: 0 0 16px; }
+.stepIcon { width: 54px; height: 54px; display: grid; place-items: center; border: 1px solid var(--line); margin: 76px 0 30px; color: var(--copper); }
+.stepIcon svg { width: 22px; }
+.paletteIcon { display: flex; gap: 3px; padding: 0 10px; }
+.paletteIcon i { flex: 1; height: 28px; background: var(--copper); }
+.paletteIcon i:nth-child(2) { background: #d6c6ac; }
+.paletteIcon i:nth-child(3) { background: #40423f; }
+.steps h3, .priceCard h3 { font-family: 'Playfair Display', serif; font-size: 25px; margin: 0 0 16px; }
 .steps p { font-size: 12px; color: #70716b; line-height: 1.7; margin: 0; }
 
 .deliver { background: var(--paper-2); }
@@ -117,14 +101,14 @@ h2 { font-size: clamp(48px, 5vw, 76px); margin-top: 24px; }
 .deliverVisual > img { position: absolute; inset: 0; width: 100%; height: 100%; object-fit: cover; }
 .materialCard { position: absolute; right: -38px; bottom: -35px; width: 210px; padding: 23px; background: var(--basalt); color: white; display: flex; flex-direction: column; }
 .materialCard span, .materialCard small { font-size: 8px; letter-spacing: .15em; color: #9da098; }
-.materialCard strong { font-family: 'Bodoni Moda', serif; font-size: 21px; margin: 28px 0 8px; line-height: 1.1; }
+.materialCard strong { font-family: 'Playfair Display', serif; font-size: 21px; margin: 28px 0 8px; line-height: 1.1; }
 .deliverCopy h2 { margin-bottom: 30px; }
 .lead { color: #62645e; line-height: 1.7; max-width: 570px; }
 .deliverCopy ul { list-style: none; padding: 0; margin: 42px 0; }
 .deliverCopy li { display: grid; grid-template-columns: 28px 1fr; gap: 15px; padding: 18px 0; border-top: 1px solid var(--line); }
 .deliverCopy li:last-child { border-bottom: 1px solid var(--line); }
 .deliverCopy li svg { color: var(--copper); width: 18px; }
-.deliverCopy li strong { display: block; font-family: 'Bodoni Moda', serif; font-size: 18px; margin-bottom: 5px; }
+.deliverCopy li strong { display: block; font-family: 'Playfair Display', serif; font-size: 18px; margin-bottom: 5px; }
 .deliverCopy li span { font-size: 11px; color: #74766f; line-height: 1.6; }
 
 .pricingHead { display: flex; justify-content: space-between; align-items: flex-end; margin-bottom: 64px; }
@@ -138,7 +122,7 @@ h2 { font-size: clamp(48px, 5vw, 76px); margin-top: 24px; }
 .priceCard h3 { font-size: 27px; margin: 28px 0 8px; }
 .priceCard > div > p { font-size: 11px; color: #767870; min-height: 40px; }
 .featured > div > p { color: #a1a49d; }
-.price { font-family: 'Bodoni Moda', serif; font-size: 34px; margin: 30px 0; }
+.price { font-family: 'Playfair Display', serif; font-size: 34px; margin: 30px 0; }
 .priceCard ul { list-style: none; padding: 0; margin: 0 0 36px; flex: 1; }
 .priceCard li { display: flex; gap: 10px; padding: 12px 0; font-size: 11px; border-top: 1px solid currentColor; border-color: rgba(128,128,128,.2); }
 .priceCard li svg { width: 14px; color: var(--copper); }
@@ -149,14 +133,14 @@ h2 { font-size: clamp(48px, 5vw, 76px); margin-top: 24px; }
 .audience { background: var(--basalt); color: white; }
 .audienceGrid { display: grid; grid-template-columns: 1fr 1fr; gap: 140px; align-items: center; }
 .quote { border-left: 1px solid #ffffff25; padding-left: 70px; }
-.quote > span { color: var(--copper); font-family: 'Bodoni Moda', serif; font-size: 72px; line-height: .6; }
-.quote p { font-family: 'Bodoni Moda', serif; font-size: 30px; line-height: 1.35; color: #e7e2d9; }
+.quote > span { color: var(--copper); font-family: 'Playfair Display', serif; font-size: 72px; line-height: .6; }
+.quote p { font-family: 'Playfair Display', serif; font-size: 30px; line-height: 1.35; color: #e7e2d9; }
 .quote small { font-size: 8px; letter-spacing: .18em; color: #8f928c; }
 
 .faq { display: grid; grid-template-columns: .8fr 1.2fr; gap: 110px; }
 .faqList { border-top: 1px solid var(--line); }
 .faqItem { width: 100%; text-align: left; border: 0; border-bottom: 1px solid var(--line); background: none; padding: 27px 0; cursor: pointer; display: grid; grid-template-columns: 1fr auto; }
-.faqItem > span { font-family: 'Bodoni Moda', serif; font-size: 20px; }
+.faqItem > span { font-family: 'Playfair Display', serif; font-size: 20px; }
 .faqItem > span b { font-family: Inter, sans-serif; font-size: 8px; color: #92938c; margin-right: 28px; }
 .faqItem > i { font-style: normal; color: var(--copper); font-size: 22px; }
 .faqItem p { grid-column: 1 / -1; margin: 0; max-height: 0; overflow: hidden; opacity: 0; transition: .3s; color: #696b64; font-size: 12px; line-height: 1.75; max-width: 620px; padding-left: 47px; }
@@ -180,12 +164,12 @@ h2 { font-size: clamp(48px, 5vw, 76px); margin-top: 24px; }
 .modal { position: relative; width: min(540px, 100%); max-height: calc(100vh - 40px); overflow-y: auto; background: var(--paper); padding: 46px; box-shadow: 0 24px 80px #0008; }
 .modalClose { position: absolute; right: 18px; top: 13px; border: 0; background: none; font-size: 28px; cursor: pointer; color: #777; }
 .modalEyebrow { color: var(--copper); font-size: 9px; letter-spacing: .17em; font-weight: 600; }
-.modal h3 { font-family: 'Bodoni Moda', serif; font-size: 40px; margin: 16px 0 10px; }
+.modal h3 { font-family: 'Playfair Display', serif; font-size: 40px; margin: 16px 0 10px; }
 .modal > p, .modal > div > p { color: #74766f; font-size: 12px; line-height: 1.6; }
 .dropzone { position: relative; min-height: 245px; margin: 28px 0 13px; border: 1px dashed #9b9b94; display: flex; flex-direction: column; align-items: center; justify-content: center; gap: 9px; cursor: pointer; overflow: hidden; }
 .dropzone input { position: absolute; inset: 0; opacity: 0; cursor: pointer; }
 .dropzone svg { width: 30px; color: var(--copper); margin-bottom: 7px; }
-.dropzone strong { font-family: 'Bodoni Moda', serif; font-size: 19px; }
+.dropzone strong { font-family: 'Playfair Display', serif; font-size: 19px; }
 .dropzone span { font-size: 10px; color: #85877f; }
 .dropzone.hasPreview img { width: 100%; height: 245px; object-fit: cover; }
 .fileName { font-size: 10px; display: flex; align-items: center; gap: 7px; color: #6b6d65; }
@@ -196,69 +180,13 @@ h2 { font-size: clamp(48px, 5vw, 76px); margin-top: 24px; }
 .form input, .form textarea { width: 100%; border: 1px solid var(--line); background: #f8f5ee; padding: 13px; outline: none; border-radius: 0; font-size: 12px; letter-spacing: 0; color: var(--ink); }
 .form input:focus, .form textarea:focus { border-color: var(--copper); }
 .form textarea { min-height: 85px; resize: vertical; }
+.formError { padding: 11px 13px; border: 1px solid #b74f38; background: #fff1ed; color: #8b2f20; font-size: 12px; line-height: 1.45; }
 .consent { display: flex !important; grid-template-columns: 18px 1fr !important; align-items: flex-start; letter-spacing: 0 !important; line-height: 1.45; }
 .consent input { width: 15px; height: 15px; accent-color: var(--copper); }
 .back { border: 0; background: none; cursor: pointer; font-size: 10px; color: #777; }
 .success { padding: 70px 10px; text-align: center; }
 .success > div { margin: auto; width: 58px; height: 58px; background: var(--copper); color: white; display: grid; place-items: center; }
 .success h3 { margin-top: 28px; }
-
-/* Visual 04 — Monolith Editorial Tech */
-body { background: var(--paper); color: var(--ink); }
-.header { border-color: var(--line); }
-.logo small, nav a, .eyebrow { color: #9c9f97; }
-.headerCta { color: var(--cream); }
-.hero { position: relative; }
-.hero::before { content: ""; position: absolute; z-index: -1; width: 55vw; height: 55vw; left: -30vw; top: -18vw; border-radius: 50%; background: radial-gradient(circle, rgba(200,118,82,.12), transparent 68%); pointer-events: none; }
-.heroCopy > p, .sectionIntro > p, .pricingHead > p, .lead { color: #a9aba3; }
-.button.primary { color: #171815; background: var(--cream); box-shadow: 0 15px 35px rgba(0,0,0,.25); }
-.textLink { color: var(--cream); border-color: #8e9089; }
-.microTrust { color: #989b94; }
-.heroVisual { background: #0f110f; border: 1px solid rgba(238,228,213,.13); box-shadow: 0 35px 90px rgba(0,0,0,.48); }
-.signal { background: var(--copper); color: #171815; }
-.signalGrid > * { border-color: rgba(23,24,21,.2); }
-.signalGrid p i { color: #fff1e7; }
-.signalGrid span { color: rgba(23,24,21,.66); }
-.process { position: relative; }
-.steps article { background: rgba(255,255,255,.015); }
-.stepScene { background: #20221e; border-color: rgba(241,236,227,.13); }
-.steps article:hover .stepScene { background: #292b25; }
-.stepScene span, .steps p { color: #9da098; }
-.sceneHouse { fill: #34362f; stroke: var(--cream); }
-.sceneSun { fill: var(--copper); }
-.scenePointer { fill: var(--paper); }
-.resultBack { fill: #4e4238; }
-.resultCard { fill: #292b26; stroke: var(--cream); }
-.resultHouse { fill: #655044; stroke: var(--cream); }
-.deliver { background: var(--paper-2); }
-.deliverVisual { box-shadow: 0 28px 70px rgba(0,0,0,.35); }
-.materialCard { background: var(--copper); color: #171815; }
-.materialCard span, .materialCard small { color: rgba(23,24,21,.62); }
-.deliverCopy li span, .pricingNote { color: #9da098; }
-.priceGrid { border-color: var(--line); }
-.priceCard { background: #20221e; }
-.priceCard > div > p { color: #969a92; }
-.priceCard.featured { background: var(--cream); color: #171815; box-shadow: 0 24px 60px rgba(0,0,0,.4); }
-.featured > div > p { color: #656760; }
-.featured .button.primary { background: var(--copper); color: #171815; }
-.priceCard.premium { background: #352d27; }
-.priceCard .button.ghost { color: var(--cream); border-color: rgba(238,228,213,.3); }
-.priceCard.premium .button.copper { color: #171815; }
-.audience { background: #101210; }
-.faqItem { color: var(--cream); }
-.faqItem p { color: #9da098; }
-.finalCta { background: var(--cream); color: #171815; }
-.finalCta h2 em { color: var(--copper); }
-.eyebrow.light { color: #777970; }
-.eyebrow.light > span { background: var(--copper); }
-.lightButton { background: var(--basalt); color: var(--cream); }
-.footer > p, .footer > small { color: #8f928b; }
-.modal { background: #22241f; color: var(--cream); }
-.modalClose, .modal > p, .modal > div > p { color: #a5a89f; }
-.dropzone { border-color: #6f716a; }
-.dropzone span, .fileName { color: #9da098; }
-.form label { color: #b2b4ad; }
-.form input, .form textarea { background: #181a17; color: var(--cream); border-color: var(--line); }
 
 @media (max-width: 1100px) {
   .shell { width: min(100% - 48px, 960px); }
@@ -300,7 +228,7 @@ body { background: var(--paper); color: var(--ink); }
   .process { gap: 45px; }
   .steps { grid-template-columns: 1fr; }
   .steps article { min-height: 0; border-left: 1px solid var(--line); border-bottom: 1px solid var(--line); }
-  .stepScene { max-width: 320px; margin: 28px 0 22px; }
+  .stepIcon { margin: 36px 0 22px; }
   h2 { font-size: clamp(43px, 13vw, 62px); }
   .deliverGrid { gap: 75px; }
   .materialCard { right: -12px; bottom: -35px; width: 170px; }

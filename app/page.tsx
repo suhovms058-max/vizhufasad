@@ -2,8 +2,7 @@
 
 import { ChangeEvent, useEffect, useState } from "react";
 
-const asset = (path: string) =>
-  `${process.env.NEXT_PUBLIC_BASE_PATH ?? ""}${path}`;
+const LEADS_API = "https://89-23-97-248.sslip.io/api/leads";
 
 const Arrow = () => (
   <svg viewBox="0 0 24 24" aria-hidden="true"><path d="M5 12h14M13 6l6 6-6 6" /></svg>
@@ -15,47 +14,6 @@ const Check = () => (
 
 const UploadIcon = () => (
   <svg viewBox="0 0 24 24" aria-hidden="true"><path d="M12 16V4m0 0L7 9m5-5 5 5M5 14v5h14v-5" /></svg>
-);
-
-const PhotoScene = () => (
-  <div className="stepScene photoScene" aria-hidden="true">
-    <svg viewBox="0 0 180 112">
-      <path className="sceneFrame" d="M22 36V20h18M140 20h18v16M22 76v16h18M140 92h18V76" />
-      <circle className="sceneSun" cx="134" cy="39" r="7" />
-      <path className="sceneHouse" d="M52 67 89 38l38 29v25H52Z" />
-      <path className="sceneDetail" d="M67 62v30M111 62v30M81 92V69h17v23" />
-      <circle className="sceneFocus" cx="90" cy="66" r="42" />
-    </svg>
-    <span>СФОТОГРАФИРУЙТЕ ДОМ</span>
-  </div>
-);
-
-const StyleScene = () => (
-  <div className="stepScene styleScene" aria-hidden="true">
-    <svg viewBox="0 0 180 112">
-      <path className="sceneHouse" d="M29 67 67 38l39 29v25H29Z" />
-      <path className="sceneDetail" d="M44 62v30M83 59v33M58 92V70h18v22" />
-      <rect className="swatch swatchOne" x="121" y="27" width="28" height="18" rx="2" />
-      <rect className="swatch swatchTwo" x="121" y="48" width="28" height="18" rx="2" />
-      <rect className="swatch swatchThree" x="121" y="69" width="28" height="18" rx="2" />
-      <path className="scenePointer" d="m104 56 12 3-7 4-3 8Z" />
-    </svg>
-    <span>ПОДБЕРИТЕ ОБРАЗ</span>
-  </div>
-);
-
-const ResultScene = () => (
-  <div className="stepScene resultScene" aria-hidden="true">
-    <svg viewBox="0 0 180 112">
-      <rect className="resultBack" x="30" y="25" width="91" height="61" rx="2" />
-      <rect className="resultCard" x="47" y="34" width="98" height="66" rx="2" />
-      <path className="resultHouse" d="M62 77 83 59l22 18v15H62Z" />
-      <path className="sceneDetail" d="M71 70v22M95 70v22M78 92V78h10v14" />
-      <circle className="resultCheck" cx="132" cy="45" r="15" />
-      <path className="checkStroke" d="m125 45 5 5 9-11" />
-    </svg>
-    <span>СРАВНИТЕ И ВЫБЕРИТЕ</span>
-  </div>
 );
 
 type PackageId = "trial" | "visual" | "selection" | "realization";
@@ -79,9 +37,16 @@ export default function App() {
   const [modal, setModal] = useState(false);
   const [selectedPackage, setSelectedPackage] = useState<PackageId>("trial");
   const [preview, setPreview] = useState<string | null>(null);
+  const [photo, setPhoto] = useState<File | null>(null);
   const [fileName, setFileName] = useState("");
   const [step, setStep] = useState<1 | 2>(1);
   const [sent, setSent] = useState(false);
+  const [name, setName] = useState("");
+  const [contact, setContact] = useState("");
+  const [wishes, setWishes] = useState("");
+  const [consent, setConsent] = useState(true);
+  const [sending, setSending] = useState(false);
+  const [submitError, setSubmitError] = useState("");
   const [openFaq, setOpenFaq] = useState<number | null>(0);
 
   useEffect(() => {
@@ -93,19 +58,49 @@ export default function App() {
     setSelectedPackage(id);
     setStep(1);
     setSent(false);
+    setSubmitError("");
     setModal(true);
   };
 
   const onFile = (event: ChangeEvent<HTMLInputElement>) => {
     const file = event.target.files?.[0];
     if (!file) return;
+    if (file.size > 15 * 1024 * 1024) {
+      setSubmitError("Фото должно быть не больше 15 МБ");
+      event.target.value = "";
+      return;
+    }
+    setSubmitError("");
+    setPhoto(file);
     setFileName(file.name);
     setPreview(URL.createObjectURL(file));
   };
 
-  const submit = () => {
-    setSent(true);
-    setTimeout(() => setModal(false), 2200);
+  const submit = async () => {
+    if (!photo || !name.trim() || !contact.trim() || !consent) {
+      setSubmitError("Заполните имя и контакт, подтвердите согласие");
+      return;
+    }
+
+    setSending(true);
+    setSubmitError("");
+    const data = new FormData();
+    data.append("photo", photo);
+    data.append("name", name.trim());
+    data.append("contact", contact.trim());
+    data.append("wishes", wishes.trim());
+    data.append("package", packageNames[selectedPackage]);
+
+    try {
+      const response = await fetch(LEADS_API, { method: "POST", body: data });
+      const result = await response.json().catch(() => null);
+      if (!response.ok) throw new Error(result?.error || "Не удалось отправить заявку");
+      setSent(true);
+    } catch (error) {
+      setSubmitError(error instanceof Error ? error.message : "Не удалось отправить заявку. Попробуйте ещё раз.");
+    } finally {
+      setSending(false);
+    }
   };
 
   return (
@@ -146,9 +141,9 @@ export default function App() {
             <span className="status"><i /> ВИЗУАЛ ГОТОВ</span>
           </div>
           <div className="comparison">
-            <img src={asset("/facade-after.png")} alt="Дом после визуализации отделки фасада" />
+            <img src="/facade-after.png" alt="Дом после визуализации отделки фасада" />
             <div className="beforeLayer" style={{ clipPath: `inset(0 ${100 - compare}% 0 0)` }}>
-              <img src={asset("/facade-before.png")} alt="Дом до отделки фасада" />
+              <img src="/facade-before.png" alt="Дом до отделки фасада" />
             </div>
             <div className="compareLine" style={{ left: `${compare}%` }}><span>↔</span></div>
             <span className="tag beforeTag">ДО</span>
@@ -179,16 +174,16 @@ export default function App() {
           <p>Мы убрали из процесса всё сложное. Вы показываете дом и рассказываете, что нравится. Остальное делаем мы.</p>
         </div>
         <div className="steps">
-          <article><b>01</b><PhotoScene /><h3>Загрузите фото</h3><p>Снимок дома с телефона — прямо, без препятствий перед фасадом.</p></article>
-          <article><b>02</b><StyleScene /><h3>Выберите направление</h3><p>Современный, классический, скандинавский или свой пример.</p></article>
-          <article><b>03</b><ResultScene /><h3>Получите варианты</h3><p>Сравните решения и выберите фасад, который хочется реализовать.</p></article>
+          <article><b>01</b><div className="stepIcon"><UploadIcon /></div><h3>Загрузите фото</h3><p>Снимок дома с телефона — прямо, без препятствий перед фасадом.</p></article>
+          <article><b>02</b><div className="stepIcon paletteIcon"><i /><i /><i /></div><h3>Выберите направление</h3><p>Современный, классический, скандинавский или свой пример.</p></article>
+          <article><b>03</b><div className="stepIcon"><Check /></div><h3>Получите варианты</h3><p>Сравните решения и выберите фасад, который хочется реализовать.</p></article>
         </div>
       </section>
 
       <section className="deliver section">
         <div className="shell deliverGrid">
           <div className="deliverVisual">
-            <img src={asset("/facade-after.png")} alt="Готовая визуализация современного фасада" />
+            <img src="/facade-after.png" alt="Готовая визуализация современного фасада" />
             <div className="materialCard"><span>МАТЕРИАЛ 02</span><strong>Планкен<br />натуральный</strong><small>Фрагмент визуализации</small></div>
           </div>
           <div className="deliverCopy">
@@ -297,11 +292,12 @@ export default function App() {
                   </>
                 ) : (
                   <div className="form">
-                    <label>Ваше имя<input placeholder="Например, Максим" /></label>
-                    <label>Телефон или Telegram<input placeholder="+7 900 000-00-00" /></label>
-                    <label>Пожелания<textarea placeholder="Светлый фасад, дерево, современный стиль…" /></label>
-                    <label className="consent"><input type="checkbox" defaultChecked /><span>Согласен на обработку данных и получение ответа по заявке</span></label>
-                    <button className="button primary modalButton" onClick={submit}>Отправить заявку <Arrow /></button>
+                    <label>Ваше имя<input value={name} onChange={(e) => setName(e.target.value)} placeholder="Например, Максим" autoComplete="name" /></label>
+                    <label>Телефон, почта или MAX<input value={contact} onChange={(e) => setContact(e.target.value)} placeholder="+7 900 000-00-00" autoComplete="tel" /></label>
+                    <label>Пожелания<textarea value={wishes} onChange={(e) => setWishes(e.target.value)} placeholder="Светлый фасад, дерево, современный стиль…" /></label>
+                    <label className="consent"><input type="checkbox" checked={consent} onChange={(e) => setConsent(e.target.checked)} /><span>Согласен на обработку данных и получение ответа по заявке</span></label>
+                    {submitError && <div className="formError" role="alert">{submitError}</div>}
+                    <button className="button primary modalButton" disabled={sending} onClick={submit}>{sending ? "Отправляем…" : "Отправить заявку"} {!sending && <Arrow />}</button>
                     <button className="back" onClick={() => setStep(1)}>← Вернуться к фото</button>
                   </div>
                 )}
