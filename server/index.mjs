@@ -36,6 +36,10 @@ const mailer = nodemailer.createTransport({
   host: process.env.SMTP_HOST || "smtp.mail.ru",
   port: Number(process.env.SMTP_PORT || 465),
   secure: String(process.env.SMTP_SECURE || "true") === "true",
+  family: 4,
+  connectionTimeout: 15_000,
+  greetingTimeout: 15_000,
+  socketTimeout: 30_000,
   auth: { user: process.env.SMTP_USER, pass: process.env.SMTP_PASSWORD },
 });
 
@@ -64,12 +68,23 @@ async function uploadToMax(file) {
 
 async function sendToMax(text, file) {
   const payload = await uploadToMax(file);
-  const response = await fetch(`${maxApi}/messages?chat_id=${encodeURIComponent(process.env.MAX_CHAT_ID)}`, {
-    method: "POST",
-    headers: { Authorization: process.env.MAX_BOT_TOKEN, "Content-Type": "application/json" },
-    body: JSON.stringify({ text, attachments: [{ type: "image", payload }], notify: true }),
-  });
-  if (!response.ok) throw new Error(`MAX_MESSAGE_${response.status}`);
+  const retryDelays = [300, 1_000, 2_500];
+
+  for (const delay of retryDelays) {
+    await new Promise((resolve) => setTimeout(resolve, delay));
+    const response = await fetch(`${maxApi}/messages?chat_id=${encodeURIComponent(process.env.MAX_CHAT_ID)}`, {
+      method: "POST",
+      headers: { Authorization: process.env.MAX_BOT_TOKEN, "Content-Type": "application/json" },
+      body: JSON.stringify({ text, attachments: [{ type: "image", payload }], notify: true }),
+    });
+    if (response.ok) return;
+
+    const details = (await response.text()).slice(0, 500);
+    if (response.status === 400 && details.includes("attachment.not.ready")) continue;
+    throw new Error(`MAX_MESSAGE_${response.status}: ${details}`);
+  }
+
+  throw new Error("MAX_MESSAGE_ATTACHMENT_NOT_READY");
 }
 
 async function sendToMail(text, file, contact) {
