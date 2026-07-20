@@ -122,7 +122,7 @@ export default function App() {
       <section className="hero shell" id="top">
         <div className="heroCopy">
           <div className="eyebrow"><span /> ВИЗУАЛИЗАЦИЯ ПО ВАШЕМУ ФОТО</div>
-          <h1>Увидьте новый<br />фасад <em>до</em><br />начала работ</h1>
+          <h1>Посмотрите новый<br />фасад <em>до</em><br />начала работ</h1>
           <p>Загрузите фото дома — получите реалистичный вариант отделки с сохранением его геометрии. Без сложных программ и долгих объяснений.</p>
           <div className="heroActions">
             <button className="button primary" onClick={() => startOrder("trial")}><UploadIcon /> Загрузить фото дома</button>
@@ -141,9 +141,9 @@ export default function App() {
             <span className="status"><i /> ВИЗУАЛ ГОТОВ</span>
           </div>
           <div className="comparison">
-            <img src="/facade-after.png" alt="Дом после визуализации отделки фасада" />
+            <img src="./facade-after.png" alt="Дом после визуализации отделки фасада" />
             <div className="beforeLayer" style={{ clipPath: `inset(0 ${100 - compare}% 0 0)` }}>
-              <img src="/facade-before.png" alt="Дом до отделки фасада" />
+              <img src="./facade-before.png" alt="Дом до отделки фасада" />
             </div>
             <div className="compareLine" style={{ left: `${compare}%` }}><span>↔</span></div>
             <span className="tag beforeTag">ДО</span>
@@ -183,7 +183,7 @@ export default function App() {
       <section className="deliver section">
         <div className="shell deliverGrid">
           <div className="deliverVisual">
-            <img src="/facade-after.png" alt="Готовая визуализация современного фасада" />
+            <img src="./facade-after.png" alt="Готовая визуализация современного фасада" />
             <div className="materialCard"><span>МАТЕРИАЛ 02</span><strong>Планкен<br />натуральный</strong><small>Фрагмент визуализации</small></div>
           </div>
           <div className="deliverCopy">
