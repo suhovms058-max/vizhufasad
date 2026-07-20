@@ -130,7 +130,7 @@ export default function App() {
           </div>
           <div className="microTrust">
             <span><Check /> Первый пример бесплатно</span>
-            <span><Check /> Результат от 24 часов</span>
+            <span><Check /> Автоматическая проверка фото</span>
             <span><Check /> Работаем по всей России</span>
           </div>
         </div>
@@ -141,9 +141,9 @@ export default function App() {
             <span className="status"><i /> ВИЗУАЛ ГОТОВ</span>
           </div>
           <div className="comparison">
-            <img src="./facade-after.png" alt="Дом после визуализации отделки фасада" />
+            <img src="./facade-after-bright.webp" alt="Дом после визуализации отделки фасада" />
             <div className="beforeLayer" style={{ clipPath: `inset(0 ${100 - compare}% 0 0)` }}>
-              <img src="./facade-before.png" alt="Дом до отделки фасада" />
+              <img src="./facade-before-bright.webp" alt="Дом до отделки фасада" />
             </div>
             <div className="compareLine" style={{ left: `${compare}%` }}><span>↔</span></div>
             <span className="tag beforeTag">ДО</span>
@@ -151,10 +151,11 @@ export default function App() {
             <input aria-label="Сравнить фасад до и после" type="range" min="8" max="92" value={compare} onChange={(e) => setCompare(Number(e.target.value))} />
           </div>
           <div className="visualBottom">
-            <span><b>03</b> материала в отделке</span>
-            <span><b>01</b> ракурс</span>
-            <span><b>24ч</b> срок</span>
+            <span><b>3</b> решения на выбор</span>
+            <span>Геометрия по фотографии дома сохранена</span>
+            <span>Готово от 24 часов*</span>
           </div>
+          <p className="visualFootnote">* Зависит от тарифа</p>
         </div>
       </section>
 
@@ -167,33 +168,30 @@ export default function App() {
         </div>
       </section>
 
-      <section className="process section shell" id="how">
-        <div className="sectionIntro">
-          <div className="eyebrow"><span /> ПРОСТОЙ ПУТЬ К РЕЗУЛЬТАТУ</div>
-          <h2>От фотографии<br />до решения <em>за 3 шага</em></h2>
-          <p>Мы убрали из процесса всё сложное. Вы показываете дом и рассказываете, что нравится. Остальное делаем мы.</p>
-        </div>
-        <div className="steps">
-          <article><b>01</b><div className="stepIcon"><UploadIcon /></div><h3>Загрузите фото</h3><p>Снимок дома с телефона — прямо, без препятствий перед фасадом.</p></article>
-          <article><b>02</b><div className="stepIcon paletteIcon"><i /><i /><i /></div><h3>Выберите направление</h3><p>Современный, классический, скандинавский или свой пример.</p></article>
-          <article><b>03</b><div className="stepIcon"><Check /></div><h3>Получите варианты</h3><p>Сравните решения и выберите фасад, который хочется реализовать.</p></article>
+      <section className="processShowcase section" id="how">
+        <div className="shell processFrame">
+          <img src="./concepts/approved-process-section.webp" alt="Три шага: загрузите фото, выберите направление и получите варианты фасада" />
+          <div className="srOnly">
+            <h2>От фотографии до решения за 3 шага</h2>
+            <p>Загрузите фотографию дома, выберите направление отделки и получите варианты с пояснениями.</p>
+          </div>
         </div>
       </section>
 
       <section className="deliver section">
         <div className="shell deliverGrid">
           <div className="deliverVisual">
-            <img src="./facade-after.png" alt="Готовая визуализация современного фасада" />
+            <img src="./facade-after-bright.webp" alt="Готовая визуализация современного фасада" />
             <div className="materialCard"><span>МАТЕРИАЛ 02</span><strong>Планкен<br />натуральный</strong><small>Фрагмент визуализации</small></div>
           </div>
           <div className="deliverCopy">
             <div className="eyebrow"><span /> НЕ ТОЛЬКО КРАСИВАЯ КАРТИНКА</div>
             <h2>Фасад, который<br />можно <em>реализовать</em></h2>
-            <p className="lead">В старших тарифах специалист сверяет решение и подбирает реальные материалы. Вы понимаете, что покупать и что показать строителям.</p>
+            <p className="lead">ИИ сохраняет геометрию дома, проверяет результат и подбирает варианты отделки. В тарифе с расчётом специалист дополнительно сверяет размеры и объёмы материалов.</p>
             <ul>
-              <li><Check /><span><strong>Сохранение геометрии дома</strong>Окна, двери, кровля и пропорции остаются на месте.</span></li>
-              <li><Check /><span><strong>Реальные материалы</strong>Подбираем варианты, которые можно купить в России.</span></li>
-              <li><Check /><span><strong>Документ для реализации</strong>PDF с решениями, материалами и ориентировочным расчётом.</span></li>
+              <li><Check /><span><strong>Автоматическая проверка</strong>ИИ сверяет окна, двери, кровлю и пропорции с исходной фотографией.</span></li>
+              <li><Check /><span><strong>Реальные материалы</strong>Сервис предлагает варианты, которые можно купить в России.</span></li>
+              <li><Check /><span><strong>Расчёт в старшем тарифе</strong>PDF с решениями и объёмами формируется по точным размерам фасада и проёмов.</span></li>
             </ul>
             <button className="textLink" onClick={() => startOrder("realization")}>Узнать о расчёте материалов <Arrow /></button>
           </div>
@@ -266,7 +264,7 @@ export default function App() {
       <footer className="footer shell">
         <div className="logo"><span className="logoMark">ВФ</span><span>ВИЖУФАСАД<small>AI-ВИЗУАЛИЗАЦИЯ ФАСАДОВ</small></span></div>
         <p>Визуализация отделки домов и строений по всей России.</p>
-        <div><a href="#pricing">Тарифы</a><a href="#faq">Вопросы</a><a href="mailto:hello@vizhufasad.ru">hello@vizhufasad.ru</a></div>
+        <div><a href="#pricing">Тарифы</a><a href="#faq">Вопросы</a><a href="mailto:vizhufasad0058@bk.ru">vizhufasad0058@bk.ru</a></div>
         <small>© 2026 ВИЖУФАСАД · Информация на сайте не является публичной офертой</small>
       </footer>
 
