@@ -47,6 +47,8 @@ export default function App() {
   const [consent, setConsent] = useState(true);
   const [sending, setSending] = useState(false);
   const [submitError, setSubmitError] = useState("");
+  const [orderId, setOrderId] = useState("");
+  const [photoQuality, setPhotoQuality] = useState("");
   const [openFaq, setOpenFaq] = useState<number | null>(0);
 
   useEffect(() => {
@@ -59,6 +61,8 @@ export default function App() {
     setStep(1);
     setSent(false);
     setSubmitError("");
+    setOrderId("");
+    setPhotoQuality("");
     setModal(true);
   };
 
@@ -95,6 +99,8 @@ export default function App() {
       const response = await fetch(LEADS_API, { method: "POST", body: data });
       const result = await response.json().catch(() => null);
       if (!response.ok) throw new Error(result?.error || "Не удалось отправить заявку");
+      setOrderId(result?.orderId || "");
+      setPhotoQuality(result?.quality?.label || "Фото принято на проверку");
       setSent(true);
     } catch (error) {
       setSubmitError(error instanceof Error ? error.message : "Не удалось отправить заявку. Попробуйте ещё раз.");
@@ -273,7 +279,7 @@ export default function App() {
           <div className="modal">
             <button className="modalClose" onClick={() => setModal(false)} aria-label="Закрыть">×</button>
             {sent ? (
-              <div className="success"><div><Check /></div><h3>Заявка принята</h3><p>Мы свяжемся с вами, чтобы проверить фото и уточнить пожелания.</p></div>
+              <div className="success"><div><Check /></div><h3>Заявка принята</h3><p>{photoQuality}. Номер заказа: <strong>{orderId}</strong></p><p>Сохраняйте номер — по нему можно будет отслеживать этапы автоматической обработки.</p></div>
             ) : (
               <>
                 <div className="modalEyebrow">ШАГ {step} ИЗ 2 · {packageNames[selectedPackage].toUpperCase()}</div>
