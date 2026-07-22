@@ -23,6 +23,8 @@ const allowedImages = new Set(["image/jpeg", "image/png", "image/webp"]);
 const dataDir = path.resolve(process.env.DATA_DIR || "./data");
 const ordersDir = path.join(dataDir, "orders");
 const photosDir = path.join(dataDir, "photos");
+const aiEnabled = Boolean(process.env.OPENAI_API_KEY);
+const aiModel = process.env.OPENAI_MODEL || "gpt-4.1-mini";
 await Promise.all([mkdir(ordersDir, { recursive: true }), mkdir(photosDir, { recursive: true })]);
 
 app.set("trust proxy", 1);
@@ -83,13 +85,96 @@ async function assessPhoto(file) {
   };
 }
 
-const formatLead = ({ id, name, contact, wishes, packageName, quality, status }) => [
+const aiPhotoSchema = {
+  type: "object",
+  additionalProperties: false,
+  properties: {
+    decision: { type: "string", enum: ["accepted", "retake_required", "manual_review"] },
+    confidence: { type: "number", minimum: 0, maximum: 1 },
+    houseVisible: { type: "boolean" },
+    facadeVisible: { type: "boolean" },
+    geometryReadable: { type: "boolean" },
+    obstructionLevel: { type: "string", enum: ["none", "minor", "major"] },
+    perspective: { type: "string", enum: ["good", "acceptable", "poor"] },
+    issues: { type: "array", items: { type: "string" }, maxItems: 6 },
+    customerMessage: { type: "string" },
+    operatorSummary: { type: "string" },
+  },
+  required: [
+    "decision", "confidence", "houseVisible", "facadeVisible", "geometryReadable",
+    "obstructionLevel", "perspective", "issues", "customerMessage", "operatorSummary",
+  ],
+};
+
+function readResponseText(payload) {
+  for (const item of payload?.output || []) {
+    for (const content of item?.content || []) {
+      if (content?.type === "output_text" && content.text) return content.text;
+    }
+  }
+  throw new Error("OPENAI_EMPTY_OUTPUT");
+}
+
+async function assessPhotoWithAi(file) {
+  if (!aiEnabled) return { enabled: false, status: "not_configured" };
+  const imageUrl = `data:${file.mimetype};base64,${file.buffer.toString("base64")}`;
+  const controller = new AbortController();
+  const timeout = setTimeout(() => controller.abort(), Number(process.env.OPENAI_TIMEOUT_MS || 45_000));
+  try {
+    const apiResponse = await fetch("https://api.openai.com/v1/responses", {
+      method: "POST",
+      signal: controller.signal,
+      headers: { Authorization: `Bearer ${process.env.OPENAI_API_KEY}`, "Content-Type": "application/json" },
+      body: JSON.stringify({
+        model: aiModel,
+        store: false,
+        max_output_tokens: 900,
+        input: [{
+          role: "user",
+          content: [
+            {
+              type: "input_text",
+              text: [
+                "Ты проверяешь фотографию дома для сервиса визуализации отделки фасада.",
+                "Оцени только пригодность исходного фото, не предлагай дизайн.",
+                "accepted: фасад и основные границы дома хорошо видны, геометрия читается, перспектива пригодна для визуализации.",
+                "retake_required: это не дом или фасад, дом почти не виден, кадр сильно перекрыт, обрезан или геометрия нечитаема.",
+                "manual_review: пограничный случай, где решение должен принять оператор.",
+                "Небольшие деревья, забор или перспективные искажения допустимы. customerMessage пиши по-русски, просто и доброжелательно.",
+              ].join(" "),
+            },
+            { type: "input_image", image_url: imageUrl, detail: "high" },
+          ],
+        }],
+        text: { format: { type: "json_schema", name: "facade_photo_assessment", strict: true, schema: aiPhotoSchema } },
+      }),
+    });
+    if (!apiResponse.ok) throw new Error(`OPENAI_${apiResponse.status}: ${(await apiResponse.text()).slice(0, 500)}`);
+    const result = JSON.parse(readResponseText(await apiResponse.json()));
+    return { enabled: true, status: "completed", model: aiModel, checkedAt: new Date().toISOString(), ...result };
+  } finally {
+    clearTimeout(timeout);
+  }
+}
+
+function decideOrderStatus(quality, aiAssessment) {
+  if (!quality.accepted) return "photo_review_required";
+  if (aiAssessment?.status !== "completed") return "queued_for_ai";
+  if (aiAssessment.decision === "accepted" && aiAssessment.confidence >= 0.72) return "queued_for_generation";
+  if (aiAssessment.decision === "retake_required" && aiAssessment.confidence >= 0.72) return "photo_retake_required";
+  return "photo_review_required";
+}
+
+const formatLead = ({ id, name, contact, wishes, packageName, quality, aiAssessment, status }) => [
   "Новая заявка — ВИЖУФАСАД",
   `Номер: ${id}`,
   `Статус: ${status}`,
   `Проверка фото: ${quality.label}`,
   quality.reasons.length ? `Замечания: ${quality.reasons.join("; ")}` : null,
   `Размер фото: ${quality.width}×${quality.height}`,
+  aiAssessment?.status === "completed" ? `ИИ-проверка: ${aiAssessment.decision} (${Math.round(aiAssessment.confidence * 100)}%)` : null,
+  aiAssessment?.status === "completed" ? `Вывод ИИ: ${aiAssessment.operatorSummary}` : null,
+  aiAssessment?.status === "failed" ? "ИИ-проверка временно недоступна — заявка сохранена для повторной обработки" : null,
   `Тариф: ${packageName}`,
   `Имя: ${name}`,
   `Контакт: ${contact}`,
@@ -135,7 +220,12 @@ async function sendToMail(text, file, contact) {
   });
 }
 
-app.get("/health", (_request, response) => response.json({ ok: true, service: "vizhufasad-leads", automation: "orders-v1" }));
+app.get("/health", (_request, response) => response.json({
+  ok: true,
+  service: "vizhufasad-leads",
+  automation: "photo-ai-v2",
+  ai: aiEnabled ? "configured" : "not_configured",
+}));
 
 app.get("/api/orders/:id/status", async (request, response) => {
   try {
@@ -143,7 +233,14 @@ app.get("/api/orders/:id/status", async (request, response) => {
     const order = JSON.parse(await readFile(orderFile(id), "utf8"));
     const token = clean(request.query.token, 80);
     if (!token || token !== order.statusToken) return response.status(404).json({ ok: false, error: "Заказ не найден" });
-    return response.json({ ok: true, orderId: order.id, status: order.status, quality: order.quality, updatedAt: order.updatedAt });
+    const ai = order.aiAssessment?.status === "completed" ? {
+      status: "completed",
+      decision: order.aiAssessment.decision,
+      confidence: order.aiAssessment.confidence,
+      customerMessage: order.aiAssessment.customerMessage,
+      issues: order.aiAssessment.issues,
+    } : { status: order.aiAssessment?.status || "not_configured" };
+    return response.json({ ok: true, orderId: order.id, status: order.status, quality: order.quality, ai, updatedAt: order.updatedAt });
   } catch {
     return response.status(404).json({ ok: false, error: "Заказ не найден" });
   }
@@ -160,7 +257,18 @@ app.post("/api/leads", upload.single("photo"), async (request, response) => {
   const now = new Date().toISOString();
   const statusToken = randomBytes(18).toString("hex");
   const quality = await assessPhoto(request.file);
-  const status = quality.accepted ? "queued_for_ai" : "photo_review_required";
+  let aiAssessment = { enabled: aiEnabled, status: quality.accepted ? "pending" : "skipped_technical_check" };
+  if (quality.accepted && aiEnabled) {
+    try {
+      aiAssessment = await assessPhotoWithAi(request.file);
+    } catch (error) {
+      console.error("AI photo assessment failed", error);
+      aiAssessment = { enabled: true, status: "failed", checkedAt: new Date().toISOString(), error: String(error?.message || error).slice(0, 180) };
+    }
+  } else if (quality.accepted) {
+    aiAssessment = { enabled: false, status: "not_configured" };
+  }
+  const status = decideOrderStatus(quality, aiAssessment);
   const storedPhoto = `${id}.${imageExtension(request.file.mimetype)}`;
   await writeFile(path.join(photosDir, storedPhoto), request.file.buffer, { mode: 0o600 });
 
@@ -169,12 +277,13 @@ app.post("/api/leads", upload.single("photo"), async (request, response) => {
     customer: { name, contact, wishes },
     photo: { storedAs: storedPhoto, originalName: clean(request.file.originalname, 160), mimeType: request.file.mimetype, size: request.file.size },
     quality,
+    aiAssessment,
     deliveries: { max: "pending", email: "pending" },
-    history: [{ at: now, status, note: quality.label }],
+    history: [{ at: now, status, note: aiAssessment.customerMessage || quality.label }],
   };
   await saveOrder(order);
 
-  const text = formatLead({ id, name, contact, wishes, packageName, quality, status });
+  const text = formatLead({ id, name, contact, wishes, packageName, quality, aiAssessment, status });
   const deliveries = await Promise.allSettled([sendToMax(text, request.file), sendToMail(text, request.file, contact)]);
   const delivered = deliveries.filter((result) => result.status === "fulfilled").length;
   order.deliveries.max = deliveries[0].status === "fulfilled" ? "delivered" : "failed";
@@ -185,7 +294,14 @@ app.post("/api/leads", upload.single("photo"), async (request, response) => {
     if (result.status === "rejected") console.error(index === 0 ? "MAX delivery failed" : "Email delivery failed", result.reason);
   });
   if (!delivered) return response.status(502).json({ ok: false, error: "Заявка сохранена, но уведомления не отправлены", orderId: id });
-  return response.status(201).json({ ok: true, delivered, orderId: id, statusToken, status, quality });
+  const ai = aiAssessment.status === "completed" ? {
+    status: "completed",
+    decision: aiAssessment.decision,
+    confidence: aiAssessment.confidence,
+    customerMessage: aiAssessment.customerMessage,
+    issues: aiAssessment.issues,
+  } : { status: aiAssessment.status };
+  return response.status(201).json({ ok: true, delivered, orderId: id, statusToken, status, quality, ai });
 });
 
 app.use((error, _request, response, _next) => {

@@ -100,7 +100,7 @@ export default function App() {
       const result = await response.json().catch(() => null);
       if (!response.ok) throw new Error(result?.error || "Не удалось отправить заявку");
       setOrderId(result?.orderId || "");
-      setPhotoQuality(result?.quality?.label || "Фото принято на проверку");
+      setPhotoQuality(result?.ai?.customerMessage || result?.quality?.label || "Фото принято на проверку");
       setSent(true);
     } catch (error) {
       setSubmitError(error instanceof Error ? error.message : "Не удалось отправить заявку. Попробуйте ещё раз.");
