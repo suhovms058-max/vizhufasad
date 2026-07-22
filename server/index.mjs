@@ -83,10 +83,13 @@ async function assessPhoto(file) {
   const shortSide = Math.min(width, height);
   const longSide = Math.max(width, height);
   const reasons = [];
-  if (shortSide < 700 || longSide < 1200) reasons.push("Разрешение фото ниже рекомендуемого");
+  const meetsMinimumResolution = shortSide >= 420 && longSide >= 640;
+  const meetsRecommendedResolution = shortSide >= 800 && longSide >= 1200;
+  if (!meetsMinimumResolution) reasons.push("Разрешение фото ниже минимально допустимого — 640×420");
+  else if (!meetsRecommendedResolution) reasons.push("Разрешение ниже рекомендуемого, но допустимо для обработки");
   if (width && height && (width / height < 0.45 || width / height > 2.6)) reasons.push("Слишком узкий или панорамный кадр");
   if (stats.entropy < 2.4) reasons.push("На снимке мало различимых деталей");
-  const accepted = shortSide >= 700 && longSide >= 1200;
+  const accepted = meetsMinimumResolution;
   return {
     accepted,
     label: accepted ? "Фото подходит для автоматической обработки" : "Нужна проверка качества фото",
