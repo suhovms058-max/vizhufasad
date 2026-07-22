@@ -142,8 +142,23 @@ const assessmentPrompt = [
   "issues — массив не более 6 коротких строк. customerMessage и operatorSummary пиши по-русски, просто и доброжелательно.",
 ].join(" ");
 
-function parseAssessment(text) {
-  const normalized = String(text || "").trim().replace(/^```(?:json)?\s*/i, "").replace(/\s*```$/, "");
+function extractAssessmentText(value) {
+  if (typeof value === "string") return value;
+  if (Array.isArray(value)) {
+    return value.map(extractAssessmentText).filter(Boolean).join("\n");
+  }
+  if (value && typeof value === "object") {
+    for (const key of ["text", "content", "value", "output_text"]) {
+      const extracted = extractAssessmentText(value[key]);
+      if (extracted) return extracted;
+    }
+    return JSON.stringify(value);
+  }
+  return "";
+}
+
+function parseAssessment(content) {
+  const normalized = extractAssessmentText(content).trim().replace(/^```(?:json)?\s*/i, "").replace(/\s*```$/, "");
   const start = normalized.indexOf("{");
   const end = normalized.lastIndexOf("}");
   if (start < 0 || end <= start) throw new Error("AI_INVALID_JSON");
