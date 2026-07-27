@@ -199,6 +199,14 @@ async function assessPhotoWithYandex(file, signal) {
       model: `gpt://${process.env.YANDEX_FOLDER_ID}/${aiModel}`,
       temperature: 0.1,
       max_tokens: 900,
+      response_format: {
+        type: "json_schema",
+        json_schema: {
+          name: "facade_photo_assessment",
+          strict: true,
+          schema: aiPhotoSchema,
+        },
+      },
       messages: [{
         role: "user",
         content: [
@@ -322,6 +330,9 @@ app.get("/health", (_request, response) => response.json({
 app.get("/api/orders/:id/status", async (request, response) => {
   try {
     const id = clean(request.params.id, 40);
+    if (!/^VF-\d{8}-[A-F0-9]{8}$/.test(id)) {
+      return response.status(404).json({ ok: false, error: "Заказ не найден" });
+    }
     const order = JSON.parse(await readFile(orderFile(id), "utf8"));
     const token = clean(request.query.token, 80);
     if (!token || token !== order.statusToken) return response.status(404).json({ ok: false, error: "Заказ не найден" });

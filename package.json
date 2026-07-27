@@ -5,14 +5,17 @@
   "type": "module",
   "scripts": {
     "dev": "next dev",
+    "typecheck": "tsc --noEmit",
     "build": "next build",
+    "check": "npm run typecheck && npm run build",
     "build:cloudflare": "next build && opennextjs-cloudflare build --skipNextBuild --skipWranglerConfigCheck",
     "preview": "opennextjs-cloudflare preview"
   },
   "dependencies": {
-    "next": "15.5.20",
+    "next": "15.5.21",
     "react": "19.2.6",
-    "react-dom": "19.2.6"
+    "react-dom": "19.2.6",
+    "sharp": "0.35.0"
   },
   "devDependencies": {
     "@opennextjs/cloudflare": "1.20.1",
@@ -21,5 +24,8 @@
     "@types/react-dom": "19.1.6",
     "typescript": "5.8.3",
     "vercel": "^56.3.1"
+  },
+  "overrides": {
+    "sharp": "0.35.0"
   }
 }
