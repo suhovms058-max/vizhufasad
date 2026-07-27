@@ -30,9 +30,19 @@ jobs:
       - name: Install dependencies
         run: npm ci
 
+      - name: Typecheck frontend
+        run: npm run typecheck
+
+      - name: Check server
+        working-directory: server
+        run: |
+          npm ci
+          npm run check
+
       - name: Build static site
         env:
           NEXT_PUBLIC_BASE_PATH: /vizhufasad
+          NEXT_PUBLIC_LEADS_API_URL: https://89-23-97-248.sslip.io/api/leads
         run: npm run build
 
       - name: Upload Pages artifact
