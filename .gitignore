@@ -1,0 +1,29 @@
+# Dependencies
+node_modules/
+server/node_modules/
+
+# Next.js and generated output
+.next/
+out/
+dist/
+coverage/
+*.tsbuildinfo
+
+# Environment files and secrets
+.env
+.env.*
+!.env.example
+!server/.env.example
+
+# Runtime customer data
+data/
+server/data/
+server/orders/
+server/photos/
+uploads/
+
+# Logs and local tooling
+*.log
+.DS_Store
+.idea/
+.vscode/
