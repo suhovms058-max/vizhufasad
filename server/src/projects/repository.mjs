@@ -16,12 +16,16 @@ export class ProjectRepository {
 
   async list(userId) {
     const result = await this.pool.query(
-      `select p.*, image.id as image_id, image.thumbnail_storage_key
+      `select p.*, image.id as image_id, image.thumbnail_storage_key,
+        image.assessment_status, image.assessment_decision, image.assessment_user_result
        from projects p
        left join lateral (
-         select id, thumbnail_storage_key from source_images
-         where project_id = p.id and status = 'ready'
-         order by created_at desc limit 1
+         select i.id, i.thumbnail_storage_key, a.status as assessment_status,
+           a.decision as assessment_decision, a.user_result as assessment_user_result
+         from source_images i
+         left join photo_assessments a on a.source_image_id = i.id
+         where i.project_id = p.id and i.status = 'ready'
+         order by i.created_at desc limit 1
        ) image on true
        where p.user_id = $1 and p.deleted_at is null
        order by p.updated_at desc`,
@@ -32,12 +36,18 @@ export class ProjectRepository {
 
   async findOwned(userId, projectId) {
     const result = await this.pool.query(
-      `select p.*, image.id as image_id, image.thumbnail_storage_key
+      `select p.*, image.id as image_id, image.thumbnail_storage_key,
+        image.assessment_status, image.assessment_decision, image.assessment_user_result,
+        image.assessment_failure_code, image.assessment_retry_after
        from projects p
        left join lateral (
-         select id, thumbnail_storage_key from source_images
-         where project_id = p.id and status = 'ready'
-         order by created_at desc limit 1
+         select i.id, i.thumbnail_storage_key, a.status as assessment_status,
+           a.decision as assessment_decision, a.user_result as assessment_user_result,
+           a.failure_code as assessment_failure_code, a.retry_after as assessment_retry_after
+         from source_images i
+         left join photo_assessments a on a.source_image_id = i.id
+         where i.project_id = p.id and i.status = 'ready'
+         order by i.created_at desc limit 1
        ) image on true
        where p.id = $1 and p.user_id = $2 and p.deleted_at is null`,
       [projectId, userId],

@@ -151,3 +151,31 @@ npm run cleanup:images
 production-переключения его можно закрыть через `LEGACY_LEADS_MODE=disabled`; исходные локальные заказы
 и фотографии этот переключатель не удаляет. Полный контракт и retention-политика описаны в
 [`docs/STAGE_4_PROJECT_IMAGES.md`](docs/STAGE_4_PROJECT_IMAGES.md).
+
+## Автоматическая проверка исходного фото
+
+После технической обработки фотография автоматически проходит assessment без оператора и ручного решения.
+Допустимы только `accepted`, `accepted_with_warning` и `retake_required`. Warning не блокирует переход к
+настройке фасада. При отказе пользователь получает конкретные рекомендации по пересъёмке.
+
+Новый модуль находится в `server/src/photo-assessment`. Он:
+
+- вычисляет Sharp-метрики разрешения, детализации и освещения;
+- запрашивает у vision provider только признаки кадра по strict JSON Schema;
+- применяет версионированные пороги в коде, а не доверяет модели итоговое решение;
+- выполняет не более двух попыток основного provider и одну попытку fallback;
+- хранит технический результат отдельно от пользовательского;
+- при полном сбое provider оставляет фотографию `ready`, не меняет кошелёк и разрешает повторить проверку.
+
+Проверка:
+
+```bash
+cd server
+npm test
+npm run smoke:photo-assessment
+```
+
+Конфигурация: `PHOTO_ASSESSMENT_PRIMARY_PROVIDER`, `PHOTO_ASSESSMENT_FALLBACK_PROVIDER`,
+`PHOTO_ASSESSMENT_TIMEOUT_MS`, `PHOTO_ASSESSMENT_PRIMARY_ATTEMPTS`,
+`PHOTO_ASSESSMENT_RETRY_DELAY_MS`, а также provider-specific model и API key. Подробный контракт:
+[`docs/STAGE_5_PHOTO_ASSESSMENT.md`](docs/STAGE_5_PHOTO_ASSESSMENT.md).

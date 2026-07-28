@@ -19,6 +19,12 @@ export const projectStatus = pgEnum("project_status", [
 export const imageStatus = pgEnum("image_status", [
   "uploading", "uploaded", "processing", "ready", "invalid", "deleted",
 ]);
+export const photoAssessmentStatus = pgEnum("photo_assessment_status", [
+  "queued", "processing", "completed", "provider_unavailable",
+]);
+export const photoAssessmentDecision = pgEnum("photo_assessment_decision", [
+  "accepted", "accepted_with_warning", "retake_required",
+]);
 export const generationStatus = pgEnum("generation_status", ["queued", "processing", "qa", "ready", "failed", "cancelled"]);
 export const attemptStatus = pgEnum("attempt_status", ["started", "succeeded", "retryable_failed", "terminal_failed"]);
 export const transactionType = pgEnum("wallet_transaction_type", ["credit", "debit", "hold", "release", "refund", "adjustment"]);
@@ -115,6 +121,46 @@ export const sourceImages = pgTable("source_images", {
   index("source_images_sha256_idx").on(table.sha256),
   check("source_images_byte_size_positive_chk", sql`${table.byteSize} > 0`),
   check("source_images_dimensions_positive_chk", sql`(${table.width} IS NULL OR ${table.width} > 0) AND (${table.height} IS NULL OR ${table.height} > 0)`),
+]);
+
+export const photoAssessments = pgTable("photo_assessments", {
+  id: uuid("id").defaultRandom().primaryKey(),
+  sourceImageId: uuid("source_image_id").notNull().references(() => sourceImages.id, { onDelete: "cascade" }),
+  status: photoAssessmentStatus("status").default("queued").notNull(),
+  decision: photoAssessmentDecision("decision"),
+  technicalResult: jsonb("technical_result"),
+  userResult: jsonb("user_result"),
+  provider: text("provider"),
+  model: text("model"),
+  promptVersion: text("prompt_version").notNull(),
+  schemaVersion: text("schema_version").notNull(),
+  attemptCount: integer("attempt_count").default(0).notNull(),
+  failureCode: text("failure_code"),
+  startedAt: timestamp("started_at", { withTimezone: true }),
+  finishedAt: timestamp("finished_at", { withTimezone: true }),
+  retryAfter: timestamp("retry_after", { withTimezone: true }),
+  ...timestamps,
+}, (table) => [
+  uniqueIndex("photo_assessments_source_image_uidx").on(table.sourceImageId),
+  index("photo_assessments_status_retry_idx").on(table.status, table.retryAfter),
+  check("photo_assessments_attempt_count_chk", sql`${table.attemptCount} >= 0`),
+]);
+
+export const photoAssessmentAttempts = pgTable("photo_assessment_attempts", {
+  id: uuid("id").defaultRandom().primaryKey(),
+  assessmentId: uuid("assessment_id").notNull().references(() => photoAssessments.id, { onDelete: "cascade" }),
+  attemptNumber: integer("attempt_number").notNull(),
+  status: attemptStatus("status").default("started").notNull(),
+  provider: text("provider").notNull(),
+  model: text("model").notNull(),
+  providerRequestId: text("provider_request_id"),
+  errorCode: text("error_code"),
+  startedAt: timestamp("started_at", { withTimezone: true }).defaultNow().notNull(),
+  finishedAt: timestamp("finished_at", { withTimezone: true }),
+}, (table) => [
+  uniqueIndex("photo_assessment_attempts_number_uidx").on(table.assessmentId, table.attemptNumber),
+  index("photo_assessment_attempts_provider_status_idx").on(table.provider, table.status),
+  check("photo_assessment_attempts_number_chk", sql`${table.attemptNumber} > 0`),
 ]);
 
 export const generations = pgTable("generations", {

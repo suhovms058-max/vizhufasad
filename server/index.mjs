@@ -8,7 +8,6 @@ import rateLimit from "express-rate-limit";
 import helmet from "helmet";
 import multer from "multer";
 import nodemailer from "nodemailer";
-import sharp from "sharp";
 import { loadAuthConfig } from "./src/auth/config.mjs";
 import { createAuthRouter } from "./src/auth/http.mjs";
 import { createAuthMailer } from "./src/auth/mailer.mjs";
@@ -23,6 +22,12 @@ import { createProjectsRouter } from "./src/projects/http.mjs";
 import { createProjectPagesRouter } from "./src/projects/pages.mjs";
 import { ProjectRepository } from "./src/projects/repository.mjs";
 import { ProjectService } from "./src/projects/service.mjs";
+import { loadPhotoAssessmentConfig } from "./src/photo-assessment/config.mjs";
+import { PhotoAssessmentOrchestrator } from "./src/photo-assessment/orchestrator.mjs";
+import { createPhotoAssessmentProviders } from "./src/photo-assessment/providers.mjs";
+import { PhotoAssessmentRepository } from "./src/photo-assessment/repository.mjs";
+import { PhotoAssessmentService } from "./src/photo-assessment/service.mjs";
+import { analyzeTechnicalPhoto } from "./src/photo-assessment/technical.mjs";
 
 const required = [
   "SITE_ORIGIN", "DATABASE_URL", "REDIS_URL", "S3_ENDPOINT",
@@ -48,26 +53,29 @@ const authService = new AuthService({
 });
 const projectConfig = loadProjectConfig();
 const projectRepository = new ProjectRepository();
+const photoAssessmentConfig = loadPhotoAssessmentConfig();
+const photoAssessmentRepository = new PhotoAssessmentRepository();
+const photoAssessmentOrchestrator = new PhotoAssessmentOrchestrator({
+  providers: createPhotoAssessmentProviders(photoAssessmentConfig),
+  config: photoAssessmentConfig,
+});
+const photoAssessmentService = new PhotoAssessmentService({
+  repository: photoAssessmentRepository,
+  orchestrator: photoAssessmentOrchestrator,
+  storage,
+});
 const projectService = new ProjectService({
   repository: projectRepository,
   storage,
   config: projectConfig,
+  assessmentService: photoAssessmentService,
 });
 const maxApi = "https://platform-api2.max.ru";
 const allowedImages = new Set(["image/jpeg", "image/png", "image/webp"]);
 const dataDir = path.resolve(process.env.DATA_DIR || "./data");
 const ordersDir = path.join(dataDir, "orders");
 const photosDir = path.join(dataDir, "photos");
-const requestedAiProvider = cleanProvider(process.env.AI_PROVIDER || "auto");
-const yandexConfigured = Boolean(process.env.YANDEX_API_KEY && process.env.YANDEX_FOLDER_ID);
-const openAiConfigured = Boolean(process.env.OPENAI_API_KEY);
-const aiProvider = requestedAiProvider === "auto"
-  ? (yandexConfigured ? "yandex" : (openAiConfigured ? "openai" : "none"))
-  : requestedAiProvider;
-const aiEnabled = aiProvider === "yandex" ? yandexConfigured : aiProvider === "openai" ? openAiConfigured : false;
-const aiModel = aiProvider === "yandex"
-  ? (process.env.YANDEX_MODEL || "qwen3.6-35b-a3b")
-  : (process.env.OPENAI_MODEL || "gpt-4.1-mini");
+const aiEnabled = photoAssessmentConfig.primary !== "none";
 await Promise.all([
   mkdir(ordersDir, { recursive: true }),
   mkdir(photosDir, { recursive: true }),
@@ -136,10 +144,6 @@ const mailer = nodemailer.createTransport({
 });
 
 const clean = (value, max = 500) => String(value || "").replace(/[<>]/g, "").trim().slice(0, max);
-function cleanProvider(value) {
-  const provider = String(value || "auto").trim().toLowerCase();
-  return new Set(["auto", "yandex", "openai", "none"]).has(provider) ? provider : "auto";
-}
 const makeOrderId = () => {
   const date = new Date().toISOString().slice(0, 10).replaceAll("-", "");
   return `VF-${date}-${randomBytes(4).toString("hex").toUpperCase()}`;
@@ -149,192 +153,58 @@ const orderFile = (id) => path.join(ordersDir, `${id}.json`);
 const saveOrder = (order) => writeFile(orderFile(order.id), JSON.stringify(order, null, 2), { mode: 0o600 });
 
 async function assessPhoto(file) {
-  const image = sharp(file.buffer, { failOn: "warning" });
-  const [metadata, stats] = await Promise.all([image.metadata(), image.stats()]);
-  const width = metadata.width || 0;
-  const height = metadata.height || 0;
-  const shortSide = Math.min(width, height);
-  const longSide = Math.max(width, height);
-  const reasons = [];
-  const meetsMinimumResolution = shortSide >= 420 && longSide >= 640;
-  const meetsRecommendedResolution = shortSide >= 800 && longSide >= 1200;
-  if (!meetsMinimumResolution) reasons.push("Разрешение фото ниже минимально допустимого — 640×420");
-  else if (!meetsRecommendedResolution) reasons.push("Разрешение ниже рекомендуемого, но допустимо для обработки");
-  if (width && height && (width / height < 0.45 || width / height > 2.6)) reasons.push("Слишком узкий или панорамный кадр");
-  if (stats.entropy < 2.4) reasons.push("На снимке мало различимых деталей");
-  const accepted = meetsMinimumResolution;
+  const technical = await analyzeTechnicalPhoto(file.buffer);
+  const accepted = !technical.blocking.includes("resolution_below_minimum");
+  const reasons = [...technical.blocking, ...technical.warnings];
   return {
     accepted,
-    label: accepted ? "Фото подходит для автоматической обработки" : "Нужна проверка качества фото",
+    label: accepted ? "Фото прошло техническую проверку" : "Нужно переснять фотографию",
     reasons,
-    width,
-    height,
-    format: metadata.format,
+    width: technical.width,
+    height: technical.height,
+    format: technical.format,
+    technical,
   };
-}
-
-const aiPhotoSchema = {
-  type: "object",
-  additionalProperties: false,
-  properties: {
-    decision: { type: "string", enum: ["accepted", "retake_required", "manual_review"] },
-    confidence: { type: "number", minimum: 0, maximum: 1 },
-    houseVisible: { type: "boolean" },
-    facadeVisible: { type: "boolean" },
-    geometryReadable: { type: "boolean" },
-    obstructionLevel: { type: "string", enum: ["none", "minor", "major"] },
-    perspective: { type: "string", enum: ["good", "acceptable", "poor"] },
-    issues: { type: "array", items: { type: "string" }, maxItems: 6 },
-    customerMessage: { type: "string" },
-    operatorSummary: { type: "string" },
-  },
-  required: [
-    "decision", "confidence", "houseVisible", "facadeVisible", "geometryReadable",
-    "obstructionLevel", "perspective", "issues", "customerMessage", "operatorSummary",
-  ],
-};
-
-function readResponseText(payload) {
-  for (const item of payload?.output || []) {
-    for (const content of item?.content || []) {
-      if (content?.type === "output_text" && content.text) return content.text;
-    }
-  }
-  throw new Error("OPENAI_EMPTY_OUTPUT");
-}
-
-const assessmentPrompt = [
-  "Ты проверяешь фотографию дома для сервиса визуализации отделки фасада.",
-  "Оцени только пригодность исходного фото, не предлагай дизайн.",
-  "accepted: фасад и основные границы дома хорошо видны, геометрия читается, перспектива пригодна для визуализации.",
-  "retake_required: это не дом или фасад, дом почти не виден, кадр сильно перекрыт, обрезан или геометрия нечитаема.",
-  "manual_review: пограничный случай, где решение должен принять оператор.",
-  "Небольшие деревья, забор или перспективные искажения допустимы.",
-  "Верни только JSON без Markdown со всеми полями: decision, confidence, houseVisible, facadeVisible, geometryReadable, obstructionLevel, perspective, issues, customerMessage, operatorSummary.",
-  "decision: accepted, retake_required или manual_review; confidence: число 0..1; obstructionLevel: none, minor или major; perspective: good, acceptable или poor.",
-  "issues — массив не более 6 коротких строк. customerMessage и operatorSummary пиши по-русски, просто и доброжелательно.",
-].join(" ");
-
-function extractAssessmentText(value) {
-  if (typeof value === "string") return value;
-  if (Array.isArray(value)) {
-    return value.map(extractAssessmentText).filter(Boolean).join("\n");
-  }
-  if (value && typeof value === "object") {
-    for (const key of ["text", "content", "value", "output_text"]) {
-      const extracted = extractAssessmentText(value[key]);
-      if (extracted) return extracted;
-    }
-    return JSON.stringify(value);
-  }
-  return "";
-}
-
-function parseAssessment(content) {
-  const normalized = extractAssessmentText(content).trim().replace(/^```(?:json)?\s*/i, "").replace(/\s*```$/, "");
-  const start = normalized.indexOf("{");
-  const end = normalized.lastIndexOf("}");
-  if (start < 0 || end <= start) throw new Error("AI_INVALID_JSON");
-  const result = JSON.parse(normalized.slice(start, end + 1));
-  const decisions = new Set(["accepted", "retake_required", "manual_review"]);
-  const obstructions = new Set(["none", "minor", "major"]);
-  const perspectives = new Set(["good", "acceptable", "poor"]);
-  if (!decisions.has(result.decision) || !obstructions.has(result.obstructionLevel) || !perspectives.has(result.perspective)) {
-    throw new Error("AI_INVALID_ASSESSMENT");
-  }
-  const confidence = Number(result.confidence);
-  if (!Number.isFinite(confidence) || confidence < 0 || confidence > 1) throw new Error("AI_INVALID_CONFIDENCE");
-  return {
-    decision: result.decision,
-    confidence,
-    houseVisible: Boolean(result.houseVisible),
-    facadeVisible: Boolean(result.facadeVisible),
-    geometryReadable: Boolean(result.geometryReadable),
-    obstructionLevel: result.obstructionLevel,
-    perspective: result.perspective,
-    issues: Array.isArray(result.issues) ? result.issues.map((item) => clean(item, 180)).filter(Boolean).slice(0, 6) : [],
-    customerMessage: clean(result.customerMessage, 600),
-    operatorSummary: clean(result.operatorSummary, 600),
-  };
-}
-
-async function assessPhotoWithYandex(file, signal) {
-  const imageUrl = `data:${file.mimetype};base64,${file.buffer.toString("base64")}`;
-  const apiResponse = await fetch("https://ai.api.cloud.yandex.net/v1/chat/completions", {
-    method: "POST",
-    signal,
-    headers: {
-      Authorization: `Api-Key ${process.env.YANDEX_API_KEY}`,
-      "OpenAI-Project": process.env.YANDEX_FOLDER_ID,
-      "Content-Type": "application/json",
-    },
-    body: JSON.stringify({
-      model: `gpt://${process.env.YANDEX_FOLDER_ID}/${aiModel}`,
-      temperature: 0.1,
-      max_tokens: 900,
-      response_format: {
-        type: "json_schema",
-        json_schema: {
-          name: "facade_photo_assessment",
-          strict: true,
-          schema: aiPhotoSchema,
-        },
-      },
-      messages: [{
-        role: "user",
-        content: [
-          { type: "text", text: assessmentPrompt },
-          { type: "image_url", image_url: { url: imageUrl } },
-        ],
-      }],
-    }),
-  });
-  if (!apiResponse.ok) throw new Error(`YANDEX_${apiResponse.status}: ${(await apiResponse.text()).slice(0, 500)}`);
-  const payload = await apiResponse.json();
-  return parseAssessment(payload?.choices?.[0]?.message?.content);
-}
-
-async function assessPhotoWithOpenAi(file, signal) {
-  const imageUrl = `data:${file.mimetype};base64,${file.buffer.toString("base64")}`;
-  const apiResponse = await fetch("https://api.openai.com/v1/responses", {
-    method: "POST",
-    signal,
-    headers: { Authorization: `Bearer ${process.env.OPENAI_API_KEY}`, "Content-Type": "application/json" },
-    body: JSON.stringify({
-      model: aiModel,
-      store: false,
-      max_output_tokens: 900,
-      input: [{ role: "user", content: [
-        { type: "input_text", text: assessmentPrompt },
-        { type: "input_image", image_url: imageUrl, detail: "high" },
-      ] }],
-      text: { format: { type: "json_schema", name: "facade_photo_assessment", strict: true, schema: aiPhotoSchema } },
-    }),
-  });
-  if (!apiResponse.ok) throw new Error(`OPENAI_${apiResponse.status}: ${(await apiResponse.text()).slice(0, 500)}`);
-  return parseAssessment(readResponseText(await apiResponse.json()));
 }
 
 async function assessPhotoWithAi(file) {
   if (!aiEnabled) return { enabled: false, status: "not_configured" };
-  const controller = new AbortController();
-  const timeout = setTimeout(() => controller.abort(), Number(process.env.AI_TIMEOUT_MS || process.env.OPENAI_TIMEOUT_MS || 45_000));
   try {
-    const result = aiProvider === "yandex"
-      ? await assessPhotoWithYandex(file, controller.signal)
-      : await assessPhotoWithOpenAi(file, controller.signal);
-    return { enabled: true, status: "completed", provider: aiProvider, model: aiModel, checkedAt: new Date().toISOString(), ...result };
-  } finally {
-    clearTimeout(timeout);
+    const technical = await analyzeTechnicalPhoto(file.buffer);
+    const result = await photoAssessmentOrchestrator.assess({
+      image: file.buffer,
+      technical,
+    });
+    return {
+      enabled: true,
+      status: "completed",
+      provider: result.provider,
+      model: result.model,
+      checkedAt: new Date().toISOString(),
+      decision: result.decision,
+      confidence: result.technicalResult.observation.confidence,
+      customerMessage: result.userResult.summary,
+      issues: result.userResult.recommendations,
+      technicalResult: result.technicalResult,
+      userResult: result.userResult,
+    };
+  } catch (error) {
+    return {
+      enabled: true,
+      status: "failed",
+      checkedAt: new Date().toISOString(),
+      error: error?.code || "PHOTO_ASSESSMENT_UNAVAILABLE",
+    };
   }
 }
 
 function decideOrderStatus(quality, aiAssessment) {
-  if (!quality.accepted) return "photo_review_required";
+  if (!quality.accepted) return "photo_retake_required";
   if (aiAssessment?.status !== "completed") return "queued_for_ai";
-  if (aiAssessment.decision === "accepted" && aiAssessment.confidence >= 0.72) return "queued_for_generation";
-  if (aiAssessment.decision === "retake_required" && aiAssessment.confidence >= 0.72) return "photo_retake_required";
-  return "photo_review_required";
+  if (["accepted", "accepted_with_warning"].includes(aiAssessment.decision)) {
+    return "queued_for_generation";
+  }
+  return "photo_retake_required";
 }
 
 const formatLead = ({ id, name, contact, wishes, packageName, quality, aiAssessment, status }) => [
@@ -345,7 +215,7 @@ const formatLead = ({ id, name, contact, wishes, packageName, quality, aiAssessm
   quality.reasons.length ? `Замечания: ${quality.reasons.join("; ")}` : null,
   `Размер фото: ${quality.width}×${quality.height}`,
   aiAssessment?.status === "completed" ? `ИИ-проверка: ${aiAssessment.decision} (${Math.round(aiAssessment.confidence * 100)}%)` : null,
-  aiAssessment?.status === "completed" ? `Вывод ИИ: ${aiAssessment.operatorSummary}` : null,
+  aiAssessment?.status === "completed" ? `Автоматический вывод: ${aiAssessment.customerMessage}` : null,
   aiAssessment?.status === "failed" ? "ИИ-проверка временно недоступна — заявка сохранена для повторной обработки" : null,
   `Тариф: ${packageName}`,
   `Имя: ${name}`,

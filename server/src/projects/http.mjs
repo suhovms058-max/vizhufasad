@@ -97,5 +97,31 @@ export function createProjectsRouter({ authService, projectService }) {
       try { return respondError(response, error); } catch (unexpected) { return next(unexpected); }
     }
   });
+  router.get("/:projectId/images/:imageId/assessment", async (request, response, next) => {
+    try {
+      return response.json({
+        assessment: await projectService.getAssessment(
+          request.auth.user_id, request.params.projectId, request.params.imageId,
+        ),
+      });
+    } catch (error) {
+      try { return respondError(response, error); } catch (unexpected) { return next(unexpected); }
+    }
+  });
+  router.post(
+    "/:projectId/images/:imageId/assessment/retry",
+    mutationLimiter,
+    async (request, response, next) => {
+      try {
+        return response.json({
+          assessment: await projectService.retryAssessment(
+            request.auth.user_id, request.params.projectId, request.params.imageId,
+          ),
+        });
+      } catch (error) {
+        try { return respondError(response, error); } catch (unexpected) { return next(unexpected); }
+      }
+    },
+  );
   return router;
 }

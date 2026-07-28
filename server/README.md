@@ -32,7 +32,9 @@ curl -fsS http://127.0.0.1:8080/health
 - `SMTP_PASSWORD`
 - `LEADS_EMAIL`
 
-Для Yandex AI Studio используются `AI_PROVIDER=yandex`, `YANDEX_API_KEY`, `YANDEX_FOLDER_ID` и `YANDEX_MODEL`. Все параметры перечислены в `.env.example`.
+Для Yandex AI Studio используются `YANDEX_API_KEY`, `YANDEX_FOLDER_ID` и `YANDEX_MODEL`.
+Выбор основного и резервного provider задаётся через `PHOTO_ASSESSMENT_PRIMARY_PROVIDER` и
+`PHOTO_ASSESSMENT_FALLBACK_PROVIDER`. Все параметры перечислены в `.env.example`.
 
 `server/.env` хранится только на VPS с правами доступа владельца и не добавляется в Git. `DATA_DIR` должен указывать на каталог с резервным копированием и ограниченным доступом.
 
@@ -61,3 +63,10 @@ curl -fsS http://127.0.0.1:8080/health
 ## Production
 
 API фактически запускается как отдельный сервис на VPS Timeweb. Репозиторий не содержит systemd unit, reverse-proxy-конфигурацию или автоматический VPS deployment; их состояние требуется сверять непосредственно на сервере перед изменением production.
+
+## Автоматическая проверка фото проекта
+
+Новый путь проектов использует `PHOTO_ASSESSMENT_PRIMARY_PROVIDER` и
+`PHOTO_ASSESSMENT_FALLBACK_PROVIDER`. `auto` выбирает настроенный Yandex и затем OpenAI.
+`npm run smoke:photo-assessment` проверяет сохранение результатов, retry/fallback и неизменность
+кошелька при полном сбое provider. Ручной ветки решения нет.

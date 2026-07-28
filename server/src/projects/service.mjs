@@ -24,12 +24,36 @@ function cleanFilename(value) {
 }
 
 export class ProjectService {
-  constructor({ repository, storage, config, processor = processSourceImage, clock = () => new Date() }) {
+  constructor({
+    repository,
+    storage,
+    config,
+    processor = processSourceImage,
+    assessmentService,
+    clock = () => new Date(),
+  }) {
     this.repository = repository;
     this.storage = storage;
     this.config = config;
     this.processor = processor;
+    this.assessmentService = assessmentService;
     this.clock = clock;
+  }
+
+  projectView(project) {
+    return {
+      ...project,
+      assessment: project.image_id && project.assessment_status
+        ? {
+          imageId: project.image_id,
+          status: project.assessment_status,
+          decision: project.assessment_decision,
+          userResult: project.assessment_user_result,
+          failureCode: project.assessment_failure_code,
+          retryAfter: project.assessment_retry_after,
+        }
+        : null,
+    };
   }
 
   async create(userId, title) {
@@ -39,7 +63,7 @@ export class ProjectService {
   async list(userId) {
     const projects = await this.repository.list(userId);
     return Promise.all(projects.map(async (project) => ({
-      ...project,
+      ...this.projectView(project),
       thumbnailUrl: project.thumbnail_storage_key
         ? await this.storage.createDownloadUrl(project.thumbnail_storage_key)
         : null,
@@ -50,7 +74,7 @@ export class ProjectService {
     const project = await this.repository.findOwned(userId, projectId);
     if (!project) throw new ProjectError("PROJECT_NOT_FOUND", 404);
     return {
-      ...project,
+      ...this.projectView(project),
       thumbnailUrl: project.thumbnail_storage_key
         ? await this.storage.createDownloadUrl(project.thumbnail_storage_key)
         : null,
@@ -179,7 +203,23 @@ export class ProjectService {
           error: error?.name || "STORAGE_DELETE_FAILED",
         });
       });
-      return ready.image;
+      let assessment = null;
+      if (this.assessmentService) {
+        try {
+          assessment = await this.assessmentService.assess({
+            sourceImageId: imageId,
+            projectId,
+            image: processed.working,
+          });
+        } catch (error) {
+          console.error("Automatic photo assessment failed without deleting the ready image", {
+            projectId,
+            imageId,
+            error: error?.code || error?.name || "PHOTO_ASSESSMENT_FAILED",
+          });
+        }
+      }
+      return { ...ready.image, assessment };
     } catch (error) {
       await this.storage.deletePrivateObjects([image.storage_key, ...generatedKeys]).catch(() => {});
       const reason = error.code || error.message || "IMAGE_PROCESSING_FAILED";
@@ -197,6 +237,26 @@ export class ProjectService {
       : variant === "working" ? image.working_storage_key : image.storage_key;
     if (!key) throw new ProjectError("IMAGE_VARIANT_NOT_FOUND", 404);
     return this.storage.createDownloadUrl(key);
+  }
+
+  async getAssessment(userId, projectId, imageId) {
+    if (!this.assessmentService) throw new ProjectError("PHOTO_ASSESSMENT_DISABLED", 503);
+    try {
+      return await this.assessmentService.getOwned(userId, projectId, imageId);
+    } catch (error) {
+      if (error?.status) throw new ProjectError(error.code, error.status);
+      throw error;
+    }
+  }
+
+  async retryAssessment(userId, projectId, imageId) {
+    if (!this.assessmentService) throw new ProjectError("PHOTO_ASSESSMENT_DISABLED", 503);
+    try {
+      return await this.assessmentService.retryOwned(userId, projectId, imageId);
+    } catch (error) {
+      if (error?.status) throw new ProjectError(error.code, error.status);
+      throw error;
+    }
   }
 
   async cleanup() {
