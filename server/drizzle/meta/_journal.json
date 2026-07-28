@@ -36,6 +36,13 @@
       "when": 1785270038070,
       "tag": "0004_automatic_photo_assessment",
       "breakpoints": true
+    },
+    {
+      "idx": 5,
+      "version": "7",
+      "when": 1785272984782,
+      "tag": "0005_wallet_tariff_catalog",
+      "breakpoints": true
     }
   ]
 }

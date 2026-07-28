@@ -8,6 +8,7 @@ const expected = new Set([
   "users", "email_login_codes", "auth_sessions", "projects", "source_images", "generations",
   "generation_attempts", "wallets", "wallet_transactions", "tariff_plans",
   "payments", "subscriptions", "audit_logs", "photo_assessments", "photo_assessment_attempts",
+  "action_costs",
 ]);
 
 test("applied migration exposes all required PostgreSQL tables", { skip: !enabled }, async () => {

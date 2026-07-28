@@ -1,4 +1,4 @@
-import { eq } from "drizzle-orm";
+import { and, asc, eq, gt, isNull, lte, or } from "drizzle-orm";
 import { getDatabase } from "./client.mjs";
 import { projects, tariffPlans } from "./schema.mjs";
 
@@ -29,7 +29,14 @@ export class TariffPlanRepository {
     this.database = database;
   }
 
-  async listActive() {
-    return this.database.select().from(tariffPlans).where(eq(tariffPlans.isActive, true));
+  async listActive(at = new Date()) {
+    return this.database.select().from(tariffPlans)
+      .where(and(
+        eq(tariffPlans.isActive, true),
+        eq(tariffPlans.isPublic, true),
+        lte(tariffPlans.validFrom, at),
+        or(isNull(tariffPlans.validUntil), gt(tariffPlans.validUntil, at)),
+      ))
+      .orderBy(asc(tariffPlans.priceMinor));
   }
 }

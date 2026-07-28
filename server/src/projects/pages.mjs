@@ -36,7 +36,8 @@ function page(title, body, { script = "" } = {}) {
 <body><header><a href="/app">ВИЖУФАСАД</a></header><main>${body}</main>${script}</body></html>`;
 }
 
-const navigation = '<nav><a href="/app">Мои проекты</a><a href="/app/new">Новый проект</a><a href="/app/settings">Настройки</a></nav>';
+const navigation = `<nav><a href="/app">Мои проекты</a><a href="/app/new">Новый проект</a>
+  <a href="/app/balance">Баланс и тарифы</a><a href="/app/settings">Настройки</a></nav>`;
 
 function statusLabel(status) {
   return ({

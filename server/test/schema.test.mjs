@@ -13,6 +13,7 @@ const requiredTables = [
   "users", "email_login_codes", "auth_sessions", "projects", "source_images", "generations",
   "generation_attempts", "wallets", "wallet_transactions", "tariff_plans",
   "payments", "subscriptions", "audit_logs", "photo_assessments", "photo_assessment_attempts",
+  "action_costs",
 ];
 
 test("migrations create every required table", () => {
@@ -35,6 +36,14 @@ test("migrations include foreign keys, indexes, invariants and timestamp default
   assert.match(migration, /"upload_expires_at"/);
   assert.match(migration, /photo_assessment_decision.*accepted_with_warning/);
   assert.match(migration, /photo_assessments_source_image_uidx/);
+  assert.match(migration, /wallet_transaction_type.*free_bonus.*generation_charge.*generation_refund/s);
+  assert.match(migration, /wallet_transactions_refund_once_uidx/);
+  assert.match(migration, /tariff_plans_code_valid_from_uidx/);
+  assert.match(migration, /action_costs_code_valid_from_uidx/);
+  assert.match(migration, /'START'.*79000.*25/s);
+  assert.match(migration, /'OPTIMUM'.*129000.*60/s);
+  assert.match(migration, /'MAXIMUM'.*349000.*240/s);
+  assert.match(migration, /'photo_assessment'.*0/s);
   assert.match(migration, /lower\("email"\)/);
   assert.doesNotMatch(migration, /code_hash.*DEFAULT/);
   assert.doesNotMatch(migration, /manual_review|operator_pending/);
