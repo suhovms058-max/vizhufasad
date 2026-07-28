@@ -6,15 +6,31 @@
   "scripts": {
     "start": "node index.mjs",
     "check": "node --check index.mjs",
-    "test": "node --test"
+    "test": "node --test --test-concurrency=1",
+    "db:generate": "drizzle-kit generate --config=drizzle.config.mjs",
+    "db:check": "drizzle-kit check --config=drizzle.config.mjs",
+    "db:migrate": "drizzle-kit migrate --config=drizzle.config.mjs",
+    "db:seed": "node src/seeds/tariff-plans.mjs",
+    "db:setup": "npm run db:migrate && npm run db:seed",
+    "migrate:local-orders": "node scripts/migrate-local-orders.mjs",
+    "smoke:infra": "node --test test/infra.integration.test.mjs"
   },
   "dependencies": {
+    "@aws-sdk/client-s3": "^3.850.0",
+    "@aws-sdk/s3-request-presigner": "^3.850.0",
     "cors": "^2.8.5",
+    "dotenv": "^17.2.1",
+    "drizzle-orm": "0.45.2",
     "express": "^5.1.0",
     "express-rate-limit": "^8.1.0",
     "helmet": "^8.1.0",
     "multer": "^2.0.2",
     "nodemailer": "9.0.1",
+    "pg": "^8.16.3",
+    "redis": "^5.6.1",
     "sharp": "0.35.0"
+  },
+  "devDependencies": {
+    "drizzle-kit": "^0.31.4"
   }
 }

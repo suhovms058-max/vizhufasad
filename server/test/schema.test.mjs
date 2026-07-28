@@ -1,0 +1,33 @@
+import assert from "node:assert/strict";
+import { readdir, readFile } from "node:fs/promises";
+import test from "node:test";
+
+const migrationsDirectory = new URL("../drizzle/", import.meta.url);
+const migrationFiles = (await readdir(migrationsDirectory))
+  .filter((name) => name.endsWith(".sql"))
+  .sort();
+const migration = (
+  await Promise.all(migrationFiles.map((name) => readFile(new URL(name, migrationsDirectory), "utf8")))
+).join("\n");
+const requiredTables = [
+  "users", "auth_sessions", "projects", "source_images", "generations",
+  "generation_attempts", "wallets", "wallet_transactions", "tariff_plans",
+  "payments", "subscriptions", "audit_logs",
+];
+
+test("migrations create every required table", () => {
+  for (const table of requiredTables) {
+    assert.match(migration, new RegExp(`CREATE TABLE "${table}"`), `missing table ${table}`);
+  }
+});
+
+test("migrations include foreign keys, indexes, invariants and timestamp defaults", () => {
+  assert.match(migration, /FOREIGN KEY/);
+  assert.match(migration, /CREATE (?:UNIQUE )?INDEX/);
+  assert.match(migration, /timestamp with time zone DEFAULT now\(\) NOT NULL/);
+  assert.match(migration, /projects_legacy_order_id_uidx/);
+  assert.match(migration, /wallet_transactions_idempotency_uidx/);
+  assert.match(migration, /source_images_byte_size_positive_chk/);
+  assert.match(migration, /wallets_balance_nonnegative_chk/);
+  assert.doesNotMatch(migration, /manual_review|operator_pending/);
+});
