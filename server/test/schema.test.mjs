@@ -12,7 +12,7 @@ const migration = (
 const requiredTables = [
   "users", "email_login_codes", "auth_sessions", "projects", "source_images", "generations",
   "generation_attempts", "wallets", "wallet_transactions", "tariff_plans",
-  "payments", "subscriptions", "audit_logs",
+  "payments", "subscriptions", "audit_logs", "photo_assessments", "photo_assessment_attempts",
 ];
 
 test("migrations create every required table", () => {
@@ -33,6 +33,8 @@ test("migrations include foreign keys, indexes, invariants and timestamp default
   assert.match(migration, /'uploading', 'uploaded', 'processing', 'ready', 'invalid', 'deleted'/);
   assert.match(migration, /"thumbnail_storage_key"/);
   assert.match(migration, /"upload_expires_at"/);
+  assert.match(migration, /photo_assessment_decision.*accepted_with_warning/);
+  assert.match(migration, /photo_assessments_source_image_uidx/);
   assert.match(migration, /lower\("email"\)/);
   assert.doesNotMatch(migration, /code_hash.*DEFAULT/);
   assert.doesNotMatch(migration, /manual_review|operator_pending/);

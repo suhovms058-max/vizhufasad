@@ -19,10 +19,17 @@ const enabled = [
 test("project ownership, direct upload, sanitization, cleanup and deletion work", { skip: !enabled }, async () => {
   const pool = getPool();
   const repository = new ProjectRepository(pool);
+  const automaticAssessmentCalls = [];
   const service = new ProjectService({
     repository,
     storage,
     config: loadProjectConfig(),
+    assessmentService: {
+      async assess(input) {
+        automaticAssessmentCalls.push(input);
+        return { status: "completed", decision: "accepted" };
+      },
+    },
   });
   const userA = randomUUID();
   const userB = randomUUID();
@@ -61,6 +68,8 @@ test("project ownership, direct upload, sanitization, cleanup and deletion work"
     assert.equal(ready.width, 1200);
     assert.equal(ready.height, 800);
     assert.equal(ready.recommended_size, true);
+    assert.equal(ready.assessment.decision, "accepted");
+    assert.equal(automaticAssessmentCalls[0].sourceImageId, ready.id);
     assert.equal((await service.open(userA, project.id)).status, "photo_ready");
     await assert.rejects(
       service.imageUrl(userB, project.id, ready.id, "source"),

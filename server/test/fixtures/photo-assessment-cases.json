@@ -1,0 +1,73 @@
+[
+  {
+    "category": "хороший фасад",
+    "expected": "accepted",
+    "reason": null,
+    "observation": {}
+  },
+  {
+    "category": "угол",
+    "expected": "accepted_with_warning",
+    "reason": "poor_perspective",
+    "observation": { "perspective": "acceptable", "confidence": 0.86 }
+  },
+  {
+    "category": "низкое разрешение",
+    "expected": "retake_required",
+    "reason": "resolution_below_minimum",
+    "technical": {
+      "width": 600,
+      "height": 400,
+      "recommendedResolution": false,
+      "blocking": ["resolution_below_minimum"]
+    },
+    "observation": {}
+  },
+  {
+    "category": "деревья",
+    "expected": "accepted_with_warning",
+    "reason": "severe_obstruction",
+    "observation": { "obstruction": "minor", "confidence": 0.88 }
+  },
+  {
+    "category": "обрезанная крыша",
+    "expected": "retake_required",
+    "reason": "roof_cropped",
+    "observation": { "roofCrop": "major", "frameCompleteness": "major_crop" }
+  },
+  {
+    "category": "ночь",
+    "expected": "retake_required",
+    "reason": "too_dark",
+    "observation": { "lighting": "poor", "issueCodes": ["too_dark"] }
+  },
+  {
+    "category": "интерьер",
+    "expected": "retake_required",
+    "reason": "interior",
+    "observation": {
+      "scene": "interior",
+      "houseVisible": false,
+      "facadeVisible": false,
+      "issueCodes": ["interior", "facade_not_visible"]
+    }
+  },
+  {
+    "category": "несколько домов",
+    "expected": "retake_required",
+    "reason": "multiple_houses",
+    "observation": { "scene": "multiple_houses", "issueCodes": ["multiple_houses"] }
+  },
+  {
+    "category": "скриншот",
+    "expected": "retake_required",
+    "reason": "screenshot",
+    "observation": { "scene": "screenshot", "issueCodes": ["screenshot"] }
+  },
+  {
+    "category": "размытие",
+    "expected": "retake_required",
+    "reason": "blurred",
+    "observation": { "sharpness": "poor", "issueCodes": ["blurred"] }
+  }
+]

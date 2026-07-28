@@ -29,6 +29,13 @@
       "when": 1785266905578,
       "tag": "0003_project_image_lifecycle",
       "breakpoints": true
+    },
+    {
+      "idx": 4,
+      "version": "7",
+      "when": 1785270038070,
+      "tag": "0004_automatic_photo_assessment",
+      "breakpoints": true
     }
   ]
 }

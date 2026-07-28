@@ -29,6 +29,8 @@ function page(title, body, { script = "" } = {}) {
     .drop.drag{border-color:#176b46;background:#e9f5ee}.preview{max-width:100%;max-height:430px;border-radius:12px;margin-top:18px}
     progress{width:100%;height:18px}.error{color:#a52e2e}.success{color:#176b46}.hidden{display:none}
     form.inline{display:inline-flex;gap:8px;flex-wrap:wrap;margin-top:10px}
+    .assessment{border-left:5px solid #176b46;margin:18px 0}.assessment.warning{border-color:#c48918}
+    .assessment.retake{border-color:#a52e2e}.assessment ul{padding-left:20px}
   </style>
 </head>
 <body><header><a href="/app">ВИЖУФАСАД</a></header><main>${body}</main>${script}</body></html>`;
@@ -42,7 +44,9 @@ function statusLabel(status) {
     photo_uploading: "Загрузка фото",
     photo_processing: "Обработка фото",
     photo_ready: "Фото готово",
+    photo_validation_queued: "Автоматическая проверка фото",
     photo_retake_required: "Нужно заменить фото",
+    configuration_required: "Фото принято — настройте фасад",
     deleted: "Удалён",
   })[status] || status;
 }
@@ -56,6 +60,32 @@ function projectCard(project) {
     <p class="muted">${escapeHtml(statusLabel(project.status))}</p>
     <a class="button" href="/app/projects/${escapeHtml(project.id)}">Открыть</a>
   </article>`;
+}
+
+function assessmentBlock(project) {
+  const assessment = project.assessment;
+  if (!project.image_id) return "";
+  if (!assessment || ["queued", "processing"].includes(assessment.status)) {
+    return '<section class="card assessment"><h2>Автоматическая проверка</h2><p>Проверяем фасад, кадр и качество фотографии.</p></section>';
+  }
+  if (assessment.status === "provider_unavailable") {
+    return `<section class="card assessment warning"><h2>Проверка временно недоступна</h2>
+      <p>Фотография сохранена и не потеряна. Повторите только автоматическую проверку.</p>
+      <form method="post" action="/app/projects/${escapeHtml(project.id)}/images/${escapeHtml(project.image_id)}/assessment/retry">
+        <button type="submit">Повторить проверку</button>
+      </form></section>`;
+  }
+  const result = assessment.userResult || {};
+  const className = assessment.decision === "retake_required"
+    ? "retake"
+    : assessment.decision === "accepted_with_warning" ? "warning" : "";
+  const recommendations = Array.isArray(result.recommendations) && result.recommendations.length
+    ? `<ul>${result.recommendations.map((item) => `<li>${escapeHtml(item)}</li>`).join("")}</ul>`
+    : "";
+  return `<section class="card assessment ${className}">
+    <h2>${escapeHtml(result.title || "Автоматическая проверка завершена")}</h2>
+    <p>${escapeHtml(result.summary || "")}</p>${recommendations}
+  </section>`;
 }
 
 export function createProjectPagesRouter({ authService, projectService }) {
@@ -119,7 +149,9 @@ export function createProjectPagesRouter({ authService, projectService }) {
       return response.type("html").send(page(
         project.title,
         `${navigation}<article class="card"><h1>${escapeHtml(project.title)}</h1>
-          <p>Статус: ${escapeHtml(statusLabel(project.status))}</p>${image}
+          <p>Статус: ${escapeHtml(statusLabel(project.status))}</p>${image}</article>
+          ${assessmentBlock(project)}
+          <article class="card">
           <p><a class="button" href="/app/new?project=${escapeHtml(project.id)}">Загрузить или заменить фото</a></p>
           <form class="inline" method="post" action="/app/projects/${escapeHtml(project.id)}/rename">
             <input name="title" value="${escapeHtml(project.title)}" maxlength="120" required>
@@ -152,5 +184,18 @@ export function createProjectPagesRouter({ authService, projectService }) {
       return next(error);
     }
   });
+  router.post(
+    "/app/projects/:projectId/images/:imageId/assessment/retry",
+    async (request, response, next) => {
+      try {
+        await projectService.retryAssessment(
+          request.auth.user_id, request.params.projectId, request.params.imageId,
+        );
+        return response.redirect(303, `/app/projects/${encodeURIComponent(request.params.projectId)}`);
+      } catch (error) {
+        return next(error);
+      }
+    },
+  );
   return router;
 }
