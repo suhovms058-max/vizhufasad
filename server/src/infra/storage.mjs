@@ -1,5 +1,6 @@
 import {
-  CreateBucketCommand, GetObjectCommand, HeadBucketCommand, PutBucketPolicyCommand,
+  CreateBucketCommand, DeleteObjectCommand, DeleteObjectsCommand, GetObjectCommand,
+  HeadBucketCommand, HeadObjectCommand, PutBucketCorsCommand, PutBucketPolicyCommand,
   PutObjectCommand, S3Client,
 } from "@aws-sdk/client-s3";
 import { getSignedUrl } from "@aws-sdk/s3-request-presigner";
@@ -55,6 +56,31 @@ export async function ensurePrivateBucket() {
     // Local MinIO over HTTP cannot use this AWS-only transport policy; bucket ACL stays private.
     if (!String(process.env.S3_ENDPOINT).startsWith("http://")) throw error;
   });
+  const allowedOrigins = String(process.env.S3_CORS_ORIGINS || process.env.SITE_ORIGIN || "")
+    .split(",")
+    .map((origin) => origin.trim())
+    .filter(Boolean);
+  if (allowedOrigins.length) {
+    await storage.send(
+      new PutBucketCorsCommand({
+        Bucket: bucket,
+        CORSConfiguration: {
+          CORSRules: [{
+            AllowedOrigins: allowedOrigins,
+            AllowedMethods: ["PUT", "GET", "HEAD"],
+            AllowedHeaders: ["*"],
+            ExposeHeaders: ["ETag"],
+            MaxAgeSeconds: 600,
+          }],
+        },
+      }),
+    ).catch((error) => {
+      // MinIO configures browser CORS at server level via MINIO_API_CORS_ALLOW_ORIGIN.
+      const localMinio = String(process.env.S3_ENDPOINT).startsWith("http://")
+        && (error?.name === "NotImplemented" || error?.$metadata?.httpStatusCode === 501);
+      if (!localMinio) throw error;
+    });
+  }
 }
 
 export async function putPrivateObject({ key, body, contentType, metadata }) {
@@ -64,12 +90,83 @@ export async function putPrivateObject({ key, body, contentType, metadata }) {
   return { bucket: getStorageBucket(), key };
 }
 
+export async function createUploadUrl({
+  key,
+  contentType,
+  contentLength,
+  expiresIn = Number(process.env.S3_UPLOAD_URL_TTL_SECONDS || 600),
+}) {
+  const ttl = Math.max(60, Math.min(Number(expiresIn), 900));
+  const command = new PutObjectCommand({
+    Bucket: getStorageBucket(),
+    Key: key,
+    ContentType: contentType,
+    ContentLength: contentLength,
+  });
+  const url = await getSignedUrl(getStorageClient(), command, {
+    expiresIn: ttl,
+    signableHeaders: new Set(["content-type", "content-length"]),
+  });
+  return {
+    url,
+    expiresIn: ttl,
+    headers: { "Content-Type": contentType },
+  };
+}
+
 export async function createDownloadUrl(key, expiresIn = Number(process.env.S3_SIGNED_URL_TTL_SECONDS || 300)) {
   const maxTtl = 3_600;
   const ttl = Math.max(1, Math.min(Number(expiresIn), maxTtl));
   return getSignedUrl(getStorageClient(), new GetObjectCommand({
     Bucket: getStorageBucket(), Key: key,
   }), { expiresIn: ttl });
+}
+
+export async function headPrivateObject(key) {
+  const result = await getStorageClient().send(new HeadObjectCommand({
+    Bucket: getStorageBucket(),
+    Key: key,
+  }));
+  return {
+    contentLength: Number(result.ContentLength || 0),
+    contentType: result.ContentType || "application/octet-stream",
+    metadata: result.Metadata || {},
+  };
+}
+
+export async function getPrivateObjectBuffer(key, maxBytes) {
+  const result = await getStorageClient().send(new GetObjectCommand({
+    Bucket: getStorageBucket(),
+    Key: key,
+  }));
+  const chunks = [];
+  let bytes = 0;
+  for await (const chunk of result.Body) {
+    bytes += chunk.length;
+    if (bytes > maxBytes) {
+      result.Body.destroy?.();
+      throw new Error("OBJECT_TOO_LARGE");
+    }
+    chunks.push(Buffer.from(chunk));
+  }
+  return Buffer.concat(chunks, bytes);
+}
+
+export async function deletePrivateObject(key) {
+  if (!key) return;
+  await getStorageClient().send(new DeleteObjectCommand({
+    Bucket: getStorageBucket(),
+    Key: key,
+  }));
+}
+
+export async function deletePrivateObjects(keys) {
+  const unique = [...new Set(keys.filter(Boolean))];
+  if (!unique.length) return;
+  await getStorageClient().send(new DeleteObjectsCommand({
+    Bucket: getStorageBucket(),
+    Delete: { Objects: unique.map((Key) => ({ Key })), Quiet: true },
+  }));
 }
 
 export async function checkStorage() {

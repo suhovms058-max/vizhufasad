@@ -13,6 +13,7 @@
     "db:seed": "node src/seeds/tariff-plans.mjs",
     "db:setup": "npm run db:migrate && npm run db:seed",
     "migrate:local-orders": "node scripts/migrate-local-orders.mjs",
+    "cleanup:images": "node scripts/cleanup-project-images.mjs",
     "smoke:infra": "node --test test/infra.integration.test.mjs"
   },
   "dependencies": {

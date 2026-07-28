@@ -22,6 +22,13 @@
       "when": 1785258000000,
       "tag": "0002_passwordless_auth",
       "breakpoints": true
+    },
+    {
+      "idx": 3,
+      "version": "7",
+      "when": 1785266905578,
+      "tag": "0003_project_image_lifecycle",
+      "breakpoints": true
     }
   ]
 }

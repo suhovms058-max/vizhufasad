@@ -30,6 +30,9 @@ test("migrations include foreign keys, indexes, invariants and timestamp default
   assert.match(migration, /source_images_byte_size_positive_chk/);
   assert.match(migration, /wallets_balance_nonnegative_chk/);
   assert.match(migration, /email_login_codes_attempts_chk/);
+  assert.match(migration, /'uploading', 'uploaded', 'processing', 'ready', 'invalid', 'deleted'/);
+  assert.match(migration, /"thumbnail_storage_key"/);
+  assert.match(migration, /"upload_expires_at"/);
   assert.match(migration, /lower\("email"\)/);
   assert.doesNotMatch(migration, /code_hash.*DEFAULT/);
   assert.doesNotMatch(migration, /manual_review|operator_pending/);

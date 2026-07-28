@@ -16,8 +16,18 @@ import { createAuthPagesRouter } from "./src/auth/pages.mjs";
 import { AuthRepository } from "./src/auth/repository.mjs";
 import { AuthService } from "./src/auth/service.mjs";
 import { liveness, readiness } from "./src/health.mjs";
+import { ensurePrivateBucket } from "./src/infra/storage.mjs";
+import * as storage from "./src/infra/storage.mjs";
+import { loadProjectConfig } from "./src/projects/config.mjs";
+import { createProjectsRouter } from "./src/projects/http.mjs";
+import { createProjectPagesRouter } from "./src/projects/pages.mjs";
+import { ProjectRepository } from "./src/projects/repository.mjs";
+import { ProjectService } from "./src/projects/service.mjs";
 
-const required = ["SITE_ORIGIN"];
+const required = [
+  "SITE_ORIGIN", "DATABASE_URL", "REDIS_URL", "S3_ENDPOINT",
+  "S3_ACCESS_KEY_ID", "S3_SECRET_ACCESS_KEY", "S3_BUCKET",
+];
 const missing = required.filter((key) => !process.env[key]);
 if (missing.length) {
   console.error(`Missing environment variables: ${missing.join(", ")}`);
@@ -28,12 +38,20 @@ const notificationsConfigured = notificationVariables.every((key) => process.env
 
 const app = express();
 const port = Number(process.env.PORT || 8080);
+const storageOrigin = new URL(process.env.S3_ENDPOINT).origin;
 const authConfig = loadAuthConfig();
 const authRepository = new AuthRepository();
 const authService = new AuthService({
   repository: authRepository,
   mailer: createAuthMailer(authConfig),
   config: authConfig,
+});
+const projectConfig = loadProjectConfig();
+const projectRepository = new ProjectRepository();
+const projectService = new ProjectService({
+  repository: projectRepository,
+  storage,
+  config: projectConfig,
 });
 const maxApi = "https://platform-api2.max.ru";
 const allowedImages = new Set(["image/jpeg", "image/png", "image/webp"]);
@@ -50,18 +68,50 @@ const aiEnabled = aiProvider === "yandex" ? yandexConfigured : aiProvider === "o
 const aiModel = aiProvider === "yandex"
   ? (process.env.YANDEX_MODEL || "qwen3.6-35b-a3b")
   : (process.env.OPENAI_MODEL || "gpt-4.1-mini");
-await Promise.all([mkdir(ordersDir, { recursive: true }), mkdir(photosDir, { recursive: true })]);
+await Promise.all([
+  mkdir(ordersDir, { recursive: true }),
+  mkdir(photosDir, { recursive: true }),
+  ensurePrivateBucket(),
+]);
 
 app.set("trust proxy", 1);
-app.use(helmet());
+app.use(helmet({
+  contentSecurityPolicy: {
+    directives: {
+      imgSrc: ["'self'", "data:", "blob:", storageOrigin],
+      connectSrc: ["'self'", storageOrigin],
+    },
+  },
+}));
 app.use(cors({
   origin: process.env.SITE_ORIGIN,
-  methods: ["GET", "POST", "DELETE"],
+  methods: ["GET", "POST", "PATCH", "DELETE", "OPTIONS"],
   credentials: true,
 }));
 app.use(express.json({ limit: "32kb" }));
+app.use("/assets", express.static(path.resolve("./public"), {
+  dotfiles: "deny",
+  fallthrough: false,
+  maxAge: process.env.NODE_ENV === "production" ? "1h" : 0,
+}));
 app.use("/api/auth", createAuthRouter({ service: authService, config: authConfig }));
+app.use("/api/projects", createProjectsRouter({ authService, projectService }));
+app.use(createProjectPagesRouter({ authService, projectService }));
 app.use(createAuthPagesRouter({ service: authService, config: authConfig }));
+const legacyLeadsMode = String(process.env.LEGACY_LEADS_MODE || "deprecated").toLowerCase();
+if (!["deprecated", "disabled"].includes(legacyLeadsMode)) {
+  throw new Error("LEGACY_LEADS_MODE must be deprecated or disabled");
+}
+app.use("/api/leads", (_request, response, next) => {
+  response.set("Deprecation", "true");
+  response.set("Link", '</app/new>; rel="successor-version"');
+  response.set("Warning", '299 - "Legacy leads API is deprecated; migrate to /app/new"');
+  if (process.env.LEGACY_LEADS_SUNSET) response.set("Sunset", process.env.LEGACY_LEADS_SUNSET);
+  if (legacyLeadsMode === "disabled") {
+    return response.status(410).json({ ok: false, error: "LEGACY_LEADS_DISABLED" });
+  }
+  return next();
+});
 app.use("/api/leads", rateLimit({ windowMs: 15 * 60 * 1000, limit: 8, standardHeaders: true }));
 app.use("/api/orders", rateLimit({ windowMs: 15 * 60 * 1000, limit: 30, standardHeaders: true }));
 
