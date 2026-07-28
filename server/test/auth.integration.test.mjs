@@ -67,6 +67,15 @@ test("login code is one-time and creates user, wallet and revocable session", { 
     );
     assert.equal(databaseState.rows[0].status, "active");
     assert.equal(databaseState.rows[0].wallet_count, 1);
+    const bonusState = await pool.query(
+      `select w.balance, count(t.id)::int as bonus_count
+       from wallets w left join wallet_transactions t
+         on t.wallet_id = w.id and t.type = 'free_bonus'
+       where w.user_id = $1 group by w.id`,
+      [first.user.id],
+    );
+    assert.equal(bonusState.rows[0].balance, "2");
+    assert.equal(bonusState.rows[0].bonus_count, 1);
 
     assert.ok(await service.sessionFromRequest({ headers: { cookie: `session=${first.token}` } }));
     assert.equal(await repository.revokeSession(first.user.id, first.session.id, "auth.logout"), true);
@@ -80,10 +89,15 @@ test("login code is one-time and creates user, wallet and revocable session", { 
     assert.equal(repeatLogin.ok, true);
     assert.equal(repeatLogin.user.id, first.user.id);
     const repeatWalletState = await pool.query(
-      "select count(*)::int as wallet_count from wallets where user_id = $1",
+      `select count(distinct w.id)::int as wallet_count,
+        count(t.id)::int as bonus_count
+       from wallets w left join wallet_transactions t
+         on t.wallet_id = w.id and t.type = 'free_bonus'
+       where w.user_id = $1`,
       [first.user.id],
     );
     assert.equal(repeatWalletState.rows[0].wallet_count, 1);
+    assert.equal(repeatWalletState.rows[0].bonus_count, 1);
 
     await repository.requestAccountDeletion(first.user.id);
     assert.equal(await service.sessionFromRequest({ headers: { cookie: `session=${repeatLogin.token}` } }), null);
@@ -97,6 +111,10 @@ test("login code is one-time and creates user, wallet and revocable session", { 
   } finally {
     const user = await pool.query("select id from users where email = $1", [email]);
     if (user.rows[0]) {
+      await pool.query(
+        "delete from wallet_transactions where wallet_id in (select id from wallets where user_id = $1)",
+        [user.rows[0].id],
+      );
       await pool.query("delete from wallets where user_id = $1", [user.rows[0].id]);
       await pool.query("delete from users where id = $1", [user.rows[0].id]);
     }

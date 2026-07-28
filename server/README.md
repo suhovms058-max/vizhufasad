@@ -46,7 +46,7 @@ curl -fsS http://127.0.0.1:8080/health
 - `npm run db:generate` — создать новую миграцию после изменения схемы.
 - `npm run db:check` — проверить согласованность журнала и снимков миграций.
 - `npm run db:migrate` — применить неприменённые миграции.
-- `npm run db:seed` — идемпотентно создать неактивные стартовые тарифы.
+- `npm run db:seed` — идемпотентно синхронизировать effective-dated тарифы и стоимость действий.
 - `npm run db:setup` — миграции и seed.
 - `npm run migrate:local-orders` — dry run импорта старых JSON-заявок.
 - `npm run migrate:local-orders -- --apply` — импортировать метаданные и фотографии, сохранив исходные файлы.
@@ -70,3 +70,12 @@ API фактически запускается как отдельный сер
 `PHOTO_ASSESSMENT_FALLBACK_PROVIDER`. `auto` выбирает настроенный Yandex и затем OpenAI.
 `npm run smoke:photo-assessment` проверяет сохранение результатов, retry/fallback и неизменность
 кошелька при полном сбое provider. Ручной ветки решения нет.
+
+## Кошелёк и тарифы
+
+`npm run db:seed` создаёт версионированный каталог тарифов и стоимости действий.
+`npm run smoke:wallet` проверяет bonus/reserve/commit/refund и защиту от двойного списания.
+Экран `/app/balance` и API `/api/wallet`/`/api/catalog` требуют сессию. Платёжных маршрутов нет.
+
+Feature flags перечислены в `.env.example`. `FEATURE_PAYMENTS_ENABLED` обязан оставаться `false` до
+отдельного этапа подключения payment provider.

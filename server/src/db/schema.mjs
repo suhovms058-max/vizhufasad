@@ -1,6 +1,6 @@
 import { sql } from "drizzle-orm";
 import {
-  bigint, boolean, check, index, integer, jsonb, pgEnum, pgTable,
+  bigint, boolean, check, foreignKey, index, integer, jsonb, pgEnum, pgTable,
   text, timestamp, uniqueIndex, uuid,
 } from "drizzle-orm/pg-core";
 
@@ -27,7 +27,13 @@ export const photoAssessmentDecision = pgEnum("photo_assessment_decision", [
 ]);
 export const generationStatus = pgEnum("generation_status", ["queued", "processing", "qa", "ready", "failed", "cancelled"]);
 export const attemptStatus = pgEnum("attempt_status", ["started", "succeeded", "retryable_failed", "terminal_failed"]);
-export const transactionType = pgEnum("wallet_transaction_type", ["credit", "debit", "hold", "release", "refund", "adjustment"]);
+export const transactionType = pgEnum("wallet_transaction_type", [
+  "free_bonus", "purchase", "generation_charge", "generation_refund",
+  "promo", "subscription", "admin_adjustment",
+]);
+export const walletTransactionStatus = pgEnum("wallet_transaction_status", [
+  "reserved", "committed", "refunded",
+]);
 export const paymentStatus = pgEnum("payment_status", ["pending", "authorized", "succeeded", "failed", "cancelled", "refunded"]);
 export const subscriptionStatus = pgEnum("subscription_status", ["pending", "active", "past_due", "cancelled", "expired"]);
 
@@ -214,16 +220,44 @@ export const walletTransactions = pgTable("wallet_transactions", {
   id: uuid("id").defaultRandom().primaryKey(),
   walletId: uuid("wallet_id").notNull().references(() => wallets.id, { onDelete: "restrict" }),
   type: transactionType("type").notNull(),
+  status: walletTransactionStatus("status").default("committed").notNull(),
   amount: bigint("amount", { mode: "number" }).notNull(),
+  balanceAfter: bigint("balance_after", { mode: "number" }).notNull(),
   idempotencyKey: text("idempotency_key").notNull(),
+  actionCode: text("action_code"),
+  relatedTransactionId: uuid("related_transaction_id"),
   referenceType: text("reference_type"),
   referenceId: uuid("reference_id"),
   metadata: jsonb("metadata").default({}).notNull(),
+  committedAt: timestamp("committed_at", { withTimezone: true }),
+  refundedAt: timestamp("refunded_at", { withTimezone: true }),
   createdAt: timestamp("created_at", { withTimezone: true }).defaultNow().notNull(),
 }, (table) => [
   uniqueIndex("wallet_transactions_idempotency_uidx").on(table.idempotencyKey),
   index("wallet_transactions_wallet_created_idx").on(table.walletId, table.createdAt),
+  uniqueIndex("wallet_transactions_refund_once_uidx")
+    .on(table.relatedTransactionId)
+    .where(sql`${table.type} = 'generation_refund'`),
+  foreignKey({
+    columns: [table.relatedTransactionId],
+    foreignColumns: [table.id],
+    name: "wallet_transactions_related_transaction_fk",
+  }).onDelete("restrict"),
   check("wallet_transactions_amount_nonzero_chk", sql`${table.amount} <> 0`),
+  check("wallet_transactions_balance_after_chk", sql`${table.balanceAfter} >= 0`),
+  check(
+    "wallet_transactions_amount_direction_chk",
+    sql`(
+      ${table.type} = 'generation_charge' AND ${table.amount} < 0
+    ) OR (
+      ${table.type} IN ('free_bonus', 'purchase', 'generation_refund', 'promo', 'subscription')
+      AND ${table.amount} > 0
+    ) OR ${table.type} = 'admin_adjustment'`,
+  ),
+  check(
+    "wallet_transactions_status_type_chk",
+    sql`(${table.type} = 'generation_charge') OR ${table.status} = 'committed'`,
+  ),
 ]);
 
 export const tariffPlans = pgTable("tariff_plans", {
@@ -231,16 +265,46 @@ export const tariffPlans = pgTable("tariff_plans", {
   code: text("code").notNull(),
   name: text("name").notNull(),
   description: text("description"),
-  priceMinor: bigint("price_minor", { mode: "number" }).notNull(),
+  priceMinor: bigint("price_minor", { mode: "number" }),
   currency: text("currency").default("RUB").notNull(),
-  credits: integer("credits").notNull(),
+  credits: integer("credits"),
   isActive: boolean("is_active").default(false).notNull(),
+  isPublic: boolean("is_public").default(false).notNull(),
+  validFrom: timestamp("valid_from", { withTimezone: true }).defaultNow().notNull(),
+  validUntil: timestamp("valid_until", { withTimezone: true }),
   ...timestamps,
 }, (table) => [
-  uniqueIndex("tariff_plans_code_uidx").on(table.code),
-  index("tariff_plans_active_idx").on(table.isActive),
+  uniqueIndex("tariff_plans_code_valid_from_uidx").on(table.code, table.validFrom),
+  index("tariff_plans_active_idx").on(table.isActive, table.validFrom, table.validUntil),
   check("tariff_plans_price_nonnegative_chk", sql`${table.priceMinor} >= 0`),
   check("tariff_plans_credits_positive_chk", sql`${table.credits} > 0`),
+  check(
+    "tariff_plans_active_values_chk",
+    sql`NOT ${table.isActive} OR (${table.priceMinor} IS NOT NULL AND ${table.credits} IS NOT NULL)`,
+  ),
+  check(
+    "tariff_plans_validity_chk",
+    sql`${table.validUntil} IS NULL OR ${table.validUntil} > ${table.validFrom}`,
+  ),
+]);
+
+export const actionCosts = pgTable("action_costs", {
+  id: uuid("id").defaultRandom().primaryKey(),
+  code: text("code").notNull(),
+  name: text("name").notNull(),
+  credits: integer("credits").notNull(),
+  isActive: boolean("is_active").default(true).notNull(),
+  validFrom: timestamp("valid_from", { withTimezone: true }).defaultNow().notNull(),
+  validUntil: timestamp("valid_until", { withTimezone: true }),
+  ...timestamps,
+}, (table) => [
+  uniqueIndex("action_costs_code_valid_from_uidx").on(table.code, table.validFrom),
+  index("action_costs_active_idx").on(table.isActive, table.validFrom, table.validUntil),
+  check("action_costs_credits_nonnegative_chk", sql`${table.credits} >= 0`),
+  check(
+    "action_costs_validity_chk",
+    sql`${table.validUntil} IS NULL OR ${table.validUntil} > ${table.validFrom}`,
+  ),
 ]);
 
 export const payments = pgTable("payments", {

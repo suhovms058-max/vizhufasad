@@ -21,9 +21,18 @@ test("project repository persists and reads a project", { skip: !enabled }, asyn
   assert.equal((await repository.findByLegacyOrderId(legacyOrderId)).id, created.id);
 });
 
-test("seeded tariff plans remain inactive", { skip: !enabled }, async () => {
+test("active tariff repository reads the effective public catalog", { skip: !enabled }, async () => {
   try {
-    assert.deepEqual(await new TariffPlanRepository().listActive(), []);
+    const plans = await new TariffPlanRepository().listActive();
+    assert.deepEqual(
+      plans.map(({ code, priceMinor, credits }) => ({ code, priceMinor, credits })),
+      [
+        { code: "FREE", priceMinor: 0, credits: 2 },
+        { code: "START", priceMinor: 79000, credits: 25 },
+        { code: "OPTIMUM", priceMinor: 129000, credits: 60 },
+        { code: "MAXIMUM", priceMinor: 349000, credits: 240 },
+      ],
+    );
   } finally {
     await closeDatabase();
   }

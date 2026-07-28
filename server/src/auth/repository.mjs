@@ -1,9 +1,11 @@
 import { getPool } from "../db/client.mjs";
+import { grantFreeBonusWithClient } from "../wallet/repository.mjs";
 import { hashesEqual } from "./crypto.mjs";
 
 export class AuthRepository {
-  constructor(pool = getPool()) {
+  constructor(pool = getPool(), walletConfig = { freeBonusEnabled: true, freeBonusCredits: 2 }) {
     this.pool = pool;
+    this.walletConfig = walletConfig;
   }
 
   async createLoginCode(input) {
@@ -95,9 +97,16 @@ export class AuthRepository {
         );
         user = userResult.rows[0];
         await client.query(
-          "insert into wallets (user_id, currency) values ($1, 'CREDIT')",
+          "insert into wallets (user_id, currency) values ($1, 'CREDIT') returning id",
           [user.id],
         );
+        if (this.walletConfig.freeBonusEnabled) {
+          await grantFreeBonusWithClient(client, {
+            userId: user.id,
+            credits: this.walletConfig.freeBonusCredits,
+            source: "account_created",
+          });
+        }
       } else if (
         user.status === "blocked"
         || user.status === "deleted"

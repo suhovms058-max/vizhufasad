@@ -28,6 +28,11 @@ import { createPhotoAssessmentProviders } from "./src/photo-assessment/providers
 import { PhotoAssessmentRepository } from "./src/photo-assessment/repository.mjs";
 import { PhotoAssessmentService } from "./src/photo-assessment/service.mjs";
 import { analyzeTechnicalPhoto } from "./src/photo-assessment/technical.mjs";
+import { loadWalletConfig } from "./src/wallet/config.mjs";
+import { createCatalogRouter, createWalletRouter } from "./src/wallet/http.mjs";
+import { createWalletPagesRouter } from "./src/wallet/pages.mjs";
+import { WalletRepository } from "./src/wallet/repository.mjs";
+import { WalletService } from "./src/wallet/service.mjs";
 
 const required = [
   "SITE_ORIGIN", "DATABASE_URL", "REDIS_URL", "S3_ENDPOINT",
@@ -45,7 +50,13 @@ const app = express();
 const port = Number(process.env.PORT || 8080);
 const storageOrigin = new URL(process.env.S3_ENDPOINT).origin;
 const authConfig = loadAuthConfig();
-const authRepository = new AuthRepository();
+const walletConfig = loadWalletConfig();
+const walletRepository = new WalletRepository();
+const walletService = new WalletService({
+  repository: walletRepository,
+  config: walletConfig,
+});
+const authRepository = new AuthRepository(undefined, walletConfig);
 const authService = new AuthService({
   repository: authRepository,
   mailer: createAuthMailer(authConfig),
@@ -104,7 +115,10 @@ app.use("/assets", express.static(path.resolve("./public"), {
 }));
 app.use("/api/auth", createAuthRouter({ service: authService, config: authConfig }));
 app.use("/api/projects", createProjectsRouter({ authService, projectService }));
+app.use("/api/wallet", createWalletRouter({ authService, walletService }));
+app.use("/api/catalog", createCatalogRouter({ authService, walletService }));
 app.use(createProjectPagesRouter({ authService, projectService }));
+app.use(createWalletPagesRouter({ authService, walletService }));
 app.use(createAuthPagesRouter({ service: authService, config: authConfig }));
 const legacyLeadsMode = String(process.env.LEGACY_LEADS_MODE || "deprecated").toLowerCase();
 if (!["deprecated", "disabled"].includes(legacyLeadsMode)) {

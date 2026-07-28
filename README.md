@@ -179,3 +179,21 @@ npm run smoke:photo-assessment
 `PHOTO_ASSESSMENT_TIMEOUT_MS`, `PHOTO_ASSESSMENT_PRIMARY_ATTEMPTS`,
 `PHOTO_ASSESSMENT_RETRY_DELAY_MS`, а также provider-specific model и API key. Подробный контракт:
 [`docs/STAGE_5_PHOTO_ASSESSMENT.md`](docs/STAGE_5_PHOTO_ASSESSMENT.md).
+
+## Баланс и тарифы
+
+Этап 6 добавляет атомарный кредитный кошелёк и единый каталог PostgreSQL. Новый пользователь получает
+два бонусных кредита один раз. Платные действия используют `reserve → commit` и `refund` при
+технической неудаче; assessment и скачивание бесплатны.
+
+```bash
+cd server
+npm run db:migrate
+npm run db:seed
+npm test
+npm run smoke:wallet
+```
+
+Owner-only API: `/api/wallet`, `/api/wallet/transactions`, `/api/catalog/tariffs` и
+`/api/catalog/action-costs`. Экран: `/app/balance`. Payment provider, checkout и кнопки покупки
+намеренно отсутствуют. Подробности: [`docs/STAGE_6_WALLET_TARIFFS.md`](docs/STAGE_6_WALLET_TARIFFS.md).

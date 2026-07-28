@@ -76,7 +76,8 @@ export function createAuthPagesRouter({ service, config }) {
   });
 
   router.use("/app", requireSession);
-  const navigation = '<nav><a href="/app">Мои проекты</a> · <a href="/app/settings">Настройки</a></nav>';
+  const navigation = `<nav><a href="/app">Мои проекты</a> ·
+    <a href="/app/balance">Баланс и тарифы</a> · <a href="/app/settings">Настройки</a></nav>`;
   router.get(["/app", "/app/projects"], (request, response) => response.type("html").send(page(
     "Мои проекты",
     `${navigation}<p>Проектов пока нет.</p><p>Здесь появятся автоматические визуализации фасада.</p>`,

@@ -1,26 +1,60 @@
 import "dotenv/config";
-import { sql } from "drizzle-orm";
-import { closeDatabase, getDatabase } from "../db/client.mjs";
-import { tariffPlans } from "../db/schema.mjs";
+import { closeDatabase, getPool } from "../db/client.mjs";
 
-const starterPlans = [
-  { code: "STARTER_3", name: "Стартовый", description: "3 концепции фасада", priceMinor: 0, credits: 3, isActive: false },
-  { code: "STANDARD_10", name: "Стандарт", description: "10 концепций фасада", priceMinor: 0, credits: 10, isActive: false },
-  { code: "PRO_30", name: "Про", description: "30 концепций фасада", priceMinor: 0, credits: 30, isActive: false },
+const effectiveAt = new Date("2026-07-28T21:00:00.000Z");
+const tariffPlans = [
+  ["FREE", "Бесплатный", "Два бонусных кредита один раз", 0, 2, true, true],
+  ["START", "Старт", "25 кредитов", 79_000, 25, true, true],
+  ["OPTIMUM", "Оптимум", "60 кредитов", 129_000, 60, true, true],
+  ["MAXIMUM", "Максимум", "240 кредитов", 349_000, 240, true, true],
+  ["PLUS", "Plus", "Подготовлен, но не активирован", null, null, false, false],
+];
+const actionCosts = [
+  ["standard_generation", "Standard", 1],
+  ["pro_generation", "Pro", 2],
+  ["text_revision", "Текстовая доработка", 1],
+  ["upscale_4k", "4K", 1],
+  ["photo_assessment", "Проверка фото", 0],
+  ["download", "Скачивание", 0],
 ];
 
+const pool = getPool();
 try {
-  await getDatabase().insert(tariffPlans).values(starterPlans).onConflictDoUpdate({
-    target: tariffPlans.code,
-    set: {
-      name: sql`excluded.name`,
-      description: sql`excluded.description`,
-      credits: sql`excluded.credits`,
-      isActive: false,
-      updatedAt: new Date(),
-    },
-  });
-  console.log(`Seeded ${starterPlans.length} inactive tariff plans`);
+  const client = await pool.connect();
+  try {
+    await client.query("begin");
+    for (const plan of tariffPlans) {
+      await client.query(
+        `insert into tariff_plans (
+          code, name, description, price_minor, currency, credits,
+          is_active, is_public, valid_from
+        ) values ($1, $2, $3, $4, 'RUB', $5, $6, $7, $8)
+        on conflict (code, valid_from) do update set
+          name = excluded.name, description = excluded.description,
+          price_minor = excluded.price_minor, credits = excluded.credits,
+          is_active = excluded.is_active, is_public = excluded.is_public,
+          updated_at = now()`,
+        [...plan, effectiveAt],
+      );
+    }
+    for (const action of actionCosts) {
+      await client.query(
+        `insert into action_costs (code, name, credits, is_active, valid_from)
+         values ($1, $2, $3, true, $4)
+         on conflict (code, valid_from) do update set
+           name = excluded.name, credits = excluded.credits,
+           is_active = true, updated_at = now()`,
+        [...action, effectiveAt],
+      );
+    }
+    await client.query("commit");
+    console.log(`Seeded ${tariffPlans.length} tariff plans and ${actionCosts.length} action costs`);
+  } catch (error) {
+    await client.query("rollback");
+    throw error;
+  } finally {
+    client.release();
+  }
 } finally {
   await closeDatabase();
 }

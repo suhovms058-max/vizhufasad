@@ -15,7 +15,8 @@
     "migrate:local-orders": "node scripts/migrate-local-orders.mjs",
     "cleanup:images": "node scripts/cleanup-project-images.mjs",
     "smoke:infra": "node --test test/infra.integration.test.mjs",
-    "smoke:photo-assessment": "node --test test/photo-assessment.integration.test.mjs"
+    "smoke:photo-assessment": "node --test test/photo-assessment.integration.test.mjs",
+    "smoke:wallet": "node --test test/wallet.integration.test.mjs"
   },
   "dependencies": {
     "@aws-sdk/client-s3": "^3.850.0",
