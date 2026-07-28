@@ -41,6 +41,45 @@ jobs:
           npm ci
           npm run check
 
+      - name: Validate database migrations
+        working-directory: server
+        run: npm run db:check
+
+      - name: Start data infrastructure
+        run: |
+          docker compose up -d
+          init_id="$(docker compose ps -a -q minio-init)"
+          for attempt in $(seq 1 60); do
+            init_status="$(docker inspect --format '{{.State.Status}}' "$init_id")"
+            if [ "$init_status" = "exited" ]; then
+              test "$(docker inspect --format '{{.State.ExitCode}}' "$init_id")" = "0"
+              break
+            fi
+            test "$attempt" -lt 60
+            sleep 1
+          done
+          docker compose up -d --wait postgres redis minio
+
+      - name: Migrate, seed and test server
+        working-directory: server
+        env:
+          DATABASE_URL: postgresql://vizhufasad:vizhufasad_local@127.0.0.1:5432/vizhufasad
+          REDIS_URL: redis://127.0.0.1:6379
+          S3_ENDPOINT: http://127.0.0.1:9000
+          S3_REGION: us-east-1
+          S3_ACCESS_KEY_ID: vizhufasad
+          S3_SECRET_ACCESS_KEY: vizhufasad_local_secret
+          S3_BUCKET: vizhufasad-private
+          S3_FORCE_PATH_STYLE: "true"
+        run: |
+          npm run db:setup
+          npm test
+          npm run smoke:infra
+
+      - name: Stop data infrastructure
+        if: always()
+        run: docker compose down --volumes
+
       - name: Build static site
         env:
           NEXT_PUBLIC_BASE_PATH: /vizhufasad

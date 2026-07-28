@@ -9,14 +9,17 @@ cp .env.example .env
 npm ci
 npm run check
 npm test
+npm run db:setup
+npm run smoke:infra
 npm start
 ```
 
 ```bash
+curl -fsS http://127.0.0.1:8080/health/live
 curl -fsS http://127.0.0.1:8080/health
 ```
 
-Требуется Node.js 22+. Автоматических unit-тестов пока нет; `npm test` завершается успешно с нулём найденных тестов.
+Требуется Node.js 22+. Интеграционные тесты автоматически пропускаются без настроенных инфраструктурных переменных; `npm run smoke:infra` с заполненным `server/.env` проверяет PostgreSQL, Redis, приватность бакета и скачивание по временной ссылке.
 
 ## Конфигурация
 
@@ -33,9 +36,23 @@ curl -fsS http://127.0.0.1:8080/health
 
 `server/.env` хранится только на VPS с правами доступа владельца и не добавляется в Git. `DATA_DIR` должен указывать на каталог с резервным копированием и ограниченным доступом.
 
+Для PostgreSQL, Redis и S3-compatible storage обязательны `DATABASE_URL`, `REDIS_URL`, `S3_ENDPOINT`, `S3_ACCESS_KEY_ID`, `S3_SECRET_ACCESS_KEY` и `S3_BUCKET`. Локальные значения приведены в `.env.example`; production-секреты должны поступать из окружения/secret manager.
+
+## Данные и миграции
+
+- ORM: Drizzle, потому что он работает с текущим ESM Node.js без отдельного generated client и хранит обозримые SQL-миграции в Git.
+- `npm run db:generate` — создать новую миграцию после изменения схемы.
+- `npm run db:check` — проверить согласованность журнала и снимков миграций.
+- `npm run db:migrate` — применить неприменённые миграции.
+- `npm run db:seed` — идемпотентно создать неактивные стартовые тарифы.
+- `npm run db:setup` — миграции и seed.
+- `npm run migrate:local-orders` — dry run импорта старых JSON-заявок.
+- `npm run migrate:local-orders -- --apply` — импортировать метаданные и фотографии, сохранив исходные файлы.
+
 ## Реализованные endpoints
 
-- `GET /health`
+- `GET /health/live` — liveness API без внешних проверок
+- `GET /health` и `GET /health/ready` — readiness API, PostgreSQL, Redis и storage
 - `POST /api/leads`
 - `GET /api/orders/:id/status?token=...`
 

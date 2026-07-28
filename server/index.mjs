@@ -1,3 +1,4 @@
+import "dotenv/config";
 import { randomBytes } from "node:crypto";
 import { mkdir, readFile, writeFile } from "node:fs/promises";
 import path from "node:path";
@@ -8,13 +9,16 @@ import helmet from "helmet";
 import multer from "multer";
 import nodemailer from "nodemailer";
 import sharp from "sharp";
+import { liveness, readiness } from "./src/health.mjs";
 
-const required = ["SITE_ORIGIN", "MAX_BOT_TOKEN", "MAX_CHAT_ID", "SMTP_USER", "SMTP_PASSWORD", "LEADS_EMAIL"];
+const required = ["SITE_ORIGIN"];
 const missing = required.filter((key) => !process.env[key]);
 if (missing.length) {
   console.error(`Missing environment variables: ${missing.join(", ")}`);
   process.exit(1);
 }
+const notificationVariables = ["MAX_BOT_TOKEN", "MAX_CHAT_ID", "SMTP_USER", "SMTP_PASSWORD", "LEADS_EMAIL"];
+const notificationsConfigured = notificationVariables.every((key) => process.env[key]);
 
 const app = express();
 const port = Number(process.env.PORT || 8080);
@@ -319,13 +323,9 @@ async function sendToMail(text, file, contact) {
   });
 }
 
-app.get("/health", (_request, response) => response.json({
-  ok: true,
-  service: "vizhufasad-leads",
-  automation: "photo-ai-v3",
-  ai: aiEnabled ? "configured" : "not_configured",
-  aiProvider,
-}));
+app.get("/health/live", liveness);
+app.get("/health", readiness);
+app.get("/health/ready", readiness);
 
 app.get("/api/orders/:id/status", async (request, response) => {
   try {
@@ -350,6 +350,9 @@ app.get("/api/orders/:id/status", async (request, response) => {
 });
 
 app.post("/api/leads", upload.single("photo"), async (request, response) => {
+  if (!notificationsConfigured) {
+    return response.status(503).json({ ok: false, error: "Сервис уведомлений временно не настроен" });
+  }
   const name = clean(request.body.name, 80);
   const contact = clean(request.body.contact, 120);
   const wishes = clean(request.body.wishes, 1200);
