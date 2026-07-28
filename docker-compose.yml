@@ -34,6 +34,7 @@ services:
     environment:
       MINIO_ROOT_USER: ${MINIO_ROOT_USER:-vizhufasad}
       MINIO_ROOT_PASSWORD: ${MINIO_ROOT_PASSWORD:-vizhufasad_local_secret}
+      MINIO_API_CORS_ALLOW_ORIGIN: ${S3_CORS_ORIGINS:-http://localhost:8080}
     ports:
       - "127.0.0.1:${MINIO_API_PORT:-9000}:9000"
       - "127.0.0.1:${MINIO_CONSOLE_PORT:-9001}:9001"

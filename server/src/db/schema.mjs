@@ -11,11 +11,14 @@ const timestamps = {
 
 export const userStatus = pgEnum("user_status", ["pending", "active", "blocked", "deleted"]);
 export const projectStatus = pgEnum("project_status", [
+  "draft", "photo_uploading", "photo_processing", "photo_ready",
   "photo_validation_queued", "photo_retake_required", "configuration_required",
   "generation_queued", "generating", "qa_queued", "qa_failed_retrying",
-  "ready", "revision_queued", "failed_terminal", "archived",
+  "ready", "revision_queued", "failed_terminal", "archived", "deleted",
 ]);
-export const imageStatus = pgEnum("image_status", ["uploaded", "validated", "rejected", "deleted"]);
+export const imageStatus = pgEnum("image_status", [
+  "uploading", "uploaded", "processing", "ready", "invalid", "deleted",
+]);
 export const generationStatus = pgEnum("generation_status", ["queued", "processing", "qa", "ready", "failed", "cancelled"]);
 export const attemptStatus = pgEnum("attempt_status", ["started", "succeeded", "retryable_failed", "terminal_failed"]);
 export const transactionType = pgEnum("wallet_transaction_type", ["credit", "debit", "hold", "release", "refund", "adjustment"]);
@@ -69,7 +72,7 @@ export const projects = pgTable("projects", {
   userId: uuid("user_id").references(() => users.id, { onDelete: "set null" }),
   legacyOrderId: text("legacy_order_id"),
   title: text("title").notNull(),
-  status: projectStatus("status").default("photo_validation_queued").notNull(),
+  status: projectStatus("status").default("draft").notNull(),
   facadeConfig: jsonb("facade_config").default({}).notNull(),
   geometryPolicy: jsonb("geometry_policy").default({
     preserveGeometry: true, preserveFloors: true, preserveWindows: true,
@@ -77,6 +80,7 @@ export const projects = pgTable("projects", {
   }).notNull(),
   ...timestamps,
   archivedAt: timestamp("archived_at", { withTimezone: true }),
+  deletedAt: timestamp("deleted_at", { withTimezone: true }),
 }, (table) => [
   uniqueIndex("projects_legacy_order_id_uidx").on(table.legacyOrderId),
   index("projects_user_created_idx").on(table.userId, table.createdAt),
@@ -88,15 +92,23 @@ export const sourceImages = pgTable("source_images", {
   projectId: uuid("project_id").notNull().references(() => projects.id, { onDelete: "cascade" }),
   storageBucket: text("storage_bucket").notNull(),
   storageKey: text("storage_key").notNull(),
+  workingStorageKey: text("working_storage_key"),
+  thumbnailStorageKey: text("thumbnail_storage_key"),
   originalFilename: text("original_filename"),
+  declaredMimeType: text("declared_mime_type").notNull(),
   mimeType: text("mime_type").notNull(),
   byteSize: bigint("byte_size", { mode: "number" }).notNull(),
   width: integer("width"),
   height: integer("height"),
-  sha256: text("sha256").notNull(),
-  status: imageStatus("status").default("uploaded").notNull(),
+  sha256: text("sha256"),
+  status: imageStatus("status").default("uploading").notNull(),
+  invalidReason: text("invalid_reason"),
+  recommendedSize: boolean("recommended_size").default(false).notNull(),
   qualityAssessment: jsonb("quality_assessment"),
   ...timestamps,
+  uploadExpiresAt: timestamp("upload_expires_at", { withTimezone: true }),
+  processedAt: timestamp("processed_at", { withTimezone: true }),
+  deletedAt: timestamp("deleted_at", { withTimezone: true }),
 }, (table) => [
   uniqueIndex("source_images_storage_object_uidx").on(table.storageBucket, table.storageKey),
   index("source_images_project_created_idx").on(table.projectId, table.createdAt),
