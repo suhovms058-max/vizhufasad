@@ -27,16 +27,34 @@ export const users = pgTable("users", {
   email: text("email").notNull(),
   status: userStatus("status").default("pending").notNull(),
   ...timestamps,
+  accountDeletionRequestedAt: timestamp("account_deletion_requested_at", { withTimezone: true }),
   deletedAt: timestamp("deleted_at", { withTimezone: true }),
 }, (table) => [
-  uniqueIndex("users_email_lower_uidx").on(table.email),
+  uniqueIndex("users_email_lower_uidx").on(sql`lower(${table.email})`),
   index("users_status_idx").on(table.status),
+]);
+
+export const emailLoginCodes = pgTable("email_login_codes", {
+  id: uuid("id").defaultRandom().primaryKey(),
+  email: text("email").notNull(),
+  codeHash: text("code_hash").notNull(),
+  requestIpHash: text("request_ip_hash"),
+  attemptsRemaining: integer("attempts_remaining").notNull(),
+  expiresAt: timestamp("expires_at", { withTimezone: true }).notNull(),
+  consumedAt: timestamp("consumed_at", { withTimezone: true }),
+  createdAt: timestamp("created_at", { withTimezone: true }).defaultNow().notNull(),
+}, (table) => [
+  index("email_login_codes_email_created_idx").on(table.email, table.createdAt),
+  index("email_login_codes_expires_idx").on(table.expiresAt),
+  check("email_login_codes_attempts_chk", sql`${table.attemptsRemaining} >= 0`),
 ]);
 
 export const authSessions = pgTable("auth_sessions", {
   id: uuid("id").defaultRandom().primaryKey(),
   userId: uuid("user_id").notNull().references(() => users.id, { onDelete: "cascade" }),
   tokenHash: text("token_hash").notNull(),
+  requestIpHash: text("request_ip_hash"),
+  userAgent: text("user_agent"),
   expiresAt: timestamp("expires_at", { withTimezone: true }).notNull(),
   revokedAt: timestamp("revoked_at", { withTimezone: true }),
   createdAt: timestamp("created_at", { withTimezone: true }).defaultNow().notNull(),

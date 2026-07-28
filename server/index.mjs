@@ -9,6 +9,12 @@ import helmet from "helmet";
 import multer from "multer";
 import nodemailer from "nodemailer";
 import sharp from "sharp";
+import { loadAuthConfig } from "./src/auth/config.mjs";
+import { createAuthRouter } from "./src/auth/http.mjs";
+import { createAuthMailer } from "./src/auth/mailer.mjs";
+import { createAuthPagesRouter } from "./src/auth/pages.mjs";
+import { AuthRepository } from "./src/auth/repository.mjs";
+import { AuthService } from "./src/auth/service.mjs";
 import { liveness, readiness } from "./src/health.mjs";
 
 const required = ["SITE_ORIGIN"];
@@ -22,6 +28,13 @@ const notificationsConfigured = notificationVariables.every((key) => process.env
 
 const app = express();
 const port = Number(process.env.PORT || 8080);
+const authConfig = loadAuthConfig();
+const authRepository = new AuthRepository();
+const authService = new AuthService({
+  repository: authRepository,
+  mailer: createAuthMailer(authConfig),
+  config: authConfig,
+});
 const maxApi = "https://platform-api2.max.ru";
 const allowedImages = new Set(["image/jpeg", "image/png", "image/webp"]);
 const dataDir = path.resolve(process.env.DATA_DIR || "./data");
@@ -41,8 +54,14 @@ await Promise.all([mkdir(ordersDir, { recursive: true }), mkdir(photosDir, { rec
 
 app.set("trust proxy", 1);
 app.use(helmet());
-app.use(cors({ origin: process.env.SITE_ORIGIN, methods: ["GET", "POST"] }));
+app.use(cors({
+  origin: process.env.SITE_ORIGIN,
+  methods: ["GET", "POST", "DELETE"],
+  credentials: true,
+}));
 app.use(express.json({ limit: "32kb" }));
+app.use("/api/auth", createAuthRouter({ service: authService, config: authConfig }));
+app.use(createAuthPagesRouter({ service: authService, config: authConfig }));
 app.use("/api/leads", rateLimit({ windowMs: 15 * 60 * 1000, limit: 8, standardHeaders: true }));
 app.use("/api/orders", rateLimit({ windowMs: 15 * 60 * 1000, limit: 30, standardHeaders: true }));
 

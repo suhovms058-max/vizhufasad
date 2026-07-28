@@ -92,6 +92,20 @@ npm run migrate:local-orders
 npm run migrate:local-orders -- --apply
 ```
 
+## Авторизация и кабинет
+
+Passwordless-вход и серверно-защищённый каркас кабинета работают на origin Express API: `/auth/login`, `/auth/verify`, `/app`, `/app/projects`, `/app/settings`. JSON API и полная модель безопасности описаны в [`docs/STAGE_3_AUTH.md`](docs/STAGE_3_AUTH.md).
+
+После изменения схемы:
+
+```bash
+cd server
+npm run db:migrate
+npm test
+```
+
+Для локальной разработки задайте уникальный `AUTH_HASH_SECRET` и используйте `AUTH_MAIL_MODE=console`. В production обязательны SMTP, `AUTH_COOKIE_SECURE=true` и HTTPS; небезопасная конфигурация отклоняется при старте.
+
 ## Production
 
 - Фронтенд: push в `main` запускает `.github/workflows/deploy-pages.yml`, создаёт static export `out/` и публикует его в GitHub Pages.
