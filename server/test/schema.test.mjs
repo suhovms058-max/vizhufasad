@@ -10,7 +10,7 @@ const migration = (
   await Promise.all(migrationFiles.map((name) => readFile(new URL(name, migrationsDirectory), "utf8")))
 ).join("\n");
 const requiredTables = [
-  "users", "auth_sessions", "projects", "source_images", "generations",
+  "users", "email_login_codes", "auth_sessions", "projects", "source_images", "generations",
   "generation_attempts", "wallets", "wallet_transactions", "tariff_plans",
   "payments", "subscriptions", "audit_logs",
 ];
@@ -29,5 +29,8 @@ test("migrations include foreign keys, indexes, invariants and timestamp default
   assert.match(migration, /wallet_transactions_idempotency_uidx/);
   assert.match(migration, /source_images_byte_size_positive_chk/);
   assert.match(migration, /wallets_balance_nonnegative_chk/);
+  assert.match(migration, /email_login_codes_attempts_chk/);
+  assert.match(migration, /lower\("email"\)/);
+  assert.doesNotMatch(migration, /code_hash.*DEFAULT/);
   assert.doesNotMatch(migration, /manual_review|operator_pending/);
 });

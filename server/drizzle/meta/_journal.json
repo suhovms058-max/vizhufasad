@@ -15,6 +15,13 @@
       "when": 1785187868836,
       "tag": "0001_add_data_invariants",
       "breakpoints": true
+    },
+    {
+      "idx": 2,
+      "version": "7",
+      "when": 1785258000000,
+      "tag": "0002_passwordless_auth",
+      "breakpoints": true
     }
   ]
 }
