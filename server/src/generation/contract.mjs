@@ -1,0 +1,95 @@
+export const GENERATION_MODES = Object.freeze(["gentle", "balanced", "conceptual"]);
+export const GENERATION_PROMPT_VERSION = "standard-facade-v3";
+export const GENERATION_INPUT_VERSION = "1";
+
+const modeSet = new Set(GENERATION_MODES);
+
+export class GenerationError extends Error {
+  constructor(code, status = 400, { retryable = false, details = null } = {}) {
+    super(code);
+    this.code = code;
+    this.status = status;
+    this.retryable = retryable;
+    this.details = details;
+  }
+}
+
+function cleanText(value, name, maxLength, { required = false } = {}) {
+  const normalized = String(value ?? "").trim().replace(/\s+/gu, " ");
+  if (required && !normalized) throw new GenerationError(`INVALID_${name.toUpperCase()}`);
+  if (normalized.length > maxLength) throw new GenerationError(`INVALID_${name.toUpperCase()}`);
+  return normalized;
+}
+
+function cleanList(value, name, maxItems = 12) {
+  if (value == null) return [];
+  if (!Array.isArray(value) || value.length > maxItems) {
+    throw new GenerationError(`INVALID_${name.toUpperCase()}`);
+  }
+  return value
+    .map((item) => cleanText(item, name, 120))
+    .filter(Boolean);
+}
+
+function cleanPalette(value) {
+  if (value == null) return [];
+  if (!Array.isArray(value) || value.length > 8) {
+    throw new GenerationError("INVALID_PALETTE");
+  }
+  return value.map((item) => {
+    const color = cleanText(item, "palette", 32, { required: true });
+    if (!/^#[0-9a-f]{6}$/iu.test(color) && !/^[\p{L}\p{N} ._-]+$/u.test(color)) {
+      throw new GenerationError("INVALID_PALETTE");
+    }
+    return color;
+  });
+}
+
+function preserveSettings(value = {}) {
+  if (value == null || typeof value !== "object" || Array.isArray(value)) {
+    throw new GenerationError("INVALID_PRESERVE_SETTINGS");
+  }
+  const settings = {
+    geometry: value.geometry ?? true,
+    floors: value.floors ?? true,
+    roof: value.roof ?? true,
+    windows: value.windows ?? true,
+    doors: value.doors ?? true,
+    perspective: value.perspective ?? true,
+    housePosition: value.housePosition ?? true,
+  };
+  for (const [key, item] of Object.entries(settings)) {
+    if (typeof item !== "boolean") throw new GenerationError(`INVALID_PRESERVE_${key.toUpperCase()}`);
+  }
+  return settings;
+}
+
+export function normalizeGenerationInput(value = {}) {
+  if (!value || typeof value !== "object" || Array.isArray(value)) {
+    throw new GenerationError("INVALID_GENERATION_INPUT");
+  }
+  const mode = String(value.transformationLevel || value.mode || "gentle").trim().toLowerCase();
+  if (!modeSet.has(mode)) throw new GenerationError("INVALID_TRANSFORMATION_LEVEL");
+  const version = String(value.version || GENERATION_INPUT_VERSION);
+  if (version !== GENERATION_INPUT_VERSION) throw new GenerationError("UNSUPPORTED_GENERATION_INPUT_VERSION");
+  return Object.freeze({
+    version,
+    style: cleanText(value.style, "style", 100, { required: true }),
+    materials: cleanList(value.materials, "materials"),
+    palette: cleanPalette(value.palette),
+    preserve: Object.freeze(preserveSettings(value.preserve)),
+    transformationLevel: mode,
+    wishes: cleanText(value.wishes, "wishes", 800),
+    negativeConstraints: cleanList(value.negativeConstraints, "negative_constraints", 20),
+  });
+}
+
+export function assertGenerationProvider(provider) {
+  if (!provider || typeof provider.generate !== "function") {
+    throw new TypeError("GenerationProvider.generate is required");
+  }
+  if (!provider.name || !provider.model) {
+    throw new TypeError("GenerationProvider name and model are required");
+  }
+  return provider;
+}

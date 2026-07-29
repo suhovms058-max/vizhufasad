@@ -1,0 +1,62 @@
+{
+  "version": "7",
+  "dialect": "postgresql",
+  "entries": [
+    {
+      "idx": 0,
+      "version": "7",
+      "when": 1785186817872,
+      "tag": "0000_initial_data_infrastructure",
+      "breakpoints": true
+    },
+    {
+      "idx": 1,
+      "version": "7",
+      "when": 1785187868836,
+      "tag": "0001_add_data_invariants",
+      "breakpoints": true
+    },
+    {
+      "idx": 2,
+      "version": "7",
+      "when": 1785258000000,
+      "tag": "0002_passwordless_auth",
+      "breakpoints": true
+    },
+    {
+      "idx": 3,
+      "version": "7",
+      "when": 1785266905578,
+      "tag": "0003_project_image_lifecycle",
+      "breakpoints": true
+    },
+    {
+      "idx": 4,
+      "version": "7",
+      "when": 1785270038070,
+      "tag": "0004_automatic_photo_assessment",
+      "breakpoints": true
+    },
+    {
+      "idx": 5,
+      "version": "7",
+      "when": 1785272984782,
+      "tag": "0005_wallet_tariff_catalog",
+      "breakpoints": true
+    },
+    {
+      "idx": 6,
+      "version": "7",
+      "when": 1785314377823,
+      "tag": "0006_standard_generation",
+      "breakpoints": true
+    },
+    {
+      "idx": 7,
+      "version": "7",
+      "when": 1785316815919,
+      "tag": "0007_generation_wallet_fk",
+      "breakpoints": true
+    }
+  ]
+}

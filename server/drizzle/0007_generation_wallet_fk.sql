@@ -1,0 +1,1 @@
+ALTER TABLE "generations" ADD CONSTRAINT "generations_wallet_reservation_id_wallet_transactions_id_fk" FOREIGN KEY ("wallet_reservation_id") REFERENCES "public"."wallet_transactions"("id") ON DELETE set null ON UPDATE no action;
