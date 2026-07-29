@@ -16,7 +16,9 @@
     "cleanup:images": "node scripts/cleanup-project-images.mjs",
     "smoke:infra": "node --test test/infra.integration.test.mjs",
     "smoke:photo-assessment": "node --test test/photo-assessment.integration.test.mjs",
-    "smoke:wallet": "node --test test/wallet.integration.test.mjs"
+    "smoke:wallet": "node --test test/wallet.integration.test.mjs",
+    "smoke:generation": "node scripts/smoke-standard-generation.mjs",
+    "smoke:generation:endpoint": "node scripts/smoke-standard-generation-endpoint.mjs"
   },
   "dependencies": {
     "@aws-sdk/client-s3": "^3.850.0",

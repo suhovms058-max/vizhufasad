@@ -6,7 +6,11 @@
 
 ## Текущее состояние
 
-Сейчас публично работает статический Next.js-фронтенд с формой заявки. Express API на VPS принимает фотографию, выполняет техническую и AI-проверку, сохраняет заказ в файлах и отправляет уведомления в MAX и Mail.ru. Генерация фасада, очередь заданий, база данных, авторизация, личный кабинет, кредиты и платежи ещё не реализованы.
+Публичный production пока использует статический Next.js-фронтенд с legacy-формой заявки и
+Express API на VPS. В продуктовой ветке уже реализованы PostgreSQL/Redis/S3, passwordless-вход,
+проекты, безопасная обработка фото, автоматический assessment, кредитный кошелёк и рабочая
+Standard image-to-image генерация. Production-переключение ещё не выполнено; очередь, Pro, 4K,
+платежи и редактор отсутствуют.
 
 Подробности:
 
@@ -197,3 +201,35 @@ npm run smoke:wallet
 Owner-only API: `/api/wallet`, `/api/wallet/transactions`, `/api/catalog/tariffs` и
 `/api/catalog/action-costs`. Экран: `/app/balance`. Payment provider, checkout и кнопки покупки
 намеренно отсутствуют. Подробности: [`docs/STAGE_6_WALLET_TARIFFS.md`](docs/STAGE_6_WALLET_TARIFFS.md).
+
+## Standard-генерация фасада
+
+Этап 7 добавляет provider-independent Standard image-to-image путь. Основной provider — GenAPI
+с моделью `nano-banana-2`; она лучше выполнила требование законченного фасада в расширенном
+сравнении edit-моделей и успешно прошла три фасада закрытого набора.
+Исходник и результат остаются приватными, ссылки короткоживущие, а техническая ошибка после
+резерва кредита приводит к идемпотентному возврату.
+Prompt автоматически учитывает стиль, материалы, палитру и пожелания клиента, завершает фасадные
+узлы и может добавить ограждение только на уже существующей опасной площадке или перепаде.
+
+```bash
+docker compose up -d
+cd server
+npm run db:migrate
+npm run db:seed
+npm run check
+npm test
+npm run db:check
+```
+
+Для включения задайте только в `server/.env`:
+
+```dotenv
+FEATURE_STANDARD_GENERATION_ENABLED=true
+GENAPI_API_KEY=ваш_серверный_ключ
+GENAPI_STANDARD_MODEL=nano-banana-2
+```
+
+Платные smoke-команды требуют отдельного `GENERATION_LIVE_SMOKE_ENABLED=true` и описаны в
+[`docs/STAGE_7_STANDARD_GENERATION.md`](docs/STAGE_7_STANDARD_GENERATION.md). Измерения и
+ограничения provider: [`docs/GENERATION_PROVIDER_DECISION.md`](docs/GENERATION_PROVIDER_DECISION.md).

@@ -17,6 +17,14 @@ import { AuthService } from "./src/auth/service.mjs";
 import { liveness, readiness } from "./src/health.mjs";
 import { ensurePrivateBucket } from "./src/infra/storage.mjs";
 import * as storage from "./src/infra/storage.mjs";
+import { loadGenerationConfig } from "./src/generation/config.mjs";
+import {
+  createGenerationRouter, createGenerationStagingRouter,
+} from "./src/generation/http.mjs";
+import { GenApiGenerationProvider } from "./src/generation/providers/genapi.mjs";
+import { UnavailableGenerationProvider } from "./src/generation/providers/fallback.mjs";
+import { GenerationRepository } from "./src/generation/repository.mjs";
+import { GenerationService } from "./src/generation/service.mjs";
 import { loadProjectConfig } from "./src/projects/config.mjs";
 import { createProjectsRouter } from "./src/projects/http.mjs";
 import { createProjectPagesRouter } from "./src/projects/pages.mjs";
@@ -55,6 +63,29 @@ const walletRepository = new WalletRepository();
 const walletService = new WalletService({
   repository: walletRepository,
   config: walletConfig,
+});
+const generationConfig = loadGenerationConfig();
+const generationProviders = [];
+if (generationConfig.enabled && generationConfig.provider === "genapi") {
+  generationProviders.push(new GenApiGenerationProvider({
+    apiKey: generationConfig.apiKey,
+    model: generationConfig.model,
+    endpoint: generationConfig.endpoint,
+    estimatedCostMinor: generationConfig.estimatedCostMinor,
+    currency: generationConfig.currency,
+    pollIntervalMs: generationConfig.pollIntervalMs,
+    resultMaxBytes: generationConfig.resultMaxBytes,
+  }));
+}
+if (generationConfig.enabled && generationConfig.fallbackProvider === "cloudru-self-hosted") {
+  generationProviders.push(new UnavailableGenerationProvider());
+}
+const generationService = new GenerationService({
+  repository: new GenerationRepository(),
+  storage,
+  walletService,
+  providers: generationProviders,
+  config: generationConfig,
 });
 const authRepository = new AuthRepository(undefined, walletConfig);
 const authService = new AuthService({
@@ -115,6 +146,11 @@ app.use("/assets", express.static(path.resolve("./public"), {
 }));
 app.use("/api/auth", createAuthRouter({ service: authService, config: authConfig }));
 app.use("/api/projects", createProjectsRouter({ authService, projectService }));
+app.use("/api/projects", createGenerationRouter({ authService, generationService }));
+app.use(
+  "/api/staging/generation",
+  createGenerationStagingRouter({ generationService, config: generationConfig }),
+);
 app.use("/api/wallet", createWalletRouter({ authService, walletService }));
 app.use("/api/catalog", createCatalogRouter({ authService, walletService }));
 app.use(createProjectPagesRouter({ authService, projectService }));

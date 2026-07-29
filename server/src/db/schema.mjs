@@ -175,15 +175,20 @@ export const generations = pgTable("generations", {
   sourceImageId: uuid("source_image_id").notNull().references(() => sourceImages.id, { onDelete: "restrict" }),
   revision: integer("revision").default(1).notNull(),
   status: generationStatus("status").default("queued").notNull(),
+  idempotencyKey: text("idempotency_key"),
+  walletReservationId: uuid("wallet_reservation_id")
+    .references(() => walletTransactions.id, { onDelete: "set null" }),
   configSnapshot: jsonb("config_snapshot").notNull(),
   geometryPolicySnapshot: jsonb("geometry_policy_snapshot").notNull(),
   resultBucket: text("result_bucket"),
   resultKey: text("result_key"),
+  resultMimeType: text("result_mime_type"),
   failureCode: text("failure_code"),
   ...timestamps,
   completedAt: timestamp("completed_at", { withTimezone: true }),
 }, (table) => [
   uniqueIndex("generations_project_revision_uidx").on(table.projectId, table.revision),
+  uniqueIndex("generations_idempotency_uidx").on(table.idempotencyKey),
   index("generations_status_created_idx").on(table.status, table.createdAt),
   check("generations_revision_positive_chk", sql`${table.revision} > 0`),
 ]);
@@ -194,7 +199,14 @@ export const generationAttempts = pgTable("generation_attempts", {
   attemptNumber: integer("attempt_number").notNull(),
   status: attemptStatus("status").default("started").notNull(),
   provider: text("provider"),
+  model: text("model"),
+  promptVersion: text("prompt_version"),
   providerRequestId: text("provider_request_id"),
+  seed: bigint("seed", { mode: "number" }),
+  durationMs: integer("duration_ms"),
+  estimatedCostMinor: integer("estimated_cost_minor"),
+  actualCostMinor: integer("actual_cost_minor"),
+  costCurrency: text("cost_currency"),
   errorCode: text("error_code"),
   errorDetails: jsonb("error_details"),
   startedAt: timestamp("started_at", { withTimezone: true }).defaultNow().notNull(),
@@ -203,6 +215,11 @@ export const generationAttempts = pgTable("generation_attempts", {
   uniqueIndex("generation_attempts_number_uidx").on(table.generationId, table.attemptNumber),
   index("generation_attempts_status_idx").on(table.status),
   check("generation_attempts_number_positive_chk", sql`${table.attemptNumber} > 0`),
+  check("generation_attempts_duration_nonnegative_chk", sql`${table.durationMs} IS NULL OR ${table.durationMs} >= 0`),
+  check("generation_attempts_cost_nonnegative_chk", sql`
+    (${table.estimatedCostMinor} IS NULL OR ${table.estimatedCostMinor} >= 0)
+    AND (${table.actualCostMinor} IS NULL OR ${table.actualCostMinor} >= 0)
+  `),
 ]);
 
 export const wallets = pgTable("wallets", {
