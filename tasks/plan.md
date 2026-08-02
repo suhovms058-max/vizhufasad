@@ -17,48 +17,48 @@ Add mandatory, automatic quality control to every Standard facade generation. Th
 
 ### Phase 1: Contract and persistence
 
-- [ ] Task 1: Define versioned quality input/output schemas, decisions and configurable thresholds.
-- [ ] Task 2: Add migration and repository for two assessments and expiring private diagnostics.
+- [x] Task 1: Define versioned quality input/output schemas, decisions and configurable thresholds.
+- [x] Task 2: Add migration and repository for two assessments and expiring private diagnostics.
 
 ### Checkpoint: Foundation
 
-- [ ] Contract tests pass.
-- [ ] Migration applies on a clean database and schema check passes.
+- [x] Contract tests pass.
+- [x] Migration applies on a clean database and schema check passes.
 
 ### Phase 2: Evidence and policy
 
-- [ ] Task 3: Implement deterministic contour, spatial and protected-zone evidence with golden fixtures.
-- [ ] Task 4: Implement strict structured VLM providers and orchestration with bounded fallback.
-- [ ] Task 5: Combine evidence into separate scores, reasons and a final automatic decision.
+- [x] Task 3: Implement deterministic contour, spatial and protected-zone evidence with golden fixtures.
+- [x] Task 4: Implement strict structured VLM providers and orchestration with bounded fallback.
+- [x] Task 5: Combine evidence into separate scores, reasons and a final automatic decision.
 
 ### Checkpoint: Assessment
 
-- [ ] Structural, provider and policy tests pass.
-- [ ] Regression report matches the committed golden expectations.
+- [x] Structural, provider and policy tests pass.
+- [x] Regression report matches the committed golden expectations.
 
 ### Phase 3: Worker lifecycle
 
-- [ ] Task 6: Store each candidate privately, assess it, publish only a passing candidate and commit once.
-- [ ] Task 7: On first QC failure strengthen constraints and generate exactly one free retry.
-- [ ] Task 8: On second QC failure hide candidates and refund once, including restart/idempotency paths.
+- [x] Task 6: Store each candidate privately, assess it, publish only a passing candidate and commit once.
+- [x] Task 7: On first QC failure strengthen constraints and generate exactly one free retry.
+- [x] Task 8: On second QC failure hide candidates and refund once, including restart/idempotency paths.
 
 ### Checkpoint: Lifecycle
 
-- [ ] Processor tests cover first pass, retry pass, second failure, technical errors and duplicate refund.
-- [ ] Queue/integration tests preserve Stage 8 behavior.
+- [x] Processor tests cover first pass, retry pass, second failure, technical errors and duplicate refund.
+- [x] Queue/integration tests preserve Stage 8 behavior.
 
 ### Phase 4: Operations and release gate
 
-- [ ] Task 9: Add admin-only read diagnostics, retention cleanup and quality metrics.
-- [ ] Task 10: Update environment examples, runbooks and Stage 9 documentation.
-- [ ] Task 11: Run full server and frontend checks, clean-database migration, service smoke, secret scan and diff checks.
+- [x] Task 9: Add admin-only read diagnostics, retention cleanup and quality metrics.
+- [x] Task 10: Update environment examples, runbooks and Stage 9 documentation.
+- [x] Task 11: Run full server and frontend checks, clean-database migration, service smoke, secret scan and diff checks.
 
 ### Checkpoint: Complete
 
-- [ ] Every exposed result has a passing assessment.
-- [ ] One quality retry is free and the second failure is refunded idempotently.
-- [ ] No operator or manual approval path exists.
-- [ ] All mandatory checks pass before commit, push and draft PR.
+- [x] Every exposed result has a passing assessment.
+- [x] One quality retry is free and the second failure is refunded idempotently.
+- [x] No operator or manual approval path exists.
+- [x] All mandatory checks pass before commit, push and draft PR.
 
 ## Risks and Mitigations
 
@@ -73,4 +73,3 @@ Add mandatory, automatic quality control to every Standard facade generation. Th
 ## Open Questions
 
 - A live Yandex VLM smoke requires configured credentials. Local contract/integration tests use strict mocks; any paid or credentialed external smoke is reported separately rather than inferred.
-

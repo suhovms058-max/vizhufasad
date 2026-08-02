@@ -93,3 +93,15 @@ npm run start:worker
 Проверка без платного GenAPI: `npm run smoke:queue`. Параметры concurrency, attempts, backoff,
 stalled lock, watchdog и приоритетов перечислены в `.env.example`. Операционная инструкция:
 [`../docs/STAGE_8_GENERATION_QUEUE.md`](../docs/STAGE_8_GENERATION_QUEUE.md).
+
+## Обязательный generation quality gate
+
+Worker не может установить `completed`, пока кандидат не получил сохранённое решение `passed`. После первого `retry_required` создаётся ровно один кандидат №2 без нового wallet reserve. После `rejected_refund` результат не выдаётся, а исходная транзакция возвращается по прежнему idempotency key.
+
+```powershell
+npm run db:migrate
+npm run regression:generation-quality
+npm run cleanup:generation-quality
+```
+
+`GET /internal/generation/quality/:generationId` доступен только при непустом `GENERATION_QUALITY_ADMIN_TOKEN` и возвращает read-only диагностику с короткоживущей ссылкой. Маршрута ручного approve/reject нет. Полная схема и переменные: [`../docs/STAGE_9_GENERATION_QUALITY.md`](../docs/STAGE_9_GENERATION_QUALITY.md).
