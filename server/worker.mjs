@@ -1,5 +1,9 @@
 import "dotenv/config";
 import { loadGenerationConfig } from "./src/generation/config.mjs";
+import { loadGenerationQualityConfig } from "./src/generation-quality/config.mjs";
+import { GenerationQualityOrchestrator } from "./src/generation-quality/orchestrator.mjs";
+import { createGenerationQualityProviders } from "./src/generation-quality/providers.mjs";
+import { GenerationQualityRepository } from "./src/generation-quality/repository.mjs";
 import { GenerationMetrics } from "./src/generation/metrics.mjs";
 import { GenerationProcessor } from "./src/generation/processor.mjs";
 import { createGenerationProviders } from "./src/generation/providers-factory.mjs";
@@ -20,8 +24,10 @@ const missing = required.filter((name) => !process.env[name]);
 if (missing.length) throw new Error(`Missing environment variables: ${missing.join(", ")}`);
 
 const config = loadGenerationConfig();
+const qualityConfig = loadGenerationQualityConfig();
 if (!config.enabled) throw new Error("FEATURE_STANDARD_GENERATION_ENABLED must be true");
 const repository = new GenerationRepository();
+const qualityRepository = new GenerationQualityRepository();
 const queue = createGenerationQueue(config);
 const walletService = new WalletService({
   repository: new WalletRepository(),
@@ -29,12 +35,18 @@ const walletService = new WalletService({
 });
 const processor = new GenerationProcessor({
   repository,
+  qualityRepository,
+  qualityOrchestrator: new GenerationQualityOrchestrator({
+    providers: createGenerationQualityProviders(qualityConfig),
+    config: qualityConfig,
+  }),
   storage,
   walletService,
   providers: createGenerationProviders(config),
   config,
+  qualityConfig,
 });
-const metrics = new GenerationMetrics({ repository, queue });
+const metrics = new GenerationMetrics({ repository, queue, qualityRepository });
 const runtime = createGenerationWorker({
   config, processor, repository, queue, metrics,
 });

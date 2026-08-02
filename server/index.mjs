@@ -20,6 +20,9 @@ import { ensurePrivateBucket } from "./src/infra/storage.mjs";
 import * as storage from "./src/infra/storage.mjs";
 import { closeRedis } from "./src/infra/redis.mjs";
 import { loadGenerationConfig } from "./src/generation/config.mjs";
+import { loadGenerationQualityConfig } from "./src/generation-quality/config.mjs";
+import { createGenerationQualityDiagnosticsRouter } from "./src/generation-quality/http.mjs";
+import { GenerationQualityRepository } from "./src/generation-quality/repository.mjs";
 import {
   createGenerationMetricsRouter, createGenerationRouter, createGenerationStagingRouter,
 } from "./src/generation/http.mjs";
@@ -67,7 +70,9 @@ const walletService = new WalletService({
   config: walletConfig,
 });
 const generationConfig = loadGenerationConfig();
+const generationQualityConfig = loadGenerationQualityConfig();
 const generationRepository = new GenerationRepository();
+const generationQualityRepository = new GenerationQualityRepository();
 const generationQueue = createGenerationQueue(generationConfig);
 const generationService = new GenerationService({
   repository: generationRepository,
@@ -79,6 +84,7 @@ const generationService = new GenerationService({
 const generationMetrics = new GenerationMetrics({
   repository: generationRepository,
   queue: generationQueue,
+  qualityRepository: generationQualityRepository,
 });
 const authRepository = new AuthRepository(undefined, walletConfig);
 const authService = new AuthService({
@@ -147,6 +153,14 @@ app.use(
 app.use(
   "/internal/generation/metrics",
   createGenerationMetricsRouter({ metrics: generationMetrics, config: generationConfig }),
+);
+app.use(
+  "/internal/generation/quality",
+  createGenerationQualityDiagnosticsRouter({
+    repository: generationQualityRepository,
+    storage,
+    config: generationQualityConfig,
+  }),
 );
 app.use("/api/wallet", createWalletRouter({ authService, walletService }));
 app.use("/api/catalog", createCatalogRouter({ authService, walletService }));

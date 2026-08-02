@@ -7,6 +7,7 @@ import { closeDatabase, getPool } from "../src/db/client.mjs";
 import { GenerationProcessor } from "../src/generation/processor.mjs";
 import { GenerationRepository } from "../src/generation/repository.mjs";
 import { GenerationService } from "../src/generation/service.mjs";
+import { GenerationQualityRepository } from "../src/generation-quality/repository.mjs";
 import { WalletRepository } from "../src/wallet/repository.mjs";
 import { WalletService } from "../src/wallet/service.mjs";
 
@@ -60,6 +61,7 @@ test("queued generation is processed asynchronously with atomic wallet lifecycle
   const pool = getPool();
   const fixture = await createFixture(pool);
   const repository = new GenerationRepository(pool);
+  const qualityRepository = new GenerationQualityRepository(pool);
   const walletService = new WalletService({
     repository: new WalletRepository(pool),
     config: {
@@ -100,6 +102,19 @@ test("queued generation is processed asynchronously with atomic wallet lifecycle
   });
   const processor = new GenerationProcessor({
     repository,
+    qualityRepository,
+    qualityOrchestrator: {
+      async assess() {
+        return {
+          decision: "passed", overallScore: 9000, failureReasons: [],
+          scoreBreakdown: {}, vlmResult: {}, structuralResult: {},
+          schemaVersion: "generation-quality-assessment-v1",
+          promptVersion: "facade-quality-compare-v1",
+          policyVersion: "facade-quality-policy-v1",
+          provider: "quality-mock", model: "quality-model", providerRequestId: "quality-1",
+        };
+      },
+    },
     storage,
     walletService,
     providers: [{
@@ -121,7 +136,8 @@ test("queued generation is processed asynchronously with atomic wallet lifecycle
         };
       },
     }],
-    config: { timeoutMs: 1_000, workerLockDurationMs: 60_000 },
+    config: { timeoutMs: 1_000, workerLockDurationMs: 60_000, resultMaxBytes: 25_000_000 },
+    qualityConfig: { enabled: true, diagnosticRetentionHours: 72 },
     seedFactory: () => 123,
   });
   try {
@@ -149,7 +165,10 @@ test("queued generation is processed asynchronously with atomic wallet lifecycle
     assert.equal(completed.attempts[0].promptVersion, "standard-facade-v3");
     assert.equal(Number(completed.attempts[0].seed), 123);
     assert.equal(completed.attempts[0].actualCostMinor, 90);
-    assert.equal(stored.size, 1);
+    assert.equal(stored.size, 2);
+    const assessments = await qualityRepository.listForGeneration(queued.id);
+    assert.equal(assessments.length, 1);
+    assert.equal(assessments[0].decision, "passed");
     const transactions = await pool.query(
       `select type, status, amount from wallet_transactions transaction
        join wallets wallet on wallet.id = transaction.wallet_id

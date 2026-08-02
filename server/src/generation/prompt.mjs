@@ -16,7 +16,7 @@ const preserveLabels = {
   housePosition: "house position and scale within the frame",
 };
 
-export function composeGenerationPrompt(input) {
+export function composeGenerationPrompt(input, { qualityRetryReasons = [] } = {}) {
   const protectedItems = Object.entries(input.preserve)
     .filter(([, enabled]) => enabled)
     .map(([key]) => preserveLabels[key]);
@@ -48,6 +48,9 @@ export function composeGenerationPrompt(input) {
       : "",
     "Keep the original environment, season, lighting direction and camera optics. The result is a facade visualization concept, not a construction drawing.",
     "Do not add or remove floors, windows, doors, roof volumes, terraces, balconies, extensions, structural posts or canopies. Safety railings on already-existing geometry are the only permitted automatically inferred addition. Do not move or resize openings. Do not add people, vehicles, text, logos, watermarks or construction drawings.",
+    qualityRetryReasons.length
+      ? `AUTOMATIC QUALITY RETRY: The previous candidate was rejected for: ${qualityRetryReasons.join(", ")}. Correct those failures. Increase source-image fidelity and preserve all protected contours, openings, roof lines, storeys, viewpoint and house position. This is the single automatic retry; do not trade structural fidelity for style.`
+      : "",
     input.negativeConstraints.length
       ? `Additional forbidden changes: ${input.negativeConstraints.join("; ")}.`
       : "",

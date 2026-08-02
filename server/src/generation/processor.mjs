@@ -2,6 +2,11 @@ import { randomInt } from "node:crypto";
 import { UnrecoverableError } from "bullmq";
 import sharp from "sharp";
 import {
+  GENERATION_QUALITY_POLICY_VERSION, GENERATION_QUALITY_PROMPT_VERSION,
+  GENERATION_QUALITY_SCHEMA_VERSION, GenerationQualityError,
+  allowedQualityChanges,
+} from "../generation-quality/contract.mjs";
+import {
   assertGenerationProvider, GenerationError, isRetryableGenerationError,
   normalizeGenerationInput,
 } from "./contract.mjs";
@@ -43,17 +48,23 @@ function finalQueueAttempt(job) {
 export class GenerationProcessor {
   constructor({
     repository,
+    qualityRepository,
+    qualityOrchestrator,
     storage,
     walletService,
     providers,
     config,
+    qualityConfig,
     seedFactory = () => randomInt(1, 2_147_483_647),
   }) {
     this.repository = repository;
+    this.qualityRepository = qualityRepository;
+    this.qualityOrchestrator = qualityOrchestrator;
     this.storage = storage;
     this.walletService = walletService;
     this.providers = providers.map(assertGenerationProvider);
     this.config = config;
+    this.qualityConfig = qualityConfig;
     this.seedFactory = seedFactory;
   }
 
@@ -71,6 +82,95 @@ export class GenerationProcessor {
       generation.project_id,
       failureCode || "GENERATION_FAILED",
     );
+  }
+
+  async generateCandidate({
+    generation, sourceImage, input, candidateNumber, retryReasons, dimensions, signal,
+  }) {
+    const generating = await this.repository.transition(
+      generation.id,
+      ["preprocessing"],
+      "generating",
+    );
+    if (!generating) throw new GenerationError("GENERATION_STATE_CONFLICT", 409);
+    const prompt = composeGenerationPrompt(input, { qualityRetryReasons: retryReasons });
+    let lastError;
+    for (const provider of this.providers) {
+      const seed = this.seedFactory();
+      const attemptNumber = await this.repository.nextAttemptNumber(generation.id);
+      const attempt = await this.repository.startAttempt({
+        generationId: generation.id,
+        attemptNumber,
+        provider: provider.name,
+        model: provider.model,
+        promptVersion: prompt.version,
+        seed,
+        estimatedCostMinor: provider.estimatedCostMinor ?? null,
+        currency: provider.currency ?? null,
+        candidateNumber,
+      });
+      const timeoutSignal = AbortSignal.timeout(this.config.timeoutMs);
+      const providerSignal = signal
+        ? AbortSignal.any([signal, timeoutSignal])
+        : timeoutSignal;
+      try {
+        const providerResult = await provider.generate({
+          sourceImage,
+          sourceMimeType: "image/jpeg",
+          prompt: prompt.prompt,
+          seed,
+          ...dimensions,
+          signal: providerSignal,
+        });
+        const candidateImage = await normalizeAndCheckProviderResult(providerResult.result);
+        const key = `users/${generation.user_id}/projects/${generation.project_id}/generations/${generation.id}/quality/candidate-${candidateNumber}-${attempt.id}.jpg`;
+        await this.storage.putPrivateObject({
+          key,
+          body: candidateImage,
+          contentType: "image/jpeg",
+          metadata: {
+            generationId: generation.id,
+            candidateNumber: String(candidateNumber),
+            retention: "generation-quality-diagnostic",
+          },
+        });
+        await this.repository.succeedAttempt(attempt.id, providerResult);
+        await this.repository.attachAttemptResult(attempt.id, {
+          bucket: this.storage.getStorageBucket(), key, mimeType: "image/jpeg",
+        });
+        return { attempt: { ...attempt, result_key: key }, candidateImage, prompt };
+      } catch (caught) {
+        lastError = caught instanceof GenerationError
+          ? caught
+          : new GenerationError("GENERATION_PROVIDER_FAILED", 502, { retryable: true });
+        await this.repository.failAttempt(attempt.id, lastError);
+        if (!lastError.retryable) break;
+      }
+    }
+    throw lastError || new GenerationError("GENERATION_PROVIDER_FAILED", 502, { retryable: true });
+  }
+
+  async finalizePassingCandidate({ generation, candidateImage, candidateKey, qualityAssessment }) {
+    const resultKey = `users/${generation.user_id}/projects/${generation.project_id}/generations/${generation.id}/standard.jpg`;
+    await this.storage.putPrivateObject({
+      key: resultKey,
+      body: candidateImage,
+      contentType: "image/jpeg",
+      metadata: {
+        generationId: generation.id,
+        qualityAssessmentId: qualityAssessment.id,
+        qualityPolicyVersion: qualityAssessment.policy_version,
+      },
+    });
+    await this.walletService.commit(generation.user_id, generation.wallet_reservation_id);
+    await this.repository.markCompleted({
+      generationId: generation.id,
+      projectId: generation.project_id,
+      bucket: this.storage.getStorageBucket(),
+      key: resultKey,
+      mimeType: "image/jpeg",
+    });
+    return { resultKey, candidateKey };
   }
 
   async process(job, workerSignal) {
@@ -92,108 +192,142 @@ export class GenerationProcessor {
       Math.max(5_000, Math.floor(this.config.workerLockDurationMs / 3)),
     );
     heartbeat.unref?.();
-    let resultKey;
+    let publicResultKey;
     try {
       if (!this.providers.length) {
         throw new GenerationError("GENERATION_PROVIDER_UNAVAILABLE", 503, { retryable: true });
       }
+      if (!this.qualityOrchestrator || !this.qualityRepository || !this.qualityConfig?.enabled) {
+        throw new GenerationQualityError("GENERATION_QUALITY_REQUIRED");
+      }
       await job.updateProgress({ stage: "preprocessing", percent: 20 });
       const input = normalizeGenerationInput(generation.config_snapshot);
-      const prompt = composeGenerationPrompt(input);
+      const allowedChanges = allowedQualityChanges(input);
       const sourceImage = await this.storage.getPrivateObjectBuffer(
         generation.working_storage_key,
         25 * 1024 * 1024,
       );
       const dimensions = outputDimensions(generation.source_width, generation.source_height);
-      const generating = await this.repository.transition(
-        generationId,
-        ["preprocessing"],
-        "generating",
-      );
-      if (!generating) throw new GenerationError("GENERATION_STATE_CONFLICT", 409);
-      await job.updateProgress({ stage: "generating", percent: 45 });
-
-      let providerResult;
-      let lastError;
-      for (const provider of this.providers) {
-        const seed = this.seedFactory();
-        const attemptNumber = await this.repository.nextAttemptNumber(generationId);
-        const attempt = await this.repository.startAttempt({
-          generationId,
-          attemptNumber,
-          provider: provider.name,
-          model: provider.model,
-          promptVersion: prompt.version,
-          seed,
-          estimatedCostMinor: provider.estimatedCostMinor ?? null,
-          currency: provider.currency ?? null,
+      const previous = await this.qualityRepository.listForGeneration(generationId);
+      const alreadyPassed = previous.find((assessment) => assessment.decision === "passed");
+      if (alreadyPassed?.diagnostic_key) {
+        const candidateImage = await this.storage.getPrivateObjectBuffer(
+          alreadyPassed.diagnostic_key,
+          this.config.resultMaxBytes,
+        );
+        const finalized = await this.finalizePassingCandidate({
+          generation,
+          candidateImage,
+          candidateKey: alreadyPassed.diagnostic_key,
+          qualityAssessment: alreadyPassed,
         });
-        const timeoutSignal = AbortSignal.timeout(this.config.timeoutMs);
-        const signal = workerSignal
-          ? AbortSignal.any([workerSignal, timeoutSignal])
-          : timeoutSignal;
-        try {
-          providerResult = await provider.generate({
-            sourceImage,
-            sourceMimeType: "image/jpeg",
-            prompt: prompt.prompt,
-            seed,
-            ...dimensions,
-            signal,
-          });
-          await this.repository.succeedAttempt(attempt.id, providerResult);
-          break;
-        } catch (error) {
-          lastError = error instanceof GenerationError
-            ? error
-            : new GenerationError("GENERATION_PROVIDER_FAILED", 502, { retryable: true });
-          await this.repository.failAttempt(attempt.id, lastError);
-          if (!lastError.retryable) break;
-        }
+        publicResultKey = finalized.resultKey;
+        await job.updateProgress({ stage: "completed", percent: 100 });
+        return { generationId, status: "completed" };
       }
-      if (!providerResult) throw lastError || new GenerationError(
-        "GENERATION_PROVIDER_FAILED",
-        502,
-        { retryable: true },
-      );
 
-      const checking = await this.repository.transition(
-        generationId,
-        ["generating"],
-        "quality_check_pending",
-      );
-      if (!checking) throw new GenerationError("GENERATION_STATE_CONFLICT", 409);
-      await job.updateProgress({ stage: "quality_check_pending", percent: 80 });
-      const normalized = await normalizeAndCheckProviderResult(providerResult.result);
-      resultKey = `users/${generation.user_id}/projects/${generation.project_id}/generations/${generation.id}/standard.jpg`;
-      await this.storage.putPrivateObject({
-        key: resultKey,
-        body: normalized,
-        contentType: "image/jpeg",
-        metadata: {
-          generationId: generation.id,
-          provider: providerResult.provider,
-          promptVersion: prompt.version,
-        },
-      });
-      await this.walletService.commit(
-        generation.user_id,
-        generation.wallet_reservation_id,
-      );
-      await this.repository.markCompleted({
-        generationId,
-        projectId: generation.project_id,
-        bucket: this.storage.getStorageBucket(),
-        key: resultKey,
-        mimeType: "image/jpeg",
-      });
-      await job.updateProgress({ stage: "completed", percent: 100 });
-      return { generationId, status: "completed" };
+      let candidateNumber = previous.some((assessment) => assessment.decision === "retry_required") ? 2 : 1;
+      let retryReasons = previous.find((assessment) => assessment.decision === "retry_required")
+        ?.failure_reasons || [];
+      for (; candidateNumber <= 2; candidateNumber += 1) {
+        await job.updateProgress({ stage: "generating", percent: candidateNumber === 1 ? 45 : 60 });
+        let candidate = await this.repository.findCandidateForAssessment(generationId, candidateNumber);
+        let candidateImage;
+        let prompt;
+        if (candidate) {
+          const generating = await this.repository.transition(generationId, ["preprocessing"], "generating");
+          if (!generating) throw new GenerationError("GENERATION_STATE_CONFLICT", 409);
+          candidateImage = await this.storage.getPrivateObjectBuffer(
+            candidate.result_key,
+            this.config.resultMaxBytes,
+          );
+          prompt = composeGenerationPrompt(input, { qualityRetryReasons: retryReasons });
+        } else {
+          const generated = await this.generateCandidate({
+            generation, sourceImage, input, candidateNumber, retryReasons,
+            dimensions, signal: workerSignal,
+          });
+          candidate = generated.attempt;
+          candidateImage = generated.candidateImage;
+          prompt = generated.prompt;
+        }
+
+        const checking = await this.repository.transition(
+          generationId,
+          ["generating"],
+          "quality_check_pending",
+        );
+        if (!checking) throw new GenerationError("GENERATION_STATE_CONFLICT", 409);
+        await job.updateProgress({ stage: "quality_check_pending", percent: candidateNumber === 1 ? 78 : 88 });
+        const expiresAt = new Date(
+          Date.now() + this.qualityConfig.diagnosticRetentionHours * 60 * 60 * 1000,
+        );
+        const assessment = await this.qualityRepository.startAssessment({
+          generationId,
+          generationAttemptId: candidate.id,
+          assessmentNumber: candidateNumber,
+          allowedChanges,
+          diagnosticBucket: this.storage.getStorageBucket(),
+          diagnosticKey: candidate.result_key,
+          diagnosticMimeType: "image/jpeg",
+          diagnosticExpiresAt: expiresAt,
+          schemaVersion: GENERATION_QUALITY_SCHEMA_VERSION,
+          promptVersion: GENERATION_QUALITY_PROMPT_VERSION,
+          policyVersion: GENERATION_QUALITY_POLICY_VERSION,
+        });
+        let quality;
+        try {
+          quality = await this.qualityOrchestrator.assess({
+            sourceImage, candidateImage, input, allowedChanges,
+            assessmentNumber: candidateNumber,
+          });
+        } catch (error) {
+          await this.qualityRepository.markProviderUnavailable(assessment.id);
+          throw error;
+        }
+        const completedAssessment = await this.qualityRepository.completeAssessment(assessment.id, quality);
+        if (!completedAssessment) throw new GenerationQualityError("QUALITY_ASSESSMENT_STATE_CONFLICT");
+
+        if (quality.decision === "passed") {
+          const finalized = await this.finalizePassingCandidate({
+            generation,
+            candidateImage,
+            candidateKey: candidate.result_key,
+            qualityAssessment: completedAssessment,
+          });
+          publicResultKey = finalized.resultKey;
+          await job.updateProgress({ stage: "completed", percent: 100 });
+          return { generationId, status: "completed" };
+        }
+        if (quality.decision === "retry_required" && candidateNumber === 1) {
+          retryReasons = quality.failureReasons;
+          const retrying = await this.repository.transition(
+            generationId, ["quality_check_pending"], "retrying",
+            { failureCode: "QUALITY_RETRY_REQUIRED" },
+          );
+          if (!retrying) throw new GenerationQualityError("QUALITY_RETRY_STATE_CONFLICT");
+          const preprocessing = await this.repository.transition(
+            generationId, ["retrying"], "preprocessing",
+          );
+          if (!preprocessing) throw new GenerationQualityError("QUALITY_RETRY_STATE_CONFLICT");
+          continue;
+        }
+        await this.refundAndFail(generation, "GENERATION_QUALITY_REJECTED");
+        throw new UnrecoverableError("GENERATION_QUALITY_REJECTED");
+      }
+      throw new UnrecoverableError("GENERATION_QUALITY_REJECTED");
     } catch (error) {
-      if (resultKey) await this.storage.deletePrivateObject(resultKey).catch(() => {});
+      if (publicResultKey) await this.storage.deletePrivateObject(publicResultKey).catch(() => {});
+      const current = await this.repository.findById(generationId).catch(() => null);
+      if (current && ["completed", "failed_refunded", "cancelled"].includes(current.status)) {
+        throw error instanceof UnrecoverableError
+          ? error
+          : new UnrecoverableError(String(error?.code || error?.message || "GENERATION_FAILED"));
+      }
       const code = String(error?.code || error?.message || "GENERATION_FAILED").slice(0, 120);
       const retryable = isRetryableGenerationError(error)
-        || !(error instanceof GenerationError);
+        || error instanceof GenerationQualityError && error.retryable
+        || !(error instanceof GenerationError || error instanceof GenerationQualityError);
       if (retryable && !finalQueueAttempt(job)) {
         await this.repository.markRetrying(generationId, code);
         throw error instanceof Error ? error : new Error(code);
