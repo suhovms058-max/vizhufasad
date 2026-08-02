@@ -1,0 +1,38 @@
+[
+  {
+    "id": "finish-only-color-change",
+    "description": "Facade finish color changes while structural edges stay fixed",
+    "source": {},
+    "candidate": { "color": "#70482f" },
+    "expect": { "contoursMin": 9000, "protectedZonesMin": 9000 }
+  },
+  {
+    "id": "house-position-shift",
+    "description": "Whole house moves horizontally",
+    "source": {},
+    "candidate": { "shift": 18 },
+    "expect": { "contoursMax": 8000, "positionMax": 8000 }
+  },
+  {
+    "id": "roof-outline-change",
+    "description": "Roof ridge moves and changes the roof outline",
+    "source": {},
+    "candidate": { "roofHeight": 20 },
+    "expect": { "roofMax": 8000 }
+  },
+  {
+    "id": "opening-position-change",
+    "description": "A protected window is moved",
+    "source": {},
+    "candidate": { "openingShift": 22 },
+    "expect": { "windowsMax": 9000 }
+  },
+  {
+    "id": "allowed-roof-change",
+    "description": "Roof change explicitly allowed by the user",
+    "source": {},
+    "candidate": { "roofHeight": 20 },
+    "allowedChanges": { "roof": true },
+    "expect": { "roofAbsent": true }
+  }
+]

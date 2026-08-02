@@ -30,6 +30,12 @@ export const generationStatus = pgEnum("generation_status", [
   "completed", "retrying", "failed_refunded", "cancelled",
 ]);
 export const attemptStatus = pgEnum("attempt_status", ["started", "succeeded", "retryable_failed", "terminal_failed"]);
+export const generationQualityStatus = pgEnum("generation_quality_status", [
+  "processing", "completed", "provider_unavailable",
+]);
+export const generationQualityDecision = pgEnum("generation_quality_decision", [
+  "passed", "retry_required", "rejected_refund",
+]);
 export const transactionType = pgEnum("wallet_transaction_type", [
   "free_bonus", "purchase", "generation_charge", "generation_refund",
   "promo", "subscription", "admin_adjustment",
@@ -221,16 +227,61 @@ export const generationAttempts = pgTable("generation_attempts", {
   costCurrency: text("cost_currency"),
   errorCode: text("error_code"),
   errorDetails: jsonb("error_details"),
+  candidateNumber: integer("candidate_number").default(1).notNull(),
+  resultBucket: text("result_bucket"),
+  resultKey: text("result_key"),
+  resultMimeType: text("result_mime_type"),
   startedAt: timestamp("started_at", { withTimezone: true }).defaultNow().notNull(),
   finishedAt: timestamp("finished_at", { withTimezone: true }),
 }, (table) => [
   uniqueIndex("generation_attempts_number_uidx").on(table.generationId, table.attemptNumber),
   index("generation_attempts_status_idx").on(table.status),
   check("generation_attempts_number_positive_chk", sql`${table.attemptNumber} > 0`),
+  check("generation_attempts_candidate_number_chk", sql`${table.candidateNumber} BETWEEN 1 AND 2`),
   check("generation_attempts_duration_nonnegative_chk", sql`${table.durationMs} IS NULL OR ${table.durationMs} >= 0`),
   check("generation_attempts_cost_nonnegative_chk", sql`
     (${table.estimatedCostMinor} IS NULL OR ${table.estimatedCostMinor} >= 0)
     AND (${table.actualCostMinor} IS NULL OR ${table.actualCostMinor} >= 0)
+  `),
+]);
+
+export const generationQualityAssessments = pgTable("generation_quality_assessments", {
+  id: uuid("id").defaultRandom().primaryKey(),
+  generationId: uuid("generation_id").notNull().references(() => generations.id, { onDelete: "cascade" }),
+  generationAttemptId: uuid("generation_attempt_id").notNull().references(() => generationAttempts.id, { onDelete: "cascade" }),
+  assessmentNumber: integer("assessment_number").notNull(),
+  status: generationQualityStatus("status").default("processing").notNull(),
+  decision: generationQualityDecision("decision"),
+  schemaVersion: text("schema_version").notNull(),
+  promptVersion: text("prompt_version").notNull(),
+  policyVersion: text("policy_version").notNull(),
+  provider: text("provider"),
+  model: text("model"),
+  providerRequestId: text("provider_request_id"),
+  vlmResult: jsonb("vlm_result"),
+  structuralResult: jsonb("structural_result"),
+  scoreBreakdown: jsonb("score_breakdown"),
+  overallScore: integer("overall_score"),
+  failureReasons: jsonb("failure_reasons").default([]).notNull(),
+  allowedChanges: jsonb("allowed_changes").default({}).notNull(),
+  diagnosticBucket: text("diagnostic_bucket"),
+  diagnosticKey: text("diagnostic_key"),
+  diagnosticMimeType: text("diagnostic_mime_type"),
+  diagnosticExpiresAt: timestamp("diagnostic_expires_at", { withTimezone: true }),
+  startedAt: timestamp("started_at", { withTimezone: true }).defaultNow().notNull(),
+  finishedAt: timestamp("finished_at", { withTimezone: true }),
+  ...timestamps,
+}, (table) => [
+  uniqueIndex("generation_quality_assessments_number_uidx")
+    .on(table.generationId, table.assessmentNumber),
+  uniqueIndex("generation_quality_assessments_attempt_uidx").on(table.generationAttemptId),
+  index("generation_quality_assessments_decision_idx").on(table.decision, table.createdAt),
+  index("generation_quality_assessments_expiry_idx").on(table.diagnosticExpiresAt),
+  check("generation_quality_assessments_number_chk", sql`${table.assessmentNumber} BETWEEN 1 AND 2`),
+  check("generation_quality_assessments_score_chk", sql`${table.overallScore} IS NULL OR ${table.overallScore} BETWEEN 0 AND 10000`),
+  check("generation_quality_assessments_completion_chk", sql`
+    (${table.status} = 'completed' AND ${table.decision} IS NOT NULL AND ${table.finishedAt} IS NOT NULL)
+    OR (${table.status} <> 'completed' AND ${table.decision} IS NULL)
   `),
 ]);
 
