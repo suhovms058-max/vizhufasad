@@ -1,4 +1,9 @@
 import { getPool } from "../db/client.mjs";
+import {
+  assertGenerationTransition, CANCELLABLE_GENERATION_STATUSES,
+} from "./contract.mjs";
+
+const cancellableSql = CANCELLABLE_GENERATION_STATUSES.map((status) => `'${status}'`).join(", ");
 
 export class GenerationRepository {
   constructor(pool = getPool()) {
@@ -50,7 +55,7 @@ export class GenerationRepository {
         `insert into generations (
           project_id, source_image_id, revision, status, idempotency_key,
           config_snapshot, geometry_policy_snapshot
-        ) values ($1, $2, $3, 'queued', $4, $5, $6)
+        ) values ($1, $2, $3, 'created', $4, $5, $6)
         returning *`,
         [
           projectId,
@@ -79,23 +84,107 @@ export class GenerationRepository {
     }
   }
 
-  async attachReservation(generationId, reservationId) {
+  async hasPaidCredits(userId) {
     const result = await this.pool.query(
-      `update generations set wallet_reservation_id = $2, status = 'processing', updated_at = now()
-       where id = $1 and status = 'queued' returning *`,
-      [generationId, reservationId],
+      `select exists(
+         select 1
+         from wallet_transactions transaction
+         join wallets wallet on wallet.id = transaction.wallet_id
+         where wallet.user_id = $1
+           and transaction.status = 'committed'
+           and transaction.type in ('purchase', 'subscription')
+           and transaction.amount > 0
+       ) as paid`,
+      [userId],
+    );
+    return result.rows[0]?.paid === true;
+  }
+
+  async attachReservationAndQueue(generationId, reservationId, queueJobId, priority) {
+    assertGenerationTransition("created", "queued");
+    const result = await this.pool.query(
+      `update generations
+       set wallet_reservation_id = $2, queue_job_id = $3, priority = $4,
+           status = 'queued', queued_at = coalesce(queued_at, now()), updated_at = now()
+       where id = $1 and status = 'created'
+       returning *`,
+      [generationId, reservationId, queueJobId, priority],
     );
     return result.rows[0] ?? null;
   }
 
-  async startAttempt({ generationId, attemptNumber, provider, model, promptVersion, seed, estimatedCostMinor, currency }) {
+  async findById(generationId) {
+    const result = await this.pool.query(
+      `select g.*, p.user_id, i.working_storage_key, i.width as source_width,
+              i.height as source_height
+       from generations g
+       join projects p on p.id = g.project_id
+       join source_images i on i.id = g.source_image_id
+       where g.id = $1 and p.deleted_at is null`,
+      [generationId],
+    );
+    return result.rows[0] ?? null;
+  }
+
+  async claimForWorker(generationId) {
+    const result = await this.pool.query(
+      `update generations
+       set status = 'preprocessing', started_at = coalesce(started_at, now()),
+           heartbeat_at = now(), updated_at = now()
+       where id = $1 and status in ('queued', 'retrying')
+       returning *`,
+      [generationId],
+    );
+    return result.rows[0] ?? null;
+  }
+
+  async heartbeat(generationId) {
+    await this.pool.query(
+      `update generations set heartbeat_at = now(), updated_at = now()
+       where id = $1 and status in ('preprocessing', 'generating', 'quality_check_pending')`,
+      [generationId],
+    );
+  }
+
+  async transition(generationId, fromStatuses, toStatus, extra = {}) {
+    for (const from of fromStatuses) assertGenerationTransition(from, toStatus);
+    const values = [generationId, toStatus, fromStatuses];
+    const sets = ["status = $2", "updated_at = now()", "heartbeat_at = now()"];
+    if (extra.failureCode !== undefined) {
+      values.push(String(extra.failureCode || "").slice(0, 120) || null);
+      sets.push(`failure_code = $${values.length}`);
+    }
+    const result = await this.pool.query(
+      `update generations set ${sets.join(", ")}
+       where id = $1 and status = any($3::generation_status[])
+       returning *`,
+      values,
+    );
+    return result.rows[0] ?? null;
+  }
+
+  async nextAttemptNumber(generationId) {
+    const result = await this.pool.query(
+      "select coalesce(max(attempt_number), 0) + 1 as number from generation_attempts where generation_id = $1",
+      [generationId],
+    );
+    return Number(result.rows[0].number);
+  }
+
+  async startAttempt({
+    generationId, attemptNumber, provider, model, promptVersion, seed,
+    estimatedCostMinor, currency,
+  }) {
     const result = await this.pool.query(
       `insert into generation_attempts (
         generation_id, attempt_number, status, provider, model, prompt_version,
         seed, estimated_cost_minor, cost_currency
       ) values ($1, $2, 'started', $3, $4, $5, $6, $7, $8)
       returning *`,
-      [generationId, attemptNumber, provider, model, promptVersion, seed, estimatedCostMinor, currency],
+      [
+        generationId, attemptNumber, provider, model, promptVersion, seed,
+        estimatedCostMinor, currency,
+      ],
     );
     return result.rows[0];
   }
@@ -106,7 +195,7 @@ export class GenerationRepository {
         provider_request_id = $2, model = $3, seed = $4, duration_ms = $5,
         estimated_cost_minor = $6, actual_cost_minor = $7, cost_currency = $8,
         finished_at = now()
-       where id = $1`,
+       where id = $1 and status = 'started'`,
       [
         attemptId, result.jobId, result.model, result.seed, result.durationMs,
         result.estimatedCostMinor, result.actualCostMinor, result.currency,
@@ -118,7 +207,7 @@ export class GenerationRepository {
     await this.pool.query(
       `update generation_attempts set status = $2, error_code = $3,
         error_details = $4, finished_at = now()
-       where id = $1`,
+       where id = $1 and status = 'started'`,
       [
         attemptId,
         error.retryable ? "retryable_failed" : "terminal_failed",
@@ -128,14 +217,25 @@ export class GenerationRepository {
     );
   }
 
-  async markReady({ generationId, projectId, bucket, key, mimeType }) {
+  async markRetrying(generationId, failureCode) {
+    return this.transition(
+      generationId,
+      ["preprocessing", "generating", "quality_check_pending"],
+      "retrying",
+      { failureCode },
+    );
+  }
+
+  async markCompleted({ generationId, projectId, bucket, key, mimeType }) {
+    assertGenerationTransition("quality_check_pending", "completed");
     const client = await this.pool.connect();
     try {
       await client.query("begin");
       const result = await client.query(
-        `update generations set status = 'ready', result_bucket = $2, result_key = $3,
-          result_mime_type = $4, failure_code = null, completed_at = now(), updated_at = now()
-         where id = $1 and status = 'processing' returning *`,
+        `update generations set status = 'completed', result_bucket = $2, result_key = $3,
+          result_mime_type = $4, failure_code = null, heartbeat_at = now(),
+          completed_at = now(), updated_at = now()
+         where id = $1 and status = 'quality_check_pending' returning *`,
         [generationId, bucket, key, mimeType],
       );
       if (!result.rowCount) throw new Error("GENERATION_STATE_CONFLICT");
@@ -153,18 +253,91 @@ export class GenerationRepository {
     }
   }
 
-  async markFailed(generationId, projectId, failureCode) {
-    await this.pool.query(
-      `update generations set status = 'failed', failure_code = $2,
-        completed_at = now(), updated_at = now()
-       where id = $1 and status in ('queued', 'processing')`,
+  async markFailedRefunded(generationId, projectId, failureCode) {
+    const result = await this.pool.query(
+      `update generations set status = 'failed_refunded', failure_code = $2,
+        completed_at = now(), heartbeat_at = now(), updated_at = now()
+       where id = $1
+         and status in ('created', 'queued', 'preprocessing', 'generating',
+                        'quality_check_pending', 'retrying')
+       returning *`,
       [generationId, String(failureCode || "GENERATION_FAILED").slice(0, 120)],
     );
-    await this.pool.query(
-      `update projects set status = 'failed_terminal', updated_at = now()
-       where id = $1 and deleted_at is null`,
-      [projectId],
+    if (result.rowCount) {
+      await this.pool.query(
+        `update projects set status = 'failed_terminal', updated_at = now()
+         where id = $1 and deleted_at is null`,
+        [projectId],
+      );
+    }
+    return result.rows[0] ?? null;
+  }
+
+  async cancelOwned(userId, projectId, generationId) {
+    const result = await this.pool.query(
+      `update generations g
+       set status = 'cancelled', cancel_requested_at = now(),
+           completed_at = now(), updated_at = now()
+       from projects p
+       where g.id = $1 and g.project_id = $2 and p.id = g.project_id
+         and p.user_id = $3 and p.deleted_at is null
+         and g.status in (${cancellableSql})
+       returning g.*`,
+      [generationId, projectId, userId],
     );
+    return result.rows[0] ?? null;
+  }
+
+  async markStalledRetrying(generationId, failureCode = "WORKER_STALLED") {
+    const result = await this.pool.query(
+      `update generations set status = 'retrying', failure_code = $2, updated_at = now()
+       where id = $1 and status in ('preprocessing', 'generating', 'quality_check_pending')
+       returning *`,
+      [generationId, failureCode],
+    );
+    return result.rows[0] ?? null;
+  }
+
+  async findStaleActive(staleBefore, limit = 100) {
+    const result = await this.pool.query(
+      `select id, project_id, user_id, wallet_reservation_id, status, queue_job_id
+       from (
+         select g.*, p.user_id
+         from generations g join projects p on p.id = g.project_id
+       ) generation
+       where status in ('preprocessing', 'generating', 'quality_check_pending')
+         and coalesce(heartbeat_at, started_at, updated_at) < $1
+       order by coalesce(heartbeat_at, started_at, updated_at)
+       limit $2`,
+      [staleBefore, limit],
+    );
+    return result.rows;
+  }
+
+  async findRecoverableQueued(limit = 100) {
+    const result = await this.pool.query(
+      `select g.id, g.queue_job_id, g.priority
+       from generations g
+       where g.status in ('queued', 'retrying') and g.wallet_reservation_id is not null
+       order by g.queued_at nulls first, g.created_at
+       limit $1`,
+      [limit],
+    );
+    return result.rows;
+  }
+
+  async queueMetrics() {
+    const result = await this.pool.query(
+      `select
+         (select count(*)::int from generations where status = 'completed') as completed,
+         (select count(*)::int from generations where status = 'failed_refunded') as failed_refunded,
+         (select count(*)::int from generations where status = 'retrying') as retrying,
+         (select coalesce(avg(extract(epoch from (completed_at - created_at)) * 1000), 0)::bigint
+            from generations where status = 'completed') as average_total_ms,
+         (select coalesce(avg(duration_ms), 0)::bigint
+            from generation_attempts where duration_ms is not null) as average_provider_latency_ms`,
+    );
+    return result.rows[0];
   }
 
   async findOwned(userId, projectId, generationId) {
@@ -185,5 +358,19 @@ export class GenerationRepository {
       [generationId, projectId, userId],
     );
     return result.rows[0] ?? null;
+  }
+
+  async findLatestOwned(userId, projectId) {
+    const result = await this.pool.query(
+      `select g.id
+       from generations g
+       join projects p on p.id = g.project_id
+       where g.project_id = $1 and p.user_id = $2 and p.deleted_at is null
+       order by g.created_at desc
+       limit 1`,
+      [projectId, userId],
+    );
+    if (!result.rowCount) return null;
+    return this.findOwned(userId, projectId, result.rows[0].id);
   }
 }

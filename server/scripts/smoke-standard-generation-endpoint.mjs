@@ -5,9 +5,13 @@ import path from "node:path";
 import express from "express";
 import { getPool } from "../src/db/client.mjs";
 import { createGenerationStagingRouter } from "../src/generation/http.mjs";
+import { GenerationMetrics } from "../src/generation/metrics.mjs";
+import { GenerationProcessor } from "../src/generation/processor.mjs";
 import { GenApiGenerationProvider } from "../src/generation/providers/genapi.mjs";
+import { createGenerationQueue } from "../src/generation/queue.mjs";
 import { GenerationRepository } from "../src/generation/repository.mjs";
 import { GenerationService } from "../src/generation/service.mjs";
+import { createGenerationWorker } from "../src/generation/worker.mjs";
 import {
   deletePrivateObject, ensurePrivateBucket, getPrivateObjectBuffer,
   getStorageBucket, putPrivateObject,
@@ -36,6 +40,8 @@ const sourceKey = `stage7-smoke/${userId}/${imageId}/working.jpg`;
 const stagingSecret = randomBytes(32).toString("base64url");
 let resultKey;
 let server;
+let queue;
+let workerRuntime;
 
 async function cleanFixture() {
   if (!resultKey) {
@@ -112,16 +118,45 @@ try {
     currency: "RUB",
     pollIntervalMs: Number(process.env.GENERATION_POLL_INTERVAL_MS || 1500),
   });
+  const generationRepository = new GenerationRepository(pool);
+  const generationConfig = {
+    enabled: true,
+    timeoutMs: Number(process.env.GENERATION_PROVIDER_TIMEOUT_MS || 180_000),
+    resultSignedUrlTtlSeconds: 300,
+    queueName: `generation-smoke-${randomUUID()}`,
+    queuePrefix: "vizhufasad-smoke",
+    queueMaxAttempts: 2,
+    queueBackoffMs: 1_000,
+    queuePaidPriority: 1,
+    queueFreePriority: 10,
+    workerConcurrency: 1,
+    workerLockDurationMs: 60_000,
+    workerStalledIntervalMs: 30_000,
+    workerMaxStalledCount: 2,
+    watchdogIntervalMs: 30_000,
+    watchdogStaleMs: 180_000,
+  };
+  queue = createGenerationQueue(generationConfig);
   const generationService = new GenerationService({
-    repository: new GenerationRepository(pool),
+    repository: generationRepository,
+    storage: await import("../src/infra/storage.mjs"),
+    walletService,
+    queue,
+    config: generationConfig,
+  });
+  const processor = new GenerationProcessor({
+    repository: generationRepository,
     storage: await import("../src/infra/storage.mjs"),
     walletService,
     providers: [provider],
-    config: {
-      enabled: true,
-      timeoutMs: Number(process.env.GENERATION_PROVIDER_TIMEOUT_MS || 180_000),
-      resultSignedUrlTtlSeconds: 300,
-    },
+    config: generationConfig,
+  });
+  workerRuntime = createGenerationWorker({
+    config: generationConfig,
+    processor,
+    repository: generationRepository,
+    queue,
+    metrics: new GenerationMetrics({ repository: generationRepository, queue }),
   });
   const app = express();
   app.use(express.json({ limit: "32kb" }));
@@ -160,18 +195,24 @@ try {
   const payload = await response.json();
   if (!response.ok) throw new Error(`Endpoint smoke failed: ${payload.error || response.status}`);
   const generationId = payload.generation?.id;
-  if (!generationId || payload.generation.status !== "ready") {
-    throw new Error("Endpoint did not return a ready generation");
+  if (!generationId || response.status !== 202 || payload.generation.status !== "queued") {
+    throw new Error("Endpoint did not return an asynchronously queued generation");
   }
-  const persisted = await pool.query(
-    `select g.result_key, g.status, wt.status as wallet_status
-     from generations g
-     join wallet_transactions wt on wt.id = g.wallet_reservation_id
-     where g.id = $1`,
-    [generationId],
-  );
+  let persisted;
+  const deadline = Date.now() + generationConfig.timeoutMs + 60_000;
+  do {
+    persisted = await pool.query(
+      `select g.result_key, g.status, wt.status as wallet_status
+       from generations g
+       join wallet_transactions wt on wt.id = g.wallet_reservation_id
+       where g.id = $1`,
+      [generationId],
+    );
+    if (["completed", "failed_refunded"].includes(persisted.rows[0]?.status)) break;
+    await new Promise((resolve) => setTimeout(resolve, 1_000));
+  } while (Date.now() < deadline);
   if (
-    persisted.rows[0]?.status !== "ready"
+    persisted.rows[0]?.status !== "completed"
     || persisted.rows[0]?.wallet_status !== "committed"
     || !persisted.rows[0]?.result_key
   ) {
@@ -183,12 +224,17 @@ try {
   console.log(JSON.stringify({
     ok: true,
     generationId,
-    status: "ready",
+    status: "completed",
     walletStatus: "committed",
     output: outputPath,
   }));
 } finally {
   if (server) await new Promise((resolve) => server.close(resolve));
+  if (workerRuntime) await workerRuntime.close().catch(() => {});
+  if (queue) {
+    await queue.queue.obliterate({ force: true }).catch(() => {});
+    await queue.close().catch(() => {});
+  }
   await cleanFixture();
   await pool.end();
 }

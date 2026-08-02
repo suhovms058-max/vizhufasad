@@ -1,104 +1,86 @@
 import assert from "node:assert/strict";
 import test from "node:test";
-import sharp from "sharp";
 import { GenerationError } from "../src/generation/contract.mjs";
 import { GenerationService } from "../src/generation/service.mjs";
 
-async function jpeg() {
-  return sharp({
-    create: { width: 800, height: 600, channels: 3, background: "#d8c7aa" },
-  }).jpeg().toBuffer();
-}
-
-function harness({ providerFails = false, duplicate = false } = {}) {
+function harness({
+  duplicate = false,
+  duplicateStatus = "completed",
+  queueFails = false,
+  paid = false,
+  allowCancel = false,
+} = {}) {
   const events = [];
   const generation = {
     id: "11111111-1111-4111-8111-111111111111",
     project_id: "22222222-2222-4222-8222-222222222222",
-    status: duplicate ? "ready" : "queued",
+    status: duplicate ? duplicateStatus : "created",
+    priority: 10,
   };
   const repository = {
     async createOwned() {
-      if (duplicate) return { generation, created: false };
+      return duplicate
+        ? { generation, created: false }
+        : { generation, source: {}, created: true };
+    },
+    async hasPaidCredits() { return paid; },
+    async attachReservationAndQueue(_id, reservationId, jobId, priority) {
+      events.push(["queued-db", reservationId, jobId, priority]);
+      generation.status = "queued";
+      generation.queue_job_id = jobId;
+      generation.wallet_reservation_id = reservationId;
+      return generation;
+    },
+    async markFailedRefunded(_id, _projectId, code) { events.push(["failed", code]); },
+    async findOwned() {
       return {
-        generation,
-        source: {
-          working_storage_key: "working.jpg",
-          width: 1600,
-          height: 1000,
-        },
-        created: true,
+        ...generation,
+        result_key: duplicate && duplicateStatus === "completed" ? "result.jpg" : null,
+        attempts: [],
       };
     },
-    async attachReservation(_id, reservationId) {
-      events.push(["attach", reservationId]);
+    async findLatestOwned() { return null; },
+    async cancelOwned() {
+      if (!allowCancel) return null;
+      generation.status = "cancelled";
+      return {
+        ...generation,
+        queue_job_id: generation.id,
+        wallet_reservation_id: "reservation-1",
+      };
     },
-    async startAttempt(input) {
-      events.push(["attempt", input.provider, input.model]);
-      return { id: "attempt-1" };
-    },
-    async succeedAttempt(_id, result) {
-      events.push(["succeeded", result.jobId]);
-    },
-    async failAttempt(_id, error) {
-      events.push(["failed-attempt", error.code]);
-    },
-    async markReady(input) {
-      events.push(["ready", input.key]);
-    },
-    async markFailed(_id, _projectId, code) {
-      events.push(["failed", code]);
-    },
-    async findOwned() {
-      return { ...generation, status: duplicate ? "ready" : "ready", result_key: "result.jpg", attempts: [] };
-    },
-  };
-  const storage = {
-    async getPrivateObjectBuffer() { return jpeg(); },
-    async putPrivateObject(input) { events.push(["stored", input.key, input.contentType]); },
-    async deletePrivateObject(key) { events.push(["deleted", key]); },
-    getStorageBucket() { return "private"; },
-    async createDownloadUrl() { return "https://signed.example/result"; },
   };
   const walletService = {
     async reserve() {
       events.push(["reserve"]);
       return { transaction: { id: "reservation-1" } };
     },
-    async commit() { events.push(["commit"]); },
     async refund() { events.push(["refund"]); },
   };
-  const provider = {
-    name: "mock",
-    model: "mock-edit",
-    estimatedCostMinor: 100,
-    currency: "RUB",
-    async generate() {
-      events.push(["provider"]);
-      if (providerFails) throw new GenerationError("PROVIDER_DOWN", 502, { retryable: false });
-      return {
-        provider: "mock",
-        jobId: "job-1",
-        model: "mock-edit",
-        seed: 7,
-        durationMs: 25,
-        estimatedCostMinor: 100,
-        actualCostMinor: 90,
-        currency: "RUB",
-        contentType: "image/jpeg",
-        result: await jpeg(),
-      };
+  const queue = {
+    async enqueue(id, priority) {
+      events.push(["enqueue", id, priority]);
+      if (queueFails) {
+        throw new GenerationError("GENERATION_QUEUE_UNAVAILABLE", 503, { retryable: true });
+      }
+      return { id };
     },
+    async cancelWaiting() { return true; },
   };
   return {
     events,
+    generation,
     service: new GenerationService({
       repository,
-      storage,
+      storage: { async createDownloadUrl() { return "https://signed.example"; } },
       walletService,
-      providers: [provider],
-      config: { enabled: true, timeoutMs: 1000, resultSignedUrlTtlSeconds: 300 },
-      seedFactory: () => 7,
+      queue,
+      config: {
+        enabled: true,
+        queuePaidPriority: 1,
+        queueFreePriority: 10,
+        resultSignedUrlTtlSeconds: 300,
+      },
     }),
   };
 }
@@ -110,42 +92,49 @@ const input = {
   palette: ["#EFE8DB"],
 };
 
-test("Standard generation reserves, stores, commits and returns owner-safe view", async () => {
+test("HTTP generation creation only reserves and enqueues without provider wait", async () => {
   const { service, events } = harness();
-  const result = await service.create(
-    "user-1",
-    "project-1",
-    "image-1",
-    input,
-    "request-12345",
-  );
-  assert.equal(result.resultAvailable, true);
-  assert.deepEqual(events.map((event) => event[0]), [
-    "reserve", "attach", "attempt", "provider", "succeeded", "stored", "commit", "ready",
-  ]);
-  assert.equal("result_key" in result, false);
+  const result = await service.create("user-1", "project-1", "image-1", input, "request-12345");
+  assert.equal(result.status, "queued");
+  assert.deepEqual(events.map((event) => event[0]), ["reserve", "queued-db", "enqueue"]);
 });
 
-test("technical provider failure refunds exactly after a reservation", async () => {
-  const { service, events } = harness({ providerFails: true });
-  await assert.rejects(
-    service.create("user-1", "project-1", "image-1", input, "request-12345"),
-    (error) => error.code === "PROVIDER_DOWN",
-  );
-  assert.deepEqual(events.map((event) => event[0]), [
-    "reserve", "attach", "attempt", "provider", "failed-attempt", "failed", "refund",
-  ]);
-});
-
-test("duplicate request returns the existing generation without another charge", async () => {
+test("duplicate request returns existing generation without another charge", async () => {
   const { service, events } = harness({ duplicate: true });
-  const result = await service.create(
-    "user-1",
-    "project-1",
-    "image-1",
-    input,
-    "request-12345",
-  );
+  const result = await service.create("user-1", "project-1", "image-1", input, "request-12345");
   assert.equal(result.resultAvailable, true);
   assert.deepEqual(events, []);
+});
+
+test("duplicate created record resumes reserve and enqueue after an API restart", async () => {
+  const { service, events } = harness({ duplicate: true, duplicateStatus: "created" });
+  const result = await service.create("user-1", "project-1", "image-1", input, "request-12345");
+  assert.equal(result.status, "queued");
+  assert.deepEqual(events.map((event) => event[0]), ["reserve", "queued-db", "enqueue"]);
+});
+
+test("Redis outage leaves durable queued reservation for recovery instead of losing credit", async () => {
+  const { service, events, generation } = harness({ queueFails: true });
+  await assert.rejects(
+    service.create("user-1", "project-1", "image-1", input, "request-12345"),
+    (error) => error.code === "GENERATION_QUEUE_UNAVAILABLE",
+  );
+  assert.equal(generation.status, "queued");
+  assert.deepEqual(events.map((event) => event[0]), ["reserve", "queued-db", "enqueue"]);
+});
+
+test("paid customer receives higher queue priority determined on the server", async () => {
+  const { service, events } = harness({ paid: true });
+  await service.create("user-1", "project-1", "image-1", input, "request-12345");
+  assert.deepEqual(events.find((event) => event[0] === "enqueue"), [
+    "enqueue", "11111111-1111-4111-8111-111111111111", 1,
+  ]);
+});
+
+test("cancelling a waiting generation removes the job and refunds idempotently", async () => {
+  const { service, events, generation } = harness({ allowCancel: true });
+  generation.status = "queued";
+  const cancelled = await service.cancel("user-1", "project-1", generation.id);
+  assert.equal(cancelled.status, "cancelled");
+  assert.equal(events.some((event) => event[0] === "refund"), true);
 });

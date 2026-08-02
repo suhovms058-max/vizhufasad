@@ -26,6 +26,10 @@ export function loadGenerationConfig(environment = process.env) {
   if (environment.NODE_ENV === "production" && stagingEnabled) {
     throw new GenerationError("GENERATION_STAGING_FORBIDDEN_IN_PRODUCTION", 500);
   }
+  const metricsToken = String(environment.GENERATION_METRICS_TOKEN || "").trim();
+  if (metricsToken && metricsToken.length < 24) {
+    throw new GenerationError("GENERATION_METRICS_TOKEN_TOO_SHORT", 500);
+  }
   return Object.freeze({
     enabled,
     provider: environment.GENERATION_PRIMARY_PROVIDER || "genapi",
@@ -39,6 +43,19 @@ export function loadGenerationConfig(environment = process.env) {
     pollIntervalMs: integer(environment, "GENERATION_POLL_INTERVAL_MS", 1_500, 250, 30_000),
     resultMaxBytes: integer(environment, "GENERATION_RESULT_MAX_BYTES", 25 * 1024 * 1024, 1024, 50 * 1024 * 1024),
     resultSignedUrlTtlSeconds: integer(environment, "GENERATION_RESULT_URL_TTL_SECONDS", 300, 10, 3600),
+    queueName: environment.GENERATION_QUEUE_NAME || "facade-generation",
+    queuePrefix: environment.GENERATION_QUEUE_PREFIX || "vizhufasad",
+    queueMaxAttempts: integer(environment, "GENERATION_QUEUE_MAX_ATTEMPTS", 3, 1, 10),
+    queueBackoffMs: integer(environment, "GENERATION_QUEUE_BACKOFF_MS", 5_000, 250, 300_000),
+    workerConcurrency: integer(environment, "GENERATION_WORKER_CONCURRENCY", 2, 1, 20),
+    workerLockDurationMs: integer(environment, "GENERATION_WORKER_LOCK_DURATION_MS", 60_000, 10_000, 600_000),
+    workerStalledIntervalMs: integer(environment, "GENERATION_WORKER_STALLED_INTERVAL_MS", 30_000, 5_000, 300_000),
+    workerMaxStalledCount: integer(environment, "GENERATION_WORKER_MAX_STALLED_COUNT", 2, 1, 10),
+    watchdogIntervalMs: integer(environment, "GENERATION_WATCHDOG_INTERVAL_MS", 30_000, 5_000, 600_000),
+    watchdogStaleMs: integer(environment, "GENERATION_WATCHDOG_STALE_MS", 180_000, 30_000, 3_600_000),
+    queuePaidPriority: integer(environment, "GENERATION_QUEUE_PAID_PRIORITY", 1, 1, 100),
+    queueFreePriority: integer(environment, "GENERATION_QUEUE_FREE_PRIORITY", 10, 1, 100),
+    metricsToken,
     stagingEnabled,
     stagingSecret,
     liveSmokeEnabled: boolean(environment, "GENERATION_LIVE_SMOKE_ENABLED", false),

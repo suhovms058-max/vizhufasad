@@ -31,6 +31,10 @@ function page(title, body, { script = "" } = {}) {
     form.inline{display:inline-flex;gap:8px;flex-wrap:wrap;margin-top:10px}
     .assessment{border-left:5px solid #176b46;margin:18px 0}.assessment.warning{border-color:#c48918}
     .assessment.retake{border-color:#a52e2e}.assessment ul{padding-left:20px}
+    .steps{display:grid;grid-template-columns:repeat(5,1fr);gap:8px;margin:18px 0}.step{padding:10px 6px;
+      border-radius:8px;background:#e2e7e2;text-align:center;font-size:.86rem}.step.active{background:#176b46;color:#fff}
+    .generation-form label{display:block;margin:12px 0}.generation-form input,.generation-form textarea{width:100%}
+    textarea{border:1px solid #aeb8b0;border-radius:8px;padding:10px;font:inherit;min-height:86px}
   </style>
 </head>
 <body><header><a href="/app">ВИЖУФАСАД</a></header><main>${body}</main>${script}</body></html>`;
@@ -89,7 +93,36 @@ function assessmentBlock(project) {
   </section>`;
 }
 
-export function createProjectPagesRouter({ authService, projectService }) {
+function generationBlock(project, generation) {
+  const accepted = ["accepted", "accepted_with_warning"].includes(project.assessment?.decision);
+  if (!accepted || !project.image_id) return "";
+  return `<section id="generation-app" class="card" data-project-id="${escapeHtml(project.id)}"
+      data-image-id="${escapeHtml(project.image_id)}"
+      data-generation-id="${escapeHtml(generation?.id || "")}">
+    <h2>Визуализация фасада Standard</h2>
+    <p class="muted">Стоимость — 1 кредит. Запрос ставится в очередь, страницу можно оставить открытой.</p>
+    <div class="steps" aria-label="Этапы генерации">
+      <span class="step" data-step="analysis">Анализ</span>
+      <span class="step" data-step="preprocessing">Подготовка</span>
+      <span class="step" data-step="generating">Генерация</span>
+      <span class="step" data-step="quality_check_pending">Проверка</span>
+      <span class="step" data-step="completed">Скачивание</span>
+    </div>
+    <form id="generation-form" class="generation-form">
+      <label>Стиль <input name="style" maxlength="100" required value="современный"></label>
+      <label>Материалы <input name="materials" maxlength="300" value="декоративная штукатурка, дерево"></label>
+      <label>Цвета <input name="palette" maxlength="200" value="тёплый белый, натуральное дерево"></label>
+      <label>Пожелания <textarea name="wishes" maxlength="1200"
+        placeholder="Например: тёмный цоколь и аккуратные ограждения там, где они необходимы"></textarea></label>
+      <button id="generation-start" type="submit">Запустить Standard</button>
+      <button id="generation-cancel" class="danger hidden" type="button">Отменить</button>
+    </form>
+    <p id="generation-message" aria-live="polite"></p>
+    <a id="generation-result" class="button hidden" href="#">Скачать результат</a>
+  </section>`;
+}
+
+export function createProjectPagesRouter({ authService, projectService, generationService }) {
   const router = express.Router();
   const requireSession = createRequireSession(authService, { html: true });
   router.use("/app", requireSession);
@@ -144,6 +177,9 @@ export function createProjectPagesRouter({ authService, projectService }) {
   router.get("/app/projects/:projectId", async (request, response, next) => {
     try {
       const project = await projectService.open(request.auth.user_id, request.params.projectId);
+      const generation = generationService
+        ? await generationService.latest(request.auth.user_id, request.params.projectId)
+        : null;
       const image = project.thumbnailUrl
         ? `<img class="preview" src="${escapeHtml(project.thumbnailUrl)}" alt="Фото проекта">`
         : '<p class="muted">Исходная фотография ещё не готова.</p>';
@@ -152,6 +188,7 @@ export function createProjectPagesRouter({ authService, projectService }) {
         `${navigation}<article class="card"><h1>${escapeHtml(project.title)}</h1>
           <p>Статус: ${escapeHtml(statusLabel(project.status))}</p>${image}</article>
           ${assessmentBlock(project)}
+          ${generationBlock(project, generation)}
           <article class="card">
           <p><a class="button" href="/app/new?project=${escapeHtml(project.id)}">Загрузить или заменить фото</a></p>
           <form class="inline" method="post" action="/app/projects/${escapeHtml(project.id)}/rename">
@@ -161,6 +198,7 @@ export function createProjectPagesRouter({ authService, projectService }) {
           <form class="inline" method="post" action="/app/projects/${escapeHtml(project.id)}/delete">
             <button class="danger" type="submit">Удалить проект</button>
           </form></article>`,
+        { script: '<script src="/assets/app-generation.js" defer></script>' },
       ));
     } catch (error) {
       if (error instanceof ProjectError && error.status === 404) return response.status(404).send("Проект не найден");

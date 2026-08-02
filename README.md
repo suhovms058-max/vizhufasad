@@ -233,3 +233,32 @@ GENAPI_STANDARD_MODEL=nano-banana-2
 Платные smoke-команды требуют отдельного `GENERATION_LIVE_SMOKE_ENABLED=true` и описаны в
 [`docs/STAGE_7_STANDARD_GENERATION.md`](docs/STAGE_7_STANDARD_GENERATION.md). Измерения и
 ограничения provider: [`docs/GENERATION_PROVIDER_DECISION.md`](docs/GENERATION_PROVIDER_DECISION.md).
+
+## Асинхронная очередь генераций
+
+Этап 8 переносит Standard-генерацию из HTTP-процесса в BullMQ worker. API отвечает `202` сразу
+после durable-записи, резерва кредита и idempotent enqueue. Отдельный worker выполняет
+preprocessing, provider request, техническую проверку и сохранение в приватный S3.
+
+```powershell
+docker compose up -d
+cd server
+npm ci
+npm run db:migrate
+npm run db:seed
+```
+
+Запускаются два отдельных процесса:
+
+```powershell
+npm run start:api
+```
+
+```powershell
+npm run start:worker
+```
+
+UI `/app/projects/:projectId` использует polling. Redis настроен с AOF и `noeviction`; retries
+ограничены, зависшие jobs восстанавливаются BullMQ и watchdog, а окончательная техническая ошибка
+идемпотентно возвращает кредит. Полное описание:
+[`docs/STAGE_8_GENERATION_QUEUE.md`](docs/STAGE_8_GENERATION_QUEUE.md).

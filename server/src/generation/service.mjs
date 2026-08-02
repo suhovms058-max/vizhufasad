@@ -1,8 +1,4 @@
-import { randomInt } from "node:crypto";
-import sharp from "sharp";
-import {
-  assertGenerationProvider, GenerationError, normalizeGenerationInput,
-} from "./contract.mjs";
+import { GenerationError, normalizeGenerationInput } from "./contract.mjs";
 import { composeGenerationPrompt } from "./prompt.mjs";
 
 function cleanIdempotencyKey(value, userId) {
@@ -13,54 +9,17 @@ function cleanIdempotencyKey(value, userId) {
   return `standard:${userId}:${key}`;
 }
 
-function outputDimensions(width, height) {
-  const sourceWidth = Math.max(1, Number(width));
-  const sourceHeight = Math.max(1, Number(height));
-  const ratio = sourceWidth / sourceHeight;
-  let outputWidth;
-  let outputHeight;
-  if (ratio >= 1) {
-    outputWidth = 1024;
-    outputHeight = Math.max(512, Math.round((1024 / ratio) / 16) * 16);
-  } else {
-    outputHeight = 1024;
-    outputWidth = Math.max(512, Math.round((1024 * ratio) / 16) * 16);
-  }
-  return { width: outputWidth, height: outputHeight };
-}
-
-async function normalizeProviderResult(buffer) {
-  try {
-    return await sharp(buffer, { limitInputPixels: 80_000_000 })
-      .rotate()
-      .toColorspace("srgb")
-      .jpeg({ quality: 92, chromaSubsampling: "4:4:4" })
-      .toBuffer();
-  } catch {
-    throw new GenerationError("PROVIDER_RESULT_DECODE_FAILED", 502);
-  }
-}
-
 export class GenerationService {
-  constructor({
-    repository,
-    storage,
-    walletService,
-    providers,
-    config,
-    seedFactory = () => randomInt(1, 2_147_483_647),
-  }) {
+  constructor({ repository, storage, walletService, queue, config }) {
     this.repository = repository;
     this.storage = storage;
     this.walletService = walletService;
-    this.providers = providers.map(assertGenerationProvider);
+    this.queue = queue;
     this.config = config;
-    this.seedFactory = seedFactory;
   }
 
   assertEnabled() {
     if (!this.config.enabled) throw new GenerationError("STANDARD_GENERATION_DISABLED", 404);
-    if (!this.providers.length) throw new GenerationError("GENERATION_PROVIDER_UNAVAILABLE", 503);
   }
 
   async create(userId, projectId, sourceImageId, value, requestedIdempotencyKey) {
@@ -77,12 +36,21 @@ export class GenerationService {
       geometryPolicySnapshot: input.preserve,
     });
     if (!created) throw new GenerationError("GENERATION_SOURCE_NOT_ELIGIBLE", 409);
-    if (!created.created) return this.view(userId, projectId, created.generation.id);
+    if (!created.created && created.generation.status !== "created") {
+      if (["queued", "retrying"].includes(created.generation.status)) {
+        await this.queue.enqueue(
+          created.generation.id,
+          created.generation.priority || this.config.queueFreePriority,
+        );
+      }
+      return this.view(userId, projectId, created.generation.id);
+    }
 
+    // A duplicate in `created` means the API stopped after the durable insert but
+    // before reserve/enqueue. The wallet key and DB transition are idempotent, so
+    // the retry safely resumes instead of leaving an orphaned generation.
     const generation = created.generation;
     let reservation;
-    let resultKey;
-    let finalized = false;
     try {
       reservation = await this.walletService.reserve(userId, {
         actionCode: "standard_generation",
@@ -90,117 +58,92 @@ export class GenerationService {
         referenceType: "generation",
         referenceId: generation.id,
       });
-      await this.repository.attachReservation(generation.id, reservation.transaction.id);
-      const sourceImage = await this.storage.getPrivateObjectBuffer(
-        created.source.working_storage_key,
-        25 * 1024 * 1024,
+      const paid = await this.repository.hasPaidCredits(userId);
+      const priority = paid ? this.config.queuePaidPriority : this.config.queueFreePriority;
+      const queued = await this.repository.attachReservationAndQueue(
+        generation.id,
+        reservation.transaction.id,
+        generation.id,
+        priority,
       );
-      const dimensions = outputDimensions(created.source.width, created.source.height);
-      let lastError;
-      let providerResult;
-
-      for (let index = 0; index < this.providers.length; index += 1) {
-        const provider = this.providers[index];
-        const seed = this.seedFactory();
-        const attempt = await this.repository.startAttempt({
-          generationId: generation.id,
-          attemptNumber: index + 1,
-          provider: provider.name,
-          model: provider.model,
-          promptVersion: prompt.version,
-          seed,
-          estimatedCostMinor: provider.estimatedCostMinor ?? null,
-          currency: provider.currency ?? null,
-        });
-        const controller = new AbortController();
-        const timer = setTimeout(() => controller.abort(), this.config.timeoutMs);
-        try {
-          providerResult = await provider.generate({
-            sourceImage,
-            sourceMimeType: "image/jpeg",
-            prompt: prompt.prompt,
-            seed,
-            ...dimensions,
-            signal: controller.signal,
-          });
-          await this.repository.succeedAttempt(attempt.id, providerResult);
-          break;
-        } catch (error) {
-          lastError = error instanceof GenerationError
-            ? error
-            : new GenerationError("GENERATION_PROVIDER_FAILED", 502);
-          await this.repository.failAttempt(attempt.id, lastError);
-          if (!lastError.retryable) break;
-        } finally {
-          clearTimeout(timer);
-        }
-      }
-      if (!providerResult) throw lastError || new GenerationError("GENERATION_PROVIDER_FAILED", 502);
-
-      const normalized = await normalizeProviderResult(providerResult.result);
-      resultKey = `users/${userId}/projects/${projectId}/generations/${generation.id}/standard.jpg`;
-      await this.storage.putPrivateObject({
-        key: resultKey,
-        body: normalized,
-        contentType: "image/jpeg",
-        metadata: {
-          generationId: generation.id,
-          provider: providerResult.provider,
-          promptVersion: prompt.version,
-        },
-      });
-      await this.walletService.commit(userId, reservation.transaction.id);
-      await this.repository.markReady({
-        generationId: generation.id,
-        projectId,
-        bucket: this.storage.getStorageBucket(),
-        key: resultKey,
-        mimeType: "image/jpeg",
-      });
-      finalized = true;
+      if (!queued) throw new GenerationError("GENERATION_STATE_CONFLICT", 409);
+      await this.queue.enqueue(generation.id, priority);
       return this.view(userId, projectId, generation.id);
     } catch (error) {
-      if (finalized) throw error;
-      if (resultKey) await this.storage.deletePrivateObject(resultKey).catch(() => {});
-      await this.repository.markFailed(generation.id, projectId, error.code || error.message);
+      if (error?.code === "GENERATION_QUEUE_UNAVAILABLE" && reservation) {
+        // The durable DB record remains queued. A duplicate request or worker watchdog
+        // will idempotently add the same job when Redis recovers.
+        throw error;
+      }
       if (reservation?.transaction?.id) {
         await this.walletService.refund(
           userId,
           reservation.transaction.id,
           `generation:${generation.id}:refund`,
-          error.code || "technical_failure",
-        ).catch((refundError) => {
-          console.error("Generation refund failed and requires reconciliation", {
-            generationId: generation.id,
-            error: refundError?.code || refundError?.name || "REFUND_FAILED",
-          });
-        });
+          error.code || "enqueue_failed",
+        ).catch(() => {});
       }
-      if (error instanceof GenerationError) throw error;
-      if (error?.status && error?.code) throw error;
-      throw new GenerationError("STANDARD_GENERATION_FAILED", 500);
+      await this.repository.markFailedRefunded(
+        generation.id,
+        projectId,
+        error.code || "GENERATION_ENQUEUE_FAILED",
+      );
+      throw error;
     }
   }
 
   async view(userId, projectId, generationId) {
     const generation = await this.repository.findOwned(userId, projectId, generationId);
     if (!generation) throw new GenerationError("GENERATION_NOT_FOUND", 404);
-    const { result_bucket: _bucket, result_key: key, ...safe } = generation;
+    const {
+      result_bucket: _bucket,
+      result_key: key,
+      wallet_reservation_id: _reservation,
+      queue_job_id: _job,
+      heartbeat_at: _heartbeat,
+      ...safe
+    } = generation;
     return {
       ...safe,
-      resultAvailable: generation.status === "ready" && Boolean(key),
+      resultAvailable: generation.status === "completed" && Boolean(key),
     };
   }
 
   async resultUrl(userId, projectId, generationId) {
     const generation = await this.repository.findOwned(userId, projectId, generationId);
     if (!generation) throw new GenerationError("GENERATION_NOT_FOUND", 404);
-    if (generation.status !== "ready" || !generation.result_key) {
+    if (generation.status !== "completed" || !generation.result_key) {
       throw new GenerationError("GENERATION_RESULT_NOT_READY", 409);
     }
     return this.storage.createDownloadUrl(
       generation.result_key,
       this.config.resultSignedUrlTtlSeconds,
     );
+  }
+
+  async latest(userId, projectId) {
+    const generation = await this.repository.findLatestOwned(userId, projectId);
+    if (!generation) return null;
+    return this.view(userId, projectId, generation.id);
+  }
+
+  async cancel(userId, projectId, generationId) {
+    const cancelled = await this.repository.cancelOwned(userId, projectId, generationId);
+    if (!cancelled) {
+      const existing = await this.repository.findOwned(userId, projectId, generationId);
+      if (!existing) throw new GenerationError("GENERATION_NOT_FOUND", 404);
+      if (existing.status === "cancelled") return this.view(userId, projectId, generationId);
+      throw new GenerationError("GENERATION_CANNOT_BE_CANCELLED", 409);
+    }
+    await this.queue.cancelWaiting(cancelled.queue_job_id || generationId).catch(() => false);
+    if (cancelled.wallet_reservation_id) {
+      await this.walletService.refund(
+        userId,
+        cancelled.wallet_reservation_id,
+        `generation:${generationId}:cancel-refund`,
+        "user_cancelled",
+      );
+    }
+    return this.view(userId, projectId, generationId);
   }
 }

@@ -1,7 +1,8 @@
 import assert from "node:assert/strict";
 import test from "node:test";
 import {
-  GenerationError, GENERATION_INPUT_VERSION, normalizeGenerationInput,
+  assertGenerationTransition, GenerationError, GENERATION_INPUT_VERSION,
+  GENERATION_STATUSES, normalizeGenerationInput,
 } from "../src/generation/contract.mjs";
 import { loadGenerationConfig } from "../src/generation/config.mjs";
 import { composeGenerationPrompt } from "../src/generation/prompt.mjs";
@@ -40,6 +41,19 @@ test("generation input defaults to gentle and protects structure", () => {
   assert.match(composed.prompt, /only permitted automatically inferred addition/u);
 });
 
+test("generation state machine accepts only declared lifecycle transitions", () => {
+  assert.deepEqual(GENERATION_STATUSES, [
+    "created", "queued", "preprocessing", "generating", "quality_check_pending",
+    "completed", "retrying", "failed_refunded", "cancelled",
+  ]);
+  assert.equal(assertGenerationTransition("queued", "preprocessing"), true);
+  assert.equal(assertGenerationTransition("generating", "retrying"), true);
+  assert.throws(
+    () => assertGenerationTransition("completed", "generating"),
+    (error) => error.code === "GENERATION_STATE_CONFLICT",
+  );
+});
+
 test("generation input accepts explicit structural permission and rejects unknown modes", () => {
   const input = normalizeGenerationInput({
     style: "скандинавский",
@@ -70,5 +84,9 @@ test("generation configuration is disabled by default and selects the measured c
       GENERATION_STAGING_SECRET: "a".repeat(32),
     }),
     (error) => error.code === "GENERATION_STAGING_FORBIDDEN_IN_PRODUCTION",
+  );
+  assert.throws(
+    () => loadGenerationConfig({ GENERATION_METRICS_TOKEN: "too-short" }),
+    (error) => error.code === "GENERATION_METRICS_TOKEN_TOO_SHORT",
   );
 });

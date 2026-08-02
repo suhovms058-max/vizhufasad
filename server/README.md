@@ -58,7 +58,9 @@ curl -fsS http://127.0.0.1:8080/health
 - `POST /api/leads`
 - `GET /api/orders/:id/status?token=...`
 
-Текущий файловый механизм является временным. Он не предоставляет очередь, повторные фоновые задания, транзакции или масштабирование на несколько процессов.
+Новый продуктовый путь Standard использует BullMQ и отдельный `npm run start:worker`. API не ждёт
+provider, а возвращает `202`; состояние и attempts сохраняются в PostgreSQL. Старый `/api/leads`
+остаётся контролируемо deprecated и не участвует в очереди продукта.
 
 ## Production
 
@@ -79,3 +81,15 @@ API фактически запускается как отдельный сер
 
 Feature flags перечислены в `.env.example`. `FEATURE_PAYMENTS_ENABLED` обязан оставаться `false` до
 отдельного этапа подключения payment provider.
+
+## Очередь и worker
+
+```powershell
+npm run start:api
+# отдельный терминал или production service
+npm run start:worker
+```
+
+Проверка без платного GenAPI: `npm run smoke:queue`. Параметры concurrency, attempts, backoff,
+stalled lock, watchdog и приоритетов перечислены в `.env.example`. Операционная инструкция:
+[`../docs/STAGE_8_GENERATION_QUEUE.md`](../docs/STAGE_8_GENERATION_QUEUE.md).

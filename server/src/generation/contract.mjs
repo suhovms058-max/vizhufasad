@@ -1,6 +1,28 @@
 export const GENERATION_MODES = Object.freeze(["gentle", "balanced", "conceptual"]);
 export const GENERATION_PROMPT_VERSION = "standard-facade-v3";
 export const GENERATION_INPUT_VERSION = "1";
+export const GENERATION_STATUSES = Object.freeze([
+  "created", "queued", "preprocessing", "generating", "quality_check_pending",
+  "completed", "retrying", "failed_refunded", "cancelled",
+]);
+
+export const GENERATION_TRANSITIONS = Object.freeze({
+  created: Object.freeze(["queued", "failed_refunded", "cancelled"]),
+  queued: Object.freeze(["preprocessing", "cancelled", "failed_refunded"]),
+  preprocessing: Object.freeze(["generating", "retrying", "failed_refunded", "cancelled"]),
+  generating: Object.freeze(["quality_check_pending", "retrying", "failed_refunded"]),
+  quality_check_pending: Object.freeze(["completed", "retrying", "failed_refunded"]),
+  retrying: Object.freeze(["preprocessing", "cancelled", "failed_refunded"]),
+  completed: Object.freeze([]),
+  failed_refunded: Object.freeze([]),
+  cancelled: Object.freeze([]),
+});
+
+export const CANCELLABLE_GENERATION_STATUSES = Object.freeze([
+  "created", "queued", "retrying",
+]);
+
+const generationStatusSet = new Set(GENERATION_STATUSES);
 
 const modeSet = new Set(GENERATION_MODES);
 
@@ -12,6 +34,27 @@ export class GenerationError extends Error {
     this.retryable = retryable;
     this.details = details;
   }
+}
+
+export function assertGenerationTransition(from, to) {
+  if (!generationStatusSet.has(from) || !GENERATION_TRANSITIONS[from].includes(to)) {
+    throw new GenerationError("GENERATION_STATE_CONFLICT", 409, {
+      details: { from, to },
+    });
+  }
+  return true;
+}
+
+export function isRetryableGenerationError(error) {
+  return error instanceof GenerationError && error.retryable === true;
+}
+
+export function isBadGenerationInputError(error) {
+  const code = String(error?.code || error?.message || "");
+  return error instanceof GenerationError
+    && error.status >= 400
+    && error.status < 500
+    && !["GENERATION_STATE_CONFLICT", "GENERATION_RESULT_NOT_READY"].includes(code);
 }
 
 function cleanText(value, name, maxLength, { required = false } = {}) {

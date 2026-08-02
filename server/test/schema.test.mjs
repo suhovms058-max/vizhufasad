@@ -40,6 +40,9 @@ test("migrations include foreign keys, indexes, invariants and timestamp default
   assert.match(migration, /wallet_transactions_refund_once_uidx/);
   assert.match(migration, /tariff_plans_code_valid_from_uidx/);
   assert.match(migration, /action_costs_code_valid_from_uidx/);
+  assert.match(migration, /'created', 'queued', 'preprocessing', 'generating', 'quality_check_pending'/);
+  assert.match(migration, /generations_queue_job_uidx/);
+  assert.match(migration, /generations_watchdog_idx/);
   assert.match(migration, /'START'.*79000.*25/s);
   assert.match(migration, /'OPTIMUM'.*129000.*60/s);
   assert.match(migration, /'MAXIMUM'.*349000.*240/s);
