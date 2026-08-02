@@ -25,7 +25,10 @@ export const photoAssessmentStatus = pgEnum("photo_assessment_status", [
 export const photoAssessmentDecision = pgEnum("photo_assessment_decision", [
   "accepted", "accepted_with_warning", "retake_required",
 ]);
-export const generationStatus = pgEnum("generation_status", ["queued", "processing", "qa", "ready", "failed", "cancelled"]);
+export const generationStatus = pgEnum("generation_status", [
+  "created", "queued", "preprocessing", "generating", "quality_check_pending",
+  "completed", "retrying", "failed_refunded", "cancelled",
+]);
 export const attemptStatus = pgEnum("attempt_status", ["started", "succeeded", "retryable_failed", "terminal_failed"]);
 export const transactionType = pgEnum("wallet_transaction_type", [
   "free_bonus", "purchase", "generation_charge", "generation_refund",
@@ -174,8 +177,10 @@ export const generations = pgTable("generations", {
   projectId: uuid("project_id").notNull().references(() => projects.id, { onDelete: "cascade" }),
   sourceImageId: uuid("source_image_id").notNull().references(() => sourceImages.id, { onDelete: "restrict" }),
   revision: integer("revision").default(1).notNull(),
-  status: generationStatus("status").default("queued").notNull(),
+  status: generationStatus("status").default("created").notNull(),
   idempotencyKey: text("idempotency_key"),
+  queueJobId: text("queue_job_id"),
+  priority: integer("priority").default(10).notNull(),
   walletReservationId: uuid("wallet_reservation_id")
     .references(() => walletTransactions.id, { onDelete: "set null" }),
   configSnapshot: jsonb("config_snapshot").notNull(),
@@ -185,12 +190,19 @@ export const generations = pgTable("generations", {
   resultMimeType: text("result_mime_type"),
   failureCode: text("failure_code"),
   ...timestamps,
+  queuedAt: timestamp("queued_at", { withTimezone: true }),
+  startedAt: timestamp("started_at", { withTimezone: true }),
+  heartbeatAt: timestamp("heartbeat_at", { withTimezone: true }),
+  cancelRequestedAt: timestamp("cancel_requested_at", { withTimezone: true }),
   completedAt: timestamp("completed_at", { withTimezone: true }),
 }, (table) => [
   uniqueIndex("generations_project_revision_uidx").on(table.projectId, table.revision),
   uniqueIndex("generations_idempotency_uidx").on(table.idempotencyKey),
+  uniqueIndex("generations_queue_job_uidx").on(table.queueJobId),
   index("generations_status_created_idx").on(table.status, table.createdAt),
+  index("generations_watchdog_idx").on(table.status, table.heartbeatAt),
   check("generations_revision_positive_chk", sql`${table.revision} > 0`),
+  check("generations_priority_positive_chk", sql`${table.priority} > 0`),
 ]);
 
 export const generationAttempts = pgTable("generation_attempts", {

@@ -57,6 +57,13 @@
       "when": 1785316815919,
       "tag": "0007_generation_wallet_fk",
       "breakpoints": true
+    },
+    {
+      "idx": 8,
+      "version": "7",
+      "when": 1785329677206,
+      "tag": "0008_generation_queue",
+      "breakpoints": true
     }
   ]
 }

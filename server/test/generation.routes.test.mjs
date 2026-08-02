@@ -4,7 +4,7 @@ import http from "node:http";
 import test from "node:test";
 import express from "express";
 import {
-  createGenerationRouter, createGenerationStagingRouter,
+  createGenerationMetricsRouter, createGenerationRouter, createGenerationStagingRouter,
 } from "../src/generation/http.mjs";
 import { GenerationError } from "../src/generation/contract.mjs";
 
@@ -30,7 +30,11 @@ test("generation routes require session and enforce ownership through service", 
   const generationService = {
     async view(userId, projectId, generationId) {
       if (userId !== "owner") throw new GenerationError("GENERATION_NOT_FOUND", 404);
-      return { id: generationId, project_id: projectId, status: "ready" };
+      return { id: generationId, project_id: projectId, status: "completed" };
+    },
+    async cancel(userId, projectId, generationId) {
+      if (userId !== "owner") throw new GenerationError("GENERATION_NOT_FOUND", 404);
+      return { id: generationId, project_id: projectId, status: "cancelled" };
     },
   };
   const app = express();
@@ -46,12 +50,40 @@ test("generation routes require session and enforce ownership through service", 
     });
     assert.equal(owner.status, 200);
     assert.equal((await owner.json()).generation.id, "g");
+    const cancelled = await fetch(`${baseUrl}/api/projects/p/generations/g/cancel`, {
+      method: "POST",
+      headers: { "x-test-user": "owner" },
+    });
+    assert.equal(cancelled.status, 200);
+    assert.equal((await cancelled.json()).generation.status, "cancelled");
+  });
+});
+
+test("generation metrics are disabled without a bearer token and never expose configuration", async () => {
+  const app = express();
+  app.use("/internal/generation/metrics", createGenerationMetricsRouter({
+    metrics: {
+      async snapshot() {
+        return { queue: { wait: 1 }, database: { average_provider_latency_ms: 25 } };
+      },
+    },
+    config: { metricsToken: "01234567890123456789012345678901" },
+  }));
+  await withServer(app, async (baseUrl) => {
+    assert.equal((await fetch(`${baseUrl}/internal/generation/metrics`)).status, 404);
+    const response = await fetch(`${baseUrl}/internal/generation/metrics`, {
+      headers: { authorization: "Bearer 01234567890123456789012345678901" },
+    });
+    assert.equal(response.status, 200);
+    const body = await response.json();
+    assert.equal(body.queue.wait, 1);
+    assert.equal("token" in body, false);
   });
 });
 
 test("staging generation endpoint is fail-closed and token protected", async () => {
   const generationService = {
-    async create() { return { id: "g", status: "ready" }; },
+    async create() { return { id: "g", status: "queued" }; },
   };
   const app = express();
   app.use(express.json());
@@ -74,6 +106,6 @@ test("staging generation endpoint is fail-closed and token protected", async () 
       },
       body: "{}",
     });
-    assert.equal(allowed.status, 201);
+    assert.equal(allowed.status, 202);
   });
 });

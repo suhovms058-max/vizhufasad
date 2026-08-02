@@ -4,6 +4,7 @@ import { randomUUID } from "node:crypto";
 import test from "node:test";
 import sharp from "sharp";
 import { closeDatabase, getPool } from "../src/db/client.mjs";
+import { GenerationProcessor } from "../src/generation/processor.mjs";
 import { GenerationRepository } from "../src/generation/repository.mjs";
 import { GenerationService } from "../src/generation/service.mjs";
 import { WalletRepository } from "../src/wallet/repository.mjs";
@@ -46,12 +47,6 @@ async function createFixture(pool) {
 async function cleanup(pool, fixture) {
   await pool.query("delete from projects where id = $1", [fixture.projectId]);
   await pool.query(
-    `delete from wallet_transactions where wallet_id in (
-      select id from wallets where user_id = $1
-    ) and type = 'generation_refund'`,
-    [fixture.userId],
-  );
-  await pool.query(
     "delete from wallet_transactions where wallet_id in (select id from wallets where user_id = $1)",
     [fixture.userId],
   );
@@ -59,11 +54,12 @@ async function cleanup(pool, fixture) {
   await pool.query("delete from users where id = $1", [fixture.userId]);
 }
 
-test("generation repository, wallet transaction and result lifecycle work atomically", {
+test("queued generation is processed asynchronously with atomic wallet lifecycle", {
   skip: !enabled,
 }, async () => {
   const pool = getPool();
   const fixture = await createFixture(pool);
+  const repository = new GenerationRepository(pool);
   const walletService = new WalletService({
     repository: new WalletRepository(pool),
     config: {
@@ -86,8 +82,24 @@ test("generation repository, wallet transaction and result lifecycle work atomic
     getStorageBucket() { return "private"; },
     async createDownloadUrl(key) { return `https://signed.example/${key}`; },
   };
+  const queueEvents = [];
   const service = new GenerationService({
-    repository: new GenerationRepository(pool),
+    repository,
+    storage,
+    walletService,
+    queue: {
+      async enqueue(id, priority) { queueEvents.push([id, priority]); return { id }; },
+      async cancelWaiting() { return true; },
+    },
+    config: {
+      enabled: true,
+      queuePaidPriority: 1,
+      queueFreePriority: 10,
+      resultSignedUrlTtlSeconds: 300,
+    },
+  });
+  const processor = new GenerationProcessor({
+    repository,
     storage,
     walletService,
     providers: [{
@@ -105,29 +117,38 @@ test("generation repository, wallet transaction and result lifecycle work atomic
           estimatedCostMinor: 100,
           actualCostMinor: 90,
           currency: "RUB",
-          contentType: "image/jpeg",
           result: source,
         };
       },
     }],
-    config: { enabled: true, timeoutMs: 1000, resultSignedUrlTtlSeconds: 300 },
+    config: { timeoutMs: 1_000, workerLockDurationMs: 60_000 },
     seedFactory: () => 123,
   });
   try {
-    const generation = await service.create(
+    const queued = await service.create(
       fixture.userId,
       fixture.projectId,
       fixture.imageId,
       { style: "минимализм" },
       `integration-${randomUUID()}`,
     );
-    assert.equal(generation.status, "ready");
-    assert.equal(generation.resultAvailable, true);
-    assert.equal(generation.attempts[0].jobId, "job-integration");
-    assert.equal(generation.attempts[0].model, "mock-image-edit");
-    assert.equal(generation.attempts[0].promptVersion, "standard-facade-v3");
-    assert.equal(Number(generation.attempts[0].seed), 123);
-    assert.equal(generation.attempts[0].actualCostMinor, 90);
+    assert.equal(queued.status, "queued");
+    assert.equal(queued.resultAvailable, false);
+    assert.equal(queueEvents.length, 1);
+    await processor.process({
+      data: { generationId: queued.id },
+      attemptsMade: 0,
+      opts: { attempts: 3 },
+      async updateProgress() {},
+    });
+    const completed = await service.view(fixture.userId, fixture.projectId, queued.id);
+    assert.equal(completed.status, "completed");
+    assert.equal(completed.resultAvailable, true);
+    assert.equal(completed.attempts[0].jobId, "job-integration");
+    assert.equal(completed.attempts[0].model, "mock-image-edit");
+    assert.equal(completed.attempts[0].promptVersion, "standard-facade-v3");
+    assert.equal(Number(completed.attempts[0].seed), 123);
+    assert.equal(completed.attempts[0].actualCostMinor, 90);
     assert.equal(stored.size, 1);
     const transactions = await pool.query(
       `select type, status, amount from wallet_transactions transaction
@@ -144,9 +165,10 @@ test("generation repository, wallet transaction and result lifecycle work atomic
       fixture.projectId,
       fixture.imageId,
       { style: "другой стиль" },
-      generation.idempotency_key.split(":").at(-1),
+      completed.idempotency_key.split(":").at(-1),
     );
-    assert.equal(duplicate.id, generation.id);
+    assert.equal(duplicate.id, completed.id);
+    assert.equal(queueEvents.length, 1);
     assert.equal((await walletService.summary(fixture.userId)).balance, 1);
   } finally {
     await cleanup(pool, fixture);

@@ -14,15 +14,17 @@ import { createAuthMailer } from "./src/auth/mailer.mjs";
 import { createAuthPagesRouter } from "./src/auth/pages.mjs";
 import { AuthRepository } from "./src/auth/repository.mjs";
 import { AuthService } from "./src/auth/service.mjs";
+import { closeDatabase } from "./src/db/client.mjs";
 import { liveness, readiness } from "./src/health.mjs";
 import { ensurePrivateBucket } from "./src/infra/storage.mjs";
 import * as storage from "./src/infra/storage.mjs";
+import { closeRedis } from "./src/infra/redis.mjs";
 import { loadGenerationConfig } from "./src/generation/config.mjs";
 import {
-  createGenerationRouter, createGenerationStagingRouter,
+  createGenerationMetricsRouter, createGenerationRouter, createGenerationStagingRouter,
 } from "./src/generation/http.mjs";
-import { GenApiGenerationProvider } from "./src/generation/providers/genapi.mjs";
-import { UnavailableGenerationProvider } from "./src/generation/providers/fallback.mjs";
+import { GenerationMetrics } from "./src/generation/metrics.mjs";
+import { createGenerationQueue } from "./src/generation/queue.mjs";
 import { GenerationRepository } from "./src/generation/repository.mjs";
 import { GenerationService } from "./src/generation/service.mjs";
 import { loadProjectConfig } from "./src/projects/config.mjs";
@@ -65,27 +67,18 @@ const walletService = new WalletService({
   config: walletConfig,
 });
 const generationConfig = loadGenerationConfig();
-const generationProviders = [];
-if (generationConfig.enabled && generationConfig.provider === "genapi") {
-  generationProviders.push(new GenApiGenerationProvider({
-    apiKey: generationConfig.apiKey,
-    model: generationConfig.model,
-    endpoint: generationConfig.endpoint,
-    estimatedCostMinor: generationConfig.estimatedCostMinor,
-    currency: generationConfig.currency,
-    pollIntervalMs: generationConfig.pollIntervalMs,
-    resultMaxBytes: generationConfig.resultMaxBytes,
-  }));
-}
-if (generationConfig.enabled && generationConfig.fallbackProvider === "cloudru-self-hosted") {
-  generationProviders.push(new UnavailableGenerationProvider());
-}
+const generationRepository = new GenerationRepository();
+const generationQueue = createGenerationQueue(generationConfig);
 const generationService = new GenerationService({
-  repository: new GenerationRepository(),
+  repository: generationRepository,
   storage,
   walletService,
-  providers: generationProviders,
+  queue: generationQueue,
   config: generationConfig,
+});
+const generationMetrics = new GenerationMetrics({
+  repository: generationRepository,
+  queue: generationQueue,
 });
 const authRepository = new AuthRepository(undefined, walletConfig);
 const authService = new AuthService({
@@ -151,9 +144,13 @@ app.use(
   "/api/staging/generation",
   createGenerationStagingRouter({ generationService, config: generationConfig }),
 );
+app.use(
+  "/internal/generation/metrics",
+  createGenerationMetricsRouter({ metrics: generationMetrics, config: generationConfig }),
+);
 app.use("/api/wallet", createWalletRouter({ authService, walletService }));
 app.use("/api/catalog", createCatalogRouter({ authService, walletService }));
-app.use(createProjectPagesRouter({ authService, projectService }));
+app.use(createProjectPagesRouter({ authService, projectService, generationService }));
 app.use(createWalletPagesRouter({ authService, walletService }));
 app.use(createAuthPagesRouter({ service: authService, config: authConfig }));
 const legacyLeadsMode = String(process.env.LEGACY_LEADS_MODE || "deprecated").toLowerCase();
@@ -406,4 +403,26 @@ app.use((error, _request, response, _next) => {
   return response.status(500).json({ ok: false, error: "Ошибка обработки заявки" });
 });
 
-app.listen(port, "0.0.0.0", () => console.log(`VIZHUFASAD leads API listening on ${port}`));
+const httpServer = app.listen(
+  port,
+  "0.0.0.0",
+  () => console.log(`VIZHUFASAD API listening on ${port}`),
+);
+
+let closing = false;
+async function shutdown(signal) {
+  if (closing) return;
+  closing = true;
+  console.log("VIZHUFASAD API graceful shutdown", { signal });
+  httpServer.close(async () => {
+    await Promise.allSettled([
+      generationQueue.close(),
+      closeRedis(),
+      closeDatabase(),
+    ]);
+    process.exit(0);
+  });
+  setTimeout(() => process.exit(1), 15_000).unref();
+}
+process.once("SIGTERM", () => shutdown("SIGTERM"));
+process.once("SIGINT", () => shutdown("SIGINT"));

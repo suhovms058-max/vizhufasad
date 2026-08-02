@@ -30,7 +30,7 @@ export function createGenerationRouter({ authService, generationService }) {
         request.body?.input,
         idempotencyKey,
       );
-      return response.status(generation.status === "ready" ? 201 : 202).json({ generation });
+      return response.status(202).json({ generation });
     } catch (error) {
       try { return respondError(response, error); } catch (unexpected) { return next(unexpected); }
     }
@@ -52,6 +52,19 @@ export function createGenerationRouter({ authService, generationService }) {
     try {
       return response.json({
         url: await generationService.resultUrl(
+          request.auth.user_id,
+          request.params.projectId,
+          request.params.generationId,
+        ),
+      });
+    } catch (error) {
+      try { return respondError(response, error); } catch (unexpected) { return next(unexpected); }
+    }
+  });
+  router.post("/:projectId/generations/:generationId/cancel", limiter, async (request, response, next) => {
+    try {
+      return response.json({
+        generation: await generationService.cancel(
           request.auth.user_id,
           request.params.projectId,
           request.params.generationId,
@@ -88,9 +101,27 @@ export function createGenerationStagingRouter({ generationService, config }) {
         request.body?.input,
         request.body?.idempotencyKey,
       );
-      return response.status(201).json({ generation });
+      return response.status(202).json({ generation });
     } catch (error) {
       try { return respondError(response, error); } catch (unexpected) { return next(unexpected); }
+    }
+  });
+  return router;
+}
+
+export function createGenerationMetricsRouter({ metrics, config }) {
+  const router = express.Router();
+  router.get("/", async (request, response, next) => {
+    try {
+      if (!config.metricsToken || !tokenMatches(
+        request.get("authorization")?.replace(/^Bearer\s+/iu, ""),
+        config.metricsToken,
+      )) {
+        return response.status(404).json({ error: "NOT_FOUND" });
+      }
+      return response.json(await metrics.snapshot());
+    } catch (error) {
+      return next(error);
     }
   });
   return router;
