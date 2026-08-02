@@ -11,7 +11,7 @@ const migration = (
 ).join("\n");
 const requiredTables = [
   "users", "email_login_codes", "auth_sessions", "projects", "source_images", "generations",
-  "generation_attempts", "wallets", "wallet_transactions", "tariff_plans",
+  "generation_attempts", "generation_quality_assessments", "wallets", "wallet_transactions", "tariff_plans",
   "payments", "subscriptions", "audit_logs", "photo_assessments", "photo_assessment_attempts",
   "action_costs",
 ];
@@ -43,6 +43,8 @@ test("migrations include foreign keys, indexes, invariants and timestamp default
   assert.match(migration, /'created', 'queued', 'preprocessing', 'generating', 'quality_check_pending'/);
   assert.match(migration, /generations_queue_job_uidx/);
   assert.match(migration, /generations_watchdog_idx/);
+  assert.match(migration, /generation_quality_assessments_number_chk/);
+  assert.match(migration, /generation_quality_assessments_expiry_idx/);
   assert.match(migration, /'START'.*79000.*25/s);
   assert.match(migration, /'OPTIMUM'.*129000.*60/s);
   assert.match(migration, /'MAXIMUM'.*349000.*240/s);

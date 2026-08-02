@@ -7,6 +7,7 @@ import {
   createGenerationMetricsRouter, createGenerationRouter, createGenerationStagingRouter,
 } from "../src/generation/http.mjs";
 import { GenerationError } from "../src/generation/contract.mjs";
+import { createGenerationQualityDiagnosticsRouter } from "../src/generation-quality/http.mjs";
 
 async function withServer(app, callback) {
   const server = http.createServer(app);
@@ -107,5 +108,41 @@ test("staging generation endpoint is fail-closed and token protected", async () 
       body: "{}",
     });
     assert.equal(allowed.status, 202);
+  });
+});
+
+test("quality diagnostics are admin-only and use short-lived private URLs", async () => {
+  const app = express();
+  app.use("/internal/generation/quality", createGenerationQualityDiagnosticsRouter({
+    repository: {
+      async diagnostics() {
+        return [{
+          id: "q1", generation_id: "g1", assessment_number: 1,
+          status: "completed", decision: "passed", schema_version: "schema-v1",
+          prompt_version: "prompt-v1", policy_version: "policy-v1",
+          generation_prompt_version: "generation-v1", provider: "yandex", model: "model",
+          score_breakdown: { sameHouse: 9500 }, overall_score: 9000,
+          failure_reasons: [], allowed_changes: {}, provider_request_id: "request",
+          diagnostic_key: "private/candidate.jpg",
+          diagnostic_expires_at: new Date(Date.now() + 60_000),
+          created_at: new Date(), finished_at: new Date(),
+        }];
+      },
+    },
+    storage: { async createDownloadUrl(key, ttl) { return `signed://${key}?ttl=${ttl}`; } },
+    config: {
+      adminToken: "01234567890123456789012345678901",
+      diagnosticUrlTtlSeconds: 120,
+    },
+  }));
+  await withServer(app, async (baseUrl) => {
+    assert.equal((await fetch(`${baseUrl}/internal/generation/quality/g1`)).status, 404);
+    const response = await fetch(`${baseUrl}/internal/generation/quality/g1`, {
+      headers: { authorization: "Bearer 01234567890123456789012345678901" },
+    });
+    assert.equal(response.status, 200);
+    const body = await response.json();
+    assert.equal(body.assessments[0].diagnosticUrl, "signed://private/candidate.jpg?ttl=120");
+    assert.equal("manualDecision" in body.assessments[0], false);
   });
 });

@@ -173,17 +173,17 @@ export class GenerationRepository {
 
   async startAttempt({
     generationId, attemptNumber, provider, model, promptVersion, seed,
-    estimatedCostMinor, currency,
+    estimatedCostMinor, currency, candidateNumber = 1,
   }) {
     const result = await this.pool.query(
       `insert into generation_attempts (
         generation_id, attempt_number, status, provider, model, prompt_version,
-        seed, estimated_cost_minor, cost_currency
-      ) values ($1, $2, 'started', $3, $4, $5, $6, $7, $8)
+        seed, estimated_cost_minor, cost_currency, candidate_number
+      ) values ($1, $2, 'started', $3, $4, $5, $6, $7, $8, $9)
       returning *`,
       [
         generationId, attemptNumber, provider, model, promptVersion, seed,
-        estimatedCostMinor, currency,
+        estimatedCostMinor, currency, candidateNumber,
       ],
     );
     return result.rows[0];
@@ -201,6 +201,29 @@ export class GenerationRepository {
         result.estimatedCostMinor, result.actualCostMinor, result.currency,
       ],
     );
+  }
+
+  async attachAttemptResult(attemptId, { bucket, key, mimeType }) {
+    const result = await this.pool.query(
+      `update generation_attempts set result_bucket = $2, result_key = $3,
+        result_mime_type = $4
+       where id = $1 and status = 'succeeded' returning *`,
+      [attemptId, bucket, key, mimeType],
+    );
+    return result.rows[0] ?? null;
+  }
+
+  async findCandidateForAssessment(generationId, candidateNumber) {
+    const result = await this.pool.query(
+      `select a.* from generation_attempts a
+       left join generation_quality_assessments q on q.generation_attempt_id = a.id
+       where a.generation_id = $1 and a.candidate_number = $2
+         and a.status = 'succeeded' and a.result_key is not null
+         and (q.id is null or q.status = 'provider_unavailable')
+       order by a.attempt_number desc limit 1`,
+      [generationId, candidateNumber],
+    );
+    return result.rows[0] ?? null;
   }
 
   async failAttempt(attemptId, error) {
