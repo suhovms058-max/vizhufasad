@@ -7,6 +7,16 @@ import { getSignedUrl } from "@aws-sdk/s3-request-presigner";
 
 let client;
 
+export function isMinioCompatibility(environment = process.env) {
+  return String(environment.S3_COMPATIBILITY_MODE || "").toLowerCase() === "minio"
+    || String(environment.S3_ENDPOINT || "").startsWith("http://");
+}
+
+function isUnsupportedMinioControl(error) {
+  return isMinioCompatibility()
+    && (error?.name === "NotImplemented" || error?.$metadata?.httpStatusCode === 501);
+}
+
 function required(name) {
   const value = process.env[name];
   if (!value) throw new Error(`${name} is required`);
@@ -53,8 +63,8 @@ export async function ensurePrivateBucket() {
       }],
     }),
   })).catch((error) => {
-    // Local MinIO over HTTP cannot use this AWS-only transport policy; bucket ACL stays private.
-    if (!String(process.env.S3_ENDPOINT).startsWith("http://")) throw error;
+    // MinIO may reject this AWS-only transport policy; anonymous access remains disabled.
+    if (!isUnsupportedMinioControl(error)) throw error;
   });
   const allowedOrigins = String(process.env.S3_CORS_ORIGINS || process.env.SITE_ORIGIN || "")
     .split(",")
@@ -76,9 +86,7 @@ export async function ensurePrivateBucket() {
       }),
     ).catch((error) => {
       // MinIO configures browser CORS at server level via MINIO_API_CORS_ALLOW_ORIGIN.
-      const localMinio = String(process.env.S3_ENDPOINT).startsWith("http://")
-        && (error?.name === "NotImplemented" || error?.$metadata?.httpStatusCode === 501);
-      if (!localMinio) throw error;
+      if (!isUnsupportedMinioControl(error)) throw error;
     });
   }
 }

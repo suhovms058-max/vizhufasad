@@ -35,6 +35,15 @@ export function createGenerationRouter({ authService, generationService }) {
       try { return respondError(response, error); } catch (unexpected) { return next(unexpected); }
     }
   });
+  router.get("/:projectId/generations", async (request, response, next) => {
+    try {
+      return response.json({
+        generations: await generationService.list(request.auth.user_id, request.params.projectId),
+      });
+    } catch (error) {
+      try { return respondError(response, error); } catch (unexpected) { return next(unexpected); }
+    }
+  });
   router.get("/:projectId/generations/:generationId", async (request, response, next) => {
     try {
       return response.json({
@@ -68,6 +77,20 @@ export function createGenerationRouter({ authService, generationService }) {
           request.auth.user_id,
           request.params.projectId,
           request.params.generationId,
+        ),
+      });
+    } catch (error) {
+      try { return respondError(response, error); } catch (unexpected) { return next(unexpected); }
+    }
+  });
+  router.patch("/:projectId/generations/:generationId/favorite", limiter, async (request, response, next) => {
+    try {
+      return response.json({
+        generation: await generationService.favorite(
+          request.auth.user_id,
+          request.params.projectId,
+          request.params.generationId,
+          request.body?.favorite,
         ),
       });
     } catch (error) {

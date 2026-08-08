@@ -9,9 +9,13 @@ const modeInstructions = {
 const preserveLabels = {
   geometry: "building geometry and footprint",
   floors: "number of storeys",
+  noNewFloors: "the prohibition on adding new storeys",
   roof: "roof shape, pitch, outline and position",
   windows: "all window count, size, shape and position",
   doors: "all door count, size, shape and position",
+  balconies: "all existing balconies and their geometry",
+  terraces: "all existing terraces and their geometry",
+  plot: "the visible plot, paths, vegetation and terrain",
   perspective: "camera viewpoint, perspective and crop",
   housePosition: "house position and scale within the frame",
 };
@@ -47,7 +51,10 @@ export function composeGenerationPrompt(input, { qualityRetryReasons = [] } = {}
       ? `The user explicitly allows changes to: ${allowedItems.join("; ")}.`
       : "",
     "Keep the original environment, season, lighting direction and camera optics. The result is a facade visualization concept, not a construction drawing.",
-    "Do not add or remove floors, windows, doors, roof volumes, terraces, balconies, extensions, structural posts or canopies. Safety railings on already-existing geometry are the only permitted automatically inferred addition. Do not move or resize openings. Do not add people, vehicles, text, logos, watermarks or construction drawings.",
+    input.preserve.noNewFloors
+      ? "Never add a new storey, even when other facade changes are allowed."
+      : "A storey change is allowed only when the client also disabled preservation of the storey count.",
+    "Do not change any protected floor, window, door, roof, terrace, balcony, extension, structural post or canopy. Safety railings on already-existing geometry are the only permitted automatically inferred addition. Do not add people, vehicles, text, logos, watermarks or construction drawings.",
     qualityRetryReasons.length
       ? `AUTOMATIC QUALITY RETRY: The previous candidate was rejected for: ${qualityRetryReasons.join(", ")}. Correct those failures. Increase source-image fidelity and preserve all protected contours, openings, roof lines, storeys, viewpoint and house position. This is the single automatic retry; do not trade structural fidelity for style.`
       : "",

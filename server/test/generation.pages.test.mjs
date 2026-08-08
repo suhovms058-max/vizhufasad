@@ -24,19 +24,22 @@ test("project page renders queued generation polling stages without WebSocket", 
         },
       };
     },
+    async imageUrl() { return "https://example.test/source.jpg"; },
   };
   const generationService = {
-    async latest() {
-      return { id: "generation-1", status: "queued", resultAvailable: false };
+    async view() {
+      return { id: "generation-1", revision: 1, status: "queued", resultAvailable: false };
     },
+    async list() { return [{ id: "generation-1", revision: 1, status: "queued", created_at: new Date() }]; },
   };
+  const walletService = { async summary() { return { balance: 1 }; } };
   const app = express();
-  app.use(createProjectPagesRouter({ authService, projectService, generationService }));
+  app.use(createProjectPagesRouter({ authService, projectService, generationService, walletService }));
   const server = app.listen(0, "127.0.0.1");
   await new Promise((resolve) => server.once("listening", resolve));
   try {
     const response = await fetch(
-      `http://127.0.0.1:${server.address().port}/app/projects/project-1`,
+      `http://127.0.0.1:${server.address().port}/app/projects/project-1/generations/generation-1`,
     );
     const html = await response.text();
     assert.equal(response.status, 200);

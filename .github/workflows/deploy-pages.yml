@@ -76,6 +76,14 @@ jobs:
           npm test
           npm run smoke:infra
 
+      - name: Install browser for the Standard user-flow test
+        working-directory: server
+        run: npx playwright install --with-deps chromium
+
+      - name: Test the Standard user flow at supported viewports
+        working-directory: server
+        run: npm run test:e2e
+
       - name: Stop data infrastructure
         if: always()
         run: docker compose down --volumes
@@ -84,6 +92,8 @@ jobs:
         env:
           NEXT_PUBLIC_BASE_PATH: /vizhufasad
           NEXT_PUBLIC_LEADS_API_URL: https://89-23-97-248.sslip.io/api/leads
+          NEXT_PUBLIC_APP_URL: https://89-23-97-248.sslip.io/app/new
+          NEXT_PUBLIC_LEGACY_LEADS_ENABLED: "false"
         run: npm run build
 
       - name: Upload Pages artifact

@@ -5,6 +5,8 @@ import { ChangeEvent, useEffect, useState } from "react";
 const LEADS_API =
   process.env.NEXT_PUBLIC_LEADS_API_URL ||
   "https://89-23-97-248.sslip.io/api/leads";
+const APP_URL = process.env.NEXT_PUBLIC_APP_URL || "https://89-23-97-248.sslip.io/app/new";
+const LEGACY_LEADS_ENABLED = process.env.NEXT_PUBLIC_LEGACY_LEADS_ENABLED === "true";
 
 const Arrow = () => (
   <svg viewBox="0 0 24 24" aria-hidden="true"><path d="M5 12h14M13 6l6 6-6 6" /></svg>
@@ -21,17 +23,17 @@ const UploadIcon = () => (
 type PackageId = "trial" | "visual" | "selection" | "realization";
 
 const packageNames: Record<PackageId, string> = {
-  trial: "Бесплатный пример",
-  visual: "Визуал",
-  selection: "Подбор фасада",
-  realization: "Фасад под реализацию",
+  trial: "Бесплатный",
+  visual: "Старт",
+  selection: "Оптимум",
+  realization: "Максимум",
 };
 
 const faqs = [
-  ["Нужно ли знать названия материалов?", "Нет. Достаточно загрузить фото и выбрать понравившееся направление. Для тарифа «Подбор фасада» мы предложим реальные материалы, доступные в России."],
+  ["Нужно ли знать названия материалов?", "Нет. Можно выбрать автоподбор или отметить желаемые материалы и цвета самостоятельно."],
   ["Изменится ли форма дома?", "Наша задача — сохранить геометрию, окна, двери и кровлю. Визуализация показывает отделку, а не придумывает другое здание."],
   ["Какое фото подойдёт?", "Снимите дом днём, целиком, без деревьев и машин перед фасадом. Лучше всего — прямо или под небольшим углом."],
-  ["Что нужно для расчёта материалов?", "Размеры стен, проёмов и цоколя или готовый чертёж. Если чего-то не хватает, специалист подскажет, как измерить."],
+  ["Это строительный проект?", "Нет. Результат — концепция внешнего вида фасада, а не чертёж, смета или инструкция для строителей."],
 ];
 
 export default function App() {
@@ -59,6 +61,10 @@ export default function App() {
   }, [modal]);
 
   const startOrder = (id: PackageId) => {
+    if (!LEGACY_LEADS_ENABLED) {
+      window.location.assign(APP_URL);
+      return;
+    }
     setSelectedPackage(id);
     setStep(1);
     setSent(false);
@@ -161,9 +167,9 @@ export default function App() {
           <div className="visualBottom">
             <span><b>3</b> решения на выбор</span>
             <span>Геометрия по фотографии дома сохранена</span>
-            <span>Готово от 24 часов*</span>
+            <span>Статус виден в кабинете</span>
           </div>
-          <p className="visualFootnote">* Зависит от тарифа</p>
+          <p className="visualFootnote">Результат показывается только после автоматической проверки</p>
         </div>
       </section>
 
@@ -171,7 +177,7 @@ export default function App() {
         <div className="shell signalGrid">
           <p>Не выбирайте отделку<br /><i>вслепую.</i></p>
           <div><strong>1 фото</strong><span>достаточно для старта</span></div>
-          <div><strong>3 варианта</strong><span>в тарифе «Визуал»</span></div>
+          <div><strong>1 кредит</strong><span>за Standard-вариант</span></div>
           <div><strong>0 программ</strong><span>вам не нужно осваивать</span></div>
         </div>
       </section>
@@ -195,55 +201,55 @@ export default function App() {
           <div className="deliverCopy">
             <div className="eyebrow"><span /> НЕ ТОЛЬКО КРАСИВАЯ КАРТИНКА</div>
             <h2>Фасад, который<br />можно <em>реализовать</em></h2>
-            <p className="lead">ИИ сохраняет геометрию дома, проверяет результат и подбирает варианты отделки. В тарифе с расчётом специалист дополнительно сверяет размеры и объёмы материалов.</p>
+            <p className="lead">ИИ учитывает выбранный стиль, материалы и цвета, сохраняет защищённую геометрию дома и автоматически проверяет результат.</p>
             <ul>
               <li><Check /><span><strong>Автоматическая проверка</strong>ИИ сверяет окна, двери, кровлю и пропорции с исходной фотографией.</span></li>
-              <li><Check /><span><strong>Реальные материалы</strong>Сервис предлагает варианты, которые можно купить в России.</span></li>
-              <li><Check /><span><strong>Расчёт в старшем тарифе</strong>PDF с решениями и объёмами формируется по точным размерам фасада и проёмов.</span></li>
+              <li><Check /><span><strong>Настройки пользователя</strong>Стиль, отделка, палитра и ограничения входят в задание генератору.</span></li>
+              <li><Check /><span><strong>Только проверенный результат</strong>При грубом изменении дома выполняется автоматический повтор или возврат кредита.</span></li>
             </ul>
-            <button className="textLink" onClick={() => startOrder("realization")}>Узнать о расчёте материалов <Arrow /></button>
+            <button className="textLink" onClick={() => startOrder("trial")}>Создать свой проект <Arrow /></button>
           </div>
         </div>
       </section>
 
       <section className="pricing section shell" id="pricing">
         <div className="pricingHead">
-          <div><div className="eyebrow"><span /> ПОНЯТНЫЕ ТАРИФЫ</div><h2>Начните с малого.<br /><em>Добавьте точность</em>, когда нужно.</h2></div>
-          <p>Для первой идеи достаточно фото. Для точного расчёта в тарифе «Под реализацию» понадобятся размеры или чертёж.</p>
+          <div><div className="eyebrow"><span /> ЕДИНЫЕ КРЕДИТЫ</div><h2>Начните бесплатно.<br /><em>Выбирайте пакет</em>, когда нужно.</h2></div>
+          <p>Standard стоит 1 кредит. Assessment и скачивание результата бесплатны.</p>
         </div>
         <div className="priceGrid">
           <article className="priceCard free">
-            <div><span className="planNum">01</span><h3>Пример</h3><p>Проверить, подходит ли вам формат</p></div>
+            <div><span className="planNum">01</span><h3>Бесплатный</h3><p>Для первого знакомства с сервисом</p></div>
             <div className="price">0 ₽</div>
-            <ul><li><Check /> 1 вариант фасада</li><li><Check /> 1 ракурс</li><li><Check /> Водяной знак</li></ul>
+            <ul><li><Check /> 2 бонусных кредита</li><li><Check /> Standard-генерация</li><li><Check /> Водяной знак</li></ul>
             <button className="button ghost" onClick={() => startOrder("trial")}>Попробовать бесплатно <Arrow /></button>
           </article>
           <article className="priceCard featured">
             <div className="popular">ПОПУЛЯРНЫЙ СТАРТ</div>
-            <div><span className="planNum">02</span><h3>Визуал</h3><p>Выбрать образ будущего фасада</p></div>
-            <div className="price">2 990 ₽</div>
-            <ul><li><Check /> 3 варианта отделки</li><li><Check /> 1 ракурс</li><li><Check /> Без водяного знака</li><li><Check /> 1 пакет правок</li></ul>
-            <button className="button primary" onClick={() => startOrder("visual")}>Выбрать тариф <Arrow /></button>
+            <div><span className="planNum">02</span><h3>Старт</h3><p>Для нескольких вариантов одного дома</p></div>
+            <div className="price">790 ₽</div>
+            <ul><li><Check /> 25 кредитов</li><li><Check /> Единый баланс</li><li><Check /> История результатов</li></ul>
+            <button className="button primary" onClick={() => startOrder("visual")}>Открыть кабинет <Arrow /></button>
           </article>
           <article className="priceCard">
-            <div><span className="planNum">03</span><h3>Подбор фасада</h3><p>Визуал + проверка специалистом</p></div>
-            <div className="price">6 990 ₽</div>
-            <ul><li><Check /> 3 варианта отделки</li><li><Check /> Проверка специалистом</li><li><Check /> Подбор реальных материалов</li><li><Check /> 2 пакета правок</li></ul>
-            <button className="button ghost" onClick={() => startOrder("selection")}>Выбрать тариф <Arrow /></button>
+            <div><span className="planNum">03</span><h3>Оптимум</h3><p>Для исследования нескольких стилей</p></div>
+            <div className="price">1 290 ₽</div>
+            <ul><li><Check /> 60 кредитов</li><li><Check /> Единый баланс</li><li><Check /> История результатов</li></ul>
+            <button className="button ghost" onClick={() => startOrder("selection")}>Открыть кабинет <Arrow /></button>
           </article>
           <article className="priceCard premium">
-            <div><span className="planNum">04 / PREMIUM</span><h3>Под реализацию</h3><p>Для закупки и передачи строителям</p></div>
-            <div className="price">19 900 ₽</div>
-            <ul><li><Check /> Всё из «Подбора фасада»</li><li><Check /> Расчёт объёмов материалов</li><li><Check /> PDF для строителей</li><li><Check /> Персональное сопровождение</li></ul>
-            <button className="button copper" onClick={() => startOrder("realization")}>Обсудить проект <Arrow /></button>
+            <div><span className="planNum">04</span><h3>Максимум</h3><p>Для большого числа концепций</p></div>
+            <div className="price">3 490 ₽</div>
+            <ul><li><Check /> 240 кредитов</li><li><Check /> Единый баланс</li><li><Check /> История результатов</li></ul>
+            <button className="button copper" onClick={() => startOrder("realization")}>Открыть кабинет <Arrow /></button>
           </article>
         </div>
-        <p className="pricingNote">* Расчёт носит ориентировочный характер и уточняется после контрольных замеров на объекте.</p>
+        <p className="pricingNote">Оплата пока не подключена и не показывается в кабинете. Цены берутся из единого тарифного справочника.</p>
       </section>
 
       <section className="audience section">
         <div className="shell audienceGrid">
-          <div><div className="eyebrow"><span /> СДЕЛАНО ДЛЯ ВЛАДЕЛЬЦА ДОМА</div><h2>Не нужно быть<br /><em>дизайнером</em></h2></div>
+          <div><div className="eyebrow"><span /> СДЕЛАНО ДЛЯ ВЛАДЕЛЬЦА ДОМА</div><h2>Все настройки<br /><em>в ваших руках</em></h2></div>
           <div className="quote"><span>“</span><p>Я хочу просто увидеть, как будет выглядеть мой дом, до того как потрачу деньги на материалы.</p><small>ГЛАВНАЯ ЗАДАЧА, КОТОРУЮ МЫ РЕШАЕМ</small></div>
         </div>
       </section>
@@ -276,7 +282,7 @@ export default function App() {
         <small>© 2026 ВИЖУФАСАД · Информация на сайте не является публичной офертой</small>
       </footer>
 
-      {modal && (
+      {LEGACY_LEADS_ENABLED && modal && (
         <div className="modalBackdrop" role="dialog" aria-modal="true" aria-label="Загрузка фото дома" onMouseDown={(e) => { if (e.currentTarget === e.target) setModal(false); }}>
           <div className="modal">
             <button className="modalClose" onClick={() => setModal(false)} aria-label="Закрыть">×</button>

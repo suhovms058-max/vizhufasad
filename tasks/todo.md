@@ -1,15 +1,14 @@
-# Stage 9 Checklist
+# Stage 10 Checklist
 
-- [x] Contract: versioned assessment, strict schemas, allowed-change policy.
-- [x] Persistence: migration, constraints, indexes, two assessments, diagnostic expiry.
-- [x] Local evidence: contours, spatial layout, protected zones, artifacts.
-- [x] VLM: Yandex primary, optional OpenAI fallback, bounded retry, strict validation.
-- [x] Policy: separate scores, configurable thresholds, reasons, overall result.
-- [x] Worker: mandatory gate before `completed`.
-- [x] Retry: one stricter credit-free candidate only.
-- [x] Failure: second rejection hidden and reservation refunded once.
-- [x] Operations: admin-only diagnostics, cleanup and quality metrics.
-- [x] Golden regression: fixtures, tests and generated report.
-- [x] Documentation: env examples, README and Stage 9 runbook.
-- [x] Verification: install, syntax/typecheck, unit, integration, build, smoke, migration, security.
-- [x] Git: focused commits, push and draft PR; no merge to `main`.
+- [x] Persist validated facade settings and all preservation switches.
+- [x] Add history, favorite and free-watermark metadata/API.
+- [x] Complete `/app/new` self-service wizard.
+- [x] Resume truthful generation status after reload.
+- [x] Add quality-approved result page with before/after and download.
+- [x] Expand project cards and owner-only history.
+- [x] Gate the legacy lead form off by default.
+- [x] Remove manual-service copy from current published UI.
+- [x] Verify accessibility, reduced motion and 360/390/768/desktop layouts.
+- [x] Add API/frontend/e2e tests.
+- [x] Run full frontend, server, migration, infrastructure, queue and UI checks.
+- [x] Commit focused increments, push and create a draft PR without merging to `main`.

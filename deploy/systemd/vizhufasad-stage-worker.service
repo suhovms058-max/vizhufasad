@@ -1,0 +1,25 @@
+[Unit]
+Description=VIZHUFASAD Stage Generation Worker
+After=network-online.target docker.service vizhufasad-stage-api.service
+Wants=network-online.target
+Requires=docker.service
+
+[Service]
+Type=simple
+User=www-data
+Group=www-data
+WorkingDirectory=/opt/vizhufasad-stage/server
+EnvironmentFile=/opt/vizhufasad-stage/server/.env
+Environment=XDG_CACHE_HOME=/var/cache/vizhufasad-stage
+ExecStart=/usr/bin/node /opt/vizhufasad-stage/server/worker.mjs
+Restart=on-failure
+RestartSec=5
+NoNewPrivileges=true
+PrivateTmp=true
+CacheDirectory=vizhufasad-stage
+ProtectSystem=strict
+ProtectHome=true
+ReadWritePaths=/opt/vizhufasad-stage/server/data
+
+[Install]
+WantedBy=multi-user.target

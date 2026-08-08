@@ -95,9 +95,13 @@ function preserveSettings(value = {}) {
   const settings = {
     geometry: value.geometry ?? true,
     floors: value.floors ?? true,
+    noNewFloors: value.noNewFloors ?? true,
     roof: value.roof ?? true,
     windows: value.windows ?? true,
     doors: value.doors ?? true,
+    balconies: value.balconies ?? true,
+    terraces: value.terraces ?? true,
+    plot: value.plot ?? true,
     perspective: value.perspective ?? true,
     housePosition: value.housePosition ?? true,
   };

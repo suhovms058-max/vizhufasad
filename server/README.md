@@ -64,7 +64,7 @@ provider, а возвращает `202`; состояние и attempts сохр
 
 ## Production
 
-API фактически запускается как отдельный сервис на VPS Timeweb. Репозиторий не содержит systemd unit, reverse-proxy-конфигурацию или автоматический VPS deployment; их состояние требуется сверять непосредственно на сервере перед изменением production.
+API фактически запускается как отдельный сервис на VPS Timeweb. Проверенные staging-шаблоны Nginx и раздельных systemd-сервисов API/worker находятся в `deploy/`; runtime-секреты и автоматическое применение конфигурации намеренно не хранятся в Git. Перед изменением production фактическое состояние сервера всё равно требуется сверять напрямую.
 
 ## Автоматическая проверка фото проекта
 
@@ -105,3 +105,15 @@ npm run cleanup:generation-quality
 ```
 
 `GET /internal/generation/quality/:generationId` доступен только при непустом `GENERATION_QUALITY_ADMIN_TOKEN` и возвращает read-only диагностику с короткоживущей ссылкой. Маршрута ручного approve/reject нет. Полная схема и переменные: [`../docs/STAGE_9_GENERATION_QUALITY.md`](../docs/STAGE_9_GENERATION_QUALITY.md).
+
+## Полный Standard flow
+
+`/app/new` сохраняет настройки проекта через `PATCH /api/projects/:projectId/configuration`, запускает существующий async Standard и переводит на owner-only страницу генерации. История доступна через `GET /api/projects/:projectId/generations`, избранное — через `PATCH .../:generationId/favorite`. Free-результат получает отдельный объект `*-free-watermarked.jpg`; исходный quality-approved объект не публикуется.
+
+```powershell
+npm run db:migrate
+npm test
+npm run test:e2e
+```
+
+E2E использует системный Google Chrome и четыре viewport-проекта. Описание cutover и известных ограничений: [`../docs/STAGE_10_STANDARD_USER_FLOW.md`](../docs/STAGE_10_STANDARD_USER_FLOW.md).

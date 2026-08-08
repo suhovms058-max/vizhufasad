@@ -1,5 +1,6 @@
 import { GenerationError, normalizeGenerationInput } from "./contract.mjs";
 import { composeGenerationPrompt } from "./prompt.mjs";
+import { createFreeWatermark } from "./watermark.mjs";
 
 function cleanIdempotencyKey(value, userId) {
   const key = String(value || "").trim();
@@ -65,6 +66,7 @@ export class GenerationService {
         reservation.transaction.id,
         generation.id,
         priority,
+        !paid,
       );
       if (!queued) throw new GenerationError("GENERATION_STATE_CONFLICT", 409);
       await this.queue.enqueue(generation.id, priority);
@@ -115,10 +117,44 @@ export class GenerationService {
     if (generation.status !== "completed" || !generation.result_key) {
       throw new GenerationError("GENERATION_RESULT_NOT_READY", 409);
     }
+    let key = generation.result_key;
+    if (generation.requires_watermark) {
+      key = generation.watermark_key;
+      if (!key) {
+        key = generation.result_key.replace(/\.([a-z0-9]+)$/iu, "-free-watermarked.$1");
+        const original = await this.storage.getPrivateObjectBuffer(
+          generation.result_key,
+          this.config.resultMaxBytes,
+        );
+        await this.storage.putPrivateObject({
+          key,
+          body: await createFreeWatermark(original),
+          contentType: "image/jpeg",
+          metadata: { generationId, accessTier: "free", variant: "watermarked" },
+        });
+        await this.repository.setWatermarkKey(generationId, key);
+      }
+    }
     return this.storage.createDownloadUrl(
-      generation.result_key,
+      key,
       this.config.resultSignedUrlTtlSeconds,
     );
+  }
+
+  async list(userId, projectId) {
+    const generations = await this.repository.listOwned(userId, projectId);
+    return Promise.all(generations.map((generation) => this.view(
+      userId, projectId, generation.id,
+    )));
+  }
+
+  async favorite(userId, projectId, generationId, favorite) {
+    if (typeof favorite !== "boolean") throw new GenerationError("INVALID_FAVORITE");
+    const generation = await this.repository.setFavoriteOwned(
+      userId, projectId, generationId, favorite,
+    );
+    if (!generation) throw new GenerationError("GENERATION_NOT_FOUND", 404);
+    return this.view(userId, projectId, generationId);
   }
 
   async latest(userId, projectId) {

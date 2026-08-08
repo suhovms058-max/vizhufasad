@@ -19,9 +19,13 @@ test("generation input defaults to gentle and protects structure", () => {
   assert.deepEqual(input.preserve, {
     geometry: true,
     floors: true,
+    noNewFloors: true,
     roof: true,
     windows: true,
     doors: true,
+    balconies: true,
+    terraces: true,
+    plot: true,
     perspective: true,
     housePosition: true,
   });
@@ -66,6 +70,19 @@ test("generation input accepts explicit structural permission and rejects unknow
     () => normalizeGenerationInput({ style: "лофт", transformationLevel: "extreme" }),
     (error) => error instanceof GenerationError && error.code === "INVALID_TRANSFORMATION_LEVEL",
   );
+});
+
+test("generation input models all Stage 10 preservation choices conservatively", () => {
+  const input = normalizeGenerationInput({
+    style: "автоподбор",
+    preserve: { balconies: false, terraces: false, plot: false, floors: false },
+  });
+  assert.equal(input.preserve.balconies, false);
+  assert.equal(input.preserve.terraces, false);
+  assert.equal(input.preserve.plot, false);
+  assert.equal(input.preserve.floors, false);
+  assert.equal(input.preserve.noNewFloors, true);
+  assert.match(composeGenerationPrompt(input).prompt, /Never add a new storey/u);
 });
 
 test("generation configuration is disabled by default and selects the measured candidate", () => {

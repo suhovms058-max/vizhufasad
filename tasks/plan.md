@@ -1,75 +1,74 @@
-# Implementation Plan: Stage 9 Generation Quality Control
+# Implementation Plan: Stage 10 Standard User Flow
 
 ## Overview
 
-Add mandatory, automatic quality control to every Standard facade generation. The gate combines a versioned VLM comparison with local structural evidence (contours, spatial layout and protected-zone edge similarity). A failed first candidate receives one stricter, credit-free generation retry; a failed second candidate is hidden and the original wallet reservation is refunded idempotently.
+Connect the existing authenticated project, image assessment, wallet, generation queue and mandatory quality gate into one self-service path. The Express product UI remains the source of truth for `/app/*`; the static Next.js site becomes an entry point and exposes the legacy lead form only behind an explicit cutover flag.
 
 ## Architecture Decisions
 
-- Evaluate evidence separately: VLM semantics, structural contours, protected zones, composition/perspective and artifacts/style. Do not use a single whole-image pixel similarity score.
-- Use Yandex AI Studio as the Russia-compatible primary VLM and keep OpenAI as an optional fallback through the same provider contract.
-- Fail closed: a candidate cannot become `completed` without a persisted passing assessment.
-- Persist rejected candidates only in the private bucket under diagnostic keys with a configurable expiry; remove expired objects and redact detailed diagnostics with a cleanup command.
-- Treat user `preserve` settings as the policy boundary: disabled protections do not cause rejection, while non-negotiable same-house and artifact checks remain mandatory.
-- Keep the quality retry inside the durable generation job and record both candidate generation attempts and both assessments. Wallet reserve/commit/refund remains single and idempotent.
+- Build one responsive server-rendered product shell with small progressive-enhancement scripts; keep all ownership and state decisions in the API.
+- Persist the latest draft facade configuration on the project and snapshot it into every generation. Browser storage is only a reload fallback, not the source of truth.
+- Expose only real queue states. Polling resumes from the generation id encoded in the result URL and never invents percentages or completion times.
+- Store the original approved result privately. Free-tier results receive a deterministic watermarked derivative in private S3 and only owner-authorized temporary links are returned.
+- Keep the legacy lead endpoint and form disabled by default and opt-in independently for controlled cutover.
 
 ## Task List
 
-### Phase 1: Contract and persistence
+### Phase 1: Contracts and persistence
 
-- [x] Task 1: Define versioned quality input/output schemas, decisions and configurable thresholds.
-- [x] Task 2: Add migration and repository for two assessments and expiring private diagnostics.
+- [x] Task 1: Extend the generation settings contract and project configuration persistence.
+- [x] Task 2: Add favorite and free-watermark metadata with migration and owner-scoped repository methods.
 
 ### Checkpoint: Foundation
 
-- [x] Contract tests pass.
-- [x] Migration applies on a clean database and schema check passes.
+- [x] Contract, repository and migration tests pass.
+- [x] Existing Stage 4-9 API behavior remains green.
 
-### Phase 2: Evidence and policy
+### Phase 2: Self-service wizard
 
-- [x] Task 3: Implement deterministic contour, spatial and protected-zone evidence with golden fixtures.
-- [x] Task 4: Implement strict structured VLM providers and orchestration with bounded fallback.
-- [x] Task 5: Combine evidence into separate scores, reasons and a final automatic decision.
+- [x] Task 3: Turn `/app/new` into project/photo/assessment/settings/cost steps.
+- [x] Task 4: Persist draft settings and launch Standard idempotently into the existing queue.
+- [x] Task 5: Render truthful status, cancellation/refund explanations and reload recovery.
 
-### Checkpoint: Assessment
+### Checkpoint: Critical path
 
-- [x] Structural, provider and policy tests pass.
-- [x] Regression report matches the committed golden expectations.
+- [x] A signed-in user can create/select a project, upload/select a photo, review assessment and enqueue Standard.
+- [x] Reload restores project, settings and active generation state.
 
-### Phase 3: Worker lifecycle
+### Phase 3: Results and projects
 
-- [x] Task 6: Store each candidate privately, assess it, publish only a passing candidate and commit once.
-- [x] Task 7: On first QC failure strengthen constraints and generate exactly one free retry.
-- [x] Task 8: On second QC failure hide candidates and refund once, including restart/idempotency paths.
+- [x] Task 6: Add result history, favorite and owner-only result/source URLs.
+- [x] Task 7: Add accessible before/after, download, repeat/create-another actions and free watermark.
+- [x] Task 8: Expand project cards with source, preferred result, count, date, status, rename and delete.
 
-### Checkpoint: Lifecycle
+### Checkpoint: Product UI
 
-- [x] Processor tests cover first pass, retry pass, second failure, technical errors and duplicate refund.
-- [x] Queue/integration tests preserve Stage 8 behavior.
+- [x] Only quality-approved results are visible.
+- [x] Free results are watermarked; paid results remain unmodified.
+- [x] Projects and result history remain owner-scoped.
 
-### Phase 4: Operations and release gate
+### Phase 4: Cutover, accessibility and verification
 
-- [x] Task 9: Add admin-only read diagnostics, retention cleanup and quality metrics.
-- [x] Task 10: Update environment examples, runbooks and Stage 9 documentation.
-- [x] Task 11: Run full server and frontend checks, clean-database migration, service smoke, secret scan and diff checks.
+- [x] Task 9: Remove manual-service claims from the published Next.js path and gate legacy leads explicitly.
+- [x] Task 10: Add responsive/reduced-motion/accessibility styling and frontend/e2e coverage.
+- [x] Task 11: Update runbooks and run install, lint/check, typecheck, tests, build, migrations, smoke and security scans.
 
 ### Checkpoint: Complete
 
-- [x] Every exposed result has a passing assessment.
-- [x] One quality retry is free and the second failure is refunded idempotently.
-- [x] No operator or manual approval path exists.
+- [x] Critical e2e path passes at 360, 390, 768 and desktop widths.
+- [x] No payment, Pro, 4K or region editor is exposed.
+- [x] No manual review/operator/specialist/material-estimate copy is reachable in current UI.
 - [x] All mandatory checks pass before commit, push and draft PR.
 
 ## Risks and Mitigations
 
 | Risk | Impact | Mitigation |
 |---|---|---|
-| VLM outage or malformed output | A bad result could leak or work could stall | Validate strict JSON, use bounded fallback and fail closed without committing the wallet charge |
-| Material changes lower raw visual similarity | False rejection | Compare contours and protected zones, not global color/pixel similarity; make thresholds evidence-specific |
-| Worker restart between generation and QC | Duplicate provider cost or extra retry | Persist candidate objects and assessment numbers; resume from durable records where possible |
-| Diagnostics retain customer images too long | Privacy risk | Private keys, signed admin access, expiry timestamps and cleanup command |
-| Threshold drift | Quality regression | Version policy/prompt/schema and keep a deterministic golden regression report |
+| Paid provider or VLM is unavailable locally | Real generation cannot finish during UI e2e | Test the browser contract deterministically and run integration smoke against the real queue/services without claiming an external paid generation |
+| Watermark work exposes the original | Free user can obtain an unmarked result | Return only the derivative URL from owner-authorized result endpoints and keep raw object keys private |
+| Wizard state diverges between browser and database | Reload loses or changes client choices | Validate and persist the normalized configuration server-side before enqueue; version local fallback data |
+| Legacy GitHub Pages still submits leads | Obsolete manual path remains public | Build the lead form only when `NEXT_PUBLIC_LEGACY_LEADS_ENABLED=true`; default and CI value stay false |
 
 ## Open Questions
 
-- A live Yandex VLM smoke requires configured credentials. Local contract/integration tests use strict mocks; any paid or credentialed external smoke is reported separately rather than inferred.
+- A real provider generation is not repeated unless it is required to validate a code path and explicitly fits the user's previously approved spend. Existing Stage 7-9 provider evidence remains the baseline.

@@ -24,8 +24,8 @@ function harness({
         : { generation, source: {}, created: true };
     },
     async hasPaidCredits() { return paid; },
-    async attachReservationAndQueue(_id, reservationId, jobId, priority) {
-      events.push(["queued-db", reservationId, jobId, priority]);
+    async attachReservationAndQueue(_id, reservationId, jobId, priority, requiresWatermark) {
+      events.push(["queued-db", reservationId, jobId, priority, requiresWatermark]);
       generation.status = "queued";
       generation.queue_job_id = jobId;
       generation.wallet_reservation_id = reservationId;
@@ -80,6 +80,7 @@ function harness({
         queuePaidPriority: 1,
         queueFreePriority: 10,
         resultSignedUrlTtlSeconds: 300,
+        resultMaxBytes: 25 * 1024 * 1024,
       },
     }),
   };
@@ -129,6 +130,13 @@ test("paid customer receives higher queue priority determined on the server", as
   assert.deepEqual(events.find((event) => event[0] === "enqueue"), [
     "enqueue", "11111111-1111-4111-8111-111111111111", 1,
   ]);
+  assert.equal(events.find((event) => event[0] === "queued-db")[4], false);
+});
+
+test("free customer generation is marked for a watermarked result", async () => {
+  const { service, events } = harness();
+  await service.create("user-1", "project-1", "image-1", input, "request-12345");
+  assert.equal(events.find((event) => event[0] === "queued-db")[4], true);
 });
 
 test("cancelling a waiting generation removes the job and refunds idempotently", async () => {

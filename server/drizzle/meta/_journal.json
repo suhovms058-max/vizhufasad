@@ -71,6 +71,13 @@
       "when": 1785680142999,
       "tag": "0009_generation_quality_control",
       "breakpoints": true
+    },
+    {
+      "idx": 10,
+      "version": "7",
+      "when": 1785685744708,
+      "tag": "0010_stage_10_user_flow",
+      "breakpoints": true
     }
   ]
 }
