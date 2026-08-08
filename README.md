@@ -297,3 +297,41 @@ npm run test:e2e
 ```
 
 Подробные маршруты, запуск и ограничения: [`docs/STAGE_10_STANDARD_USER_FLOW.md`](docs/STAGE_10_STANDARD_USER_FLOW.md).
+
+## Разовые платежи Robokassa
+
+Этап 11 добавляет provider-independent платёжный модуль с адаптером Robokassa для самозанятого НПД. Checkout создаёт только сервер по активной версии тарифа из PostgreSQL. Кредиты начисляются один раз после валидного подписанного `ResultURL`; возврат пользователя через `SuccessUrl2` не меняет баланс.
+
+По умолчанию платежи и подписки выключены. Для локальной проверки без реального списания заполните только `server/.env`, примените миграции и явно включите тестовый магазин:
+
+```dotenv
+FEATURE_PAYMENTS_ENABLED=true
+FEATURE_SUBSCRIPTIONS_ENABLED=false
+PAYMENT_PROVIDER=robokassa
+PAYMENT_TEST_MODE=true
+ROBOKASSA_MERCHANT_LOGIN=логин_тестового_магазина
+ROBOKASSA_PASSWORD1=тестовый_password_1
+ROBOKASSA_PASSWORD2=тестовый_password_2
+ROBOKASSA_SIGNATURE_ALGORITHM=sha256
+LEGAL_MERCHANT_NAME=ФИО_самозанятого
+LEGAL_MERCHANT_INN=ИНН_самозанятого
+LEGAL_MERCHANT_EMAIL=email_для_обращений
+LEGAL_MERCHANT_STATUS=Самозанятый, плательщик НПД
+```
+
+В production тестовый режим дополнительно требует осознанного `PAYMENT_ALLOW_TEST_MODE_IN_PRODUCTION=true`. Перед боевым включением установите `PAYMENT_TEST_MODE=false`, замените тестовые Password #1/#2 боевыми и снова проведите контрольный платёж. Значения паролей, ИНН и персональные реквизиты не коммитятся.
+
+```powershell
+docker compose up -d
+cd server
+npm ci
+npm run db:migrate
+npm run db:seed
+npm run check
+npm test
+npm run smoke:payments
+```
+
+Маршруты: `POST /api/payments/checkout`, `GET /api/payments`, `GET /api/payments/:id`, `POST /api/payments/:id/refund`, подписанный callback `POST /api/payments/webhooks/robokassa/result`. История платежей и чеков доступна владельцу на `/app/balance`. Подписка Plus не показывается и `FEATURE_SUBSCRIPTIONS_ENABLED` остаётся `false`, пока Robokassa отдельно не согласует рекуррентные платежи для магазина.
+
+Выбор и официальные источники: [`docs/PAYMENT_PROVIDER_DECISION.md`](docs/PAYMENT_PROVIDER_DECISION.md).
