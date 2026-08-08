@@ -49,3 +49,46 @@ test("balance page uses catalog data and exposes no payment action", async () =>
     await new Promise((resolve) => server.close(resolve));
   }
 });
+
+test("enabled balance page offers checkout only for paid tariffs and shows owner-scoped payment history", async () => {
+  const authService = { async sessionFromRequest() { return { user_id: "user", email: "user@example.test" }; } };
+  const walletService = {
+    async summary() { return { balance: 27 }; },
+    async history() { return []; },
+    async catalog() {
+      return {
+        tariffs: [
+          { id: "free-id", name: "Бесплатный", priceMinor: 0, credits: 2 },
+          { id: "start-id", name: "Старт", priceMinor: 79_000, credits: 25 },
+        ],
+        actions: [],
+      };
+    },
+  };
+  const paymentService = { async history(userId) {
+    assert.equal(userId, "user");
+    return [{
+      id: "payment-id", createdAt: new Date("2026-08-08T12:00:00Z"), tariffName: "Старт",
+      description: "Пакет Старт", amountMinor: 79_000, status: "paid", refundable: false,
+      receipts: [{ status: "pending" }],
+    }];
+  } };
+  const app = express();
+  app.use(createWalletPagesRouter({
+    authService, walletService, paymentService,
+    paymentConfig: { enabled: true, password3: null },
+  }));
+  const server = app.listen(0, "127.0.0.1");
+  await new Promise((resolve) => server.once("listening", resolve));
+  try {
+    const response = await fetch(`http://127.0.0.1:${server.address().port}/app/balance`);
+    const html = await response.text();
+    assert.equal(response.status, 200);
+    assert.equal((html.match(/action="\/app\/payments\/checkout"/g) || []).length, 1);
+    assert.match(html, /value="start-id"/);
+    assert.doesNotMatch(html, /value="free-id"/);
+    assert.match(html, /Чек формирует Robokassa/);
+  } finally {
+    await new Promise((resolve) => server.close(resolve));
+  }
+});

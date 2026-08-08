@@ -43,8 +43,13 @@ export const transactionType = pgEnum("wallet_transaction_type", [
 export const walletTransactionStatus = pgEnum("wallet_transaction_status", [
   "reserved", "committed", "refunded",
 ]);
-export const paymentStatus = pgEnum("payment_status", ["pending", "authorized", "succeeded", "failed", "cancelled", "refunded"]);
+export const paymentStatus = pgEnum("payment_status", ["created", "pending", "paid", "cancelled", "failed", "refunded"]);
 export const subscriptionStatus = pgEnum("subscription_status", ["pending", "active", "past_due", "cancelled", "expired"]);
+export const paymentWebhookStatus = pgEnum("payment_webhook_status", ["received", "processed", "rejected", "failed"]);
+export const paymentReceiptType = pgEnum("payment_receipt_type", ["payment", "refund"]);
+export const paymentReceiptStatus = pgEnum("payment_receipt_status", ["pending", "succeeded", "failed"]);
+export const paymentRefundStatus = pgEnum("payment_refund_status", ["created", "pending", "succeeded", "failed"]);
+export const promoKind = pgEnum("promo_kind", ["discount", "credits"]);
 
 export const users = pgTable("users", {
   id: uuid("id").defaultRandom().primaryKey(),
@@ -399,18 +404,115 @@ export const payments = pgTable("payments", {
   provider: text("provider").notNull(),
   providerPaymentId: text("provider_payment_id"),
   idempotencyKey: text("idempotency_key").notNull(),
-  status: paymentStatus("status").default("pending").notNull(),
+  status: paymentStatus("status").default("created").notNull(),
   amountMinor: bigint("amount_minor", { mode: "number" }).notNull(),
+  originalAmountMinor: bigint("original_amount_minor", { mode: "number" }).notNull(),
   currency: text("currency").notNull(),
+  credits: integer("credits").notNull(),
+  promoCredits: integer("promo_credits").default(0).notNull(),
+  promoCodeId: uuid("promo_code_id").references(() => promoCodes.id, { onDelete: "restrict" }),
+  description: text("description").notNull(),
+  checkoutExpiresAt: timestamp("checkout_expires_at", { withTimezone: true }).notNull(),
   metadata: jsonb("metadata").default({}).notNull(),
   ...timestamps,
   paidAt: timestamp("paid_at", { withTimezone: true }),
+  cancelledAt: timestamp("cancelled_at", { withTimezone: true }),
+  failedAt: timestamp("failed_at", { withTimezone: true }),
+  refundedAt: timestamp("refunded_at", { withTimezone: true }),
 }, (table) => [
   uniqueIndex("payments_idempotency_uidx").on(table.idempotencyKey),
   uniqueIndex("payments_provider_id_uidx").on(table.provider, table.providerPaymentId),
   index("payments_user_created_idx").on(table.userId, table.createdAt),
   index("payments_status_idx").on(table.status),
   check("payments_amount_positive_chk", sql`${table.amountMinor} > 0`),
+  check("payments_original_amount_positive_chk", sql`${table.originalAmountMinor} > 0`),
+  check("payments_credits_positive_chk", sql`${table.credits} > 0`),
+  check("payments_promo_credits_nonnegative_chk", sql`${table.promoCredits} >= 0`),
+]);
+
+export const paymentWebhookEvents = pgTable("payment_webhook_events", {
+  id: uuid("id").defaultRandom().primaryKey(),
+  paymentId: uuid("payment_id").references(() => payments.id, { onDelete: "set null" }),
+  provider: text("provider").notNull(),
+  eventKey: text("event_key").notNull(),
+  status: paymentWebhookStatus("status").default("received").notNull(),
+  signatureValid: boolean("signature_valid").default(false).notNull(),
+  payload: jsonb("payload").default({}).notNull(),
+  errorCode: text("error_code"),
+  processedAt: timestamp("processed_at", { withTimezone: true }),
+  createdAt: timestamp("created_at", { withTimezone: true }).defaultNow().notNull(),
+}, (table) => [
+  uniqueIndex("payment_webhook_events_provider_key_uidx").on(table.provider, table.eventKey),
+  index("payment_webhook_events_payment_created_idx").on(table.paymentId, table.createdAt),
+]);
+
+export const paymentReceipts = pgTable("payment_receipts", {
+  id: uuid("id").defaultRandom().primaryKey(),
+  paymentId: uuid("payment_id").notNull().references(() => payments.id, { onDelete: "restrict" }),
+  type: paymentReceiptType("type").notNull(),
+  status: paymentReceiptStatus("status").default("pending").notNull(),
+  providerReceiptId: text("provider_receipt_id"),
+  amountMinor: bigint("amount_minor", { mode: "number" }).notNull(),
+  receiptUrl: text("receipt_url"),
+  fiscalDocumentNumber: text("fiscal_document_number"),
+  fiscalSign: text("fiscal_sign"),
+  issuedAt: timestamp("issued_at", { withTimezone: true }),
+  metadata: jsonb("metadata").default({}).notNull(),
+  ...timestamps,
+}, (table) => [
+  uniqueIndex("payment_receipts_provider_id_uidx").on(table.providerReceiptId),
+  index("payment_receipts_payment_created_idx").on(table.paymentId, table.createdAt),
+  check("payment_receipts_amount_positive_chk", sql`${table.amountMinor} > 0`),
+]);
+
+export const paymentRefunds = pgTable("payment_refunds", {
+  id: uuid("id").defaultRandom().primaryKey(),
+  paymentId: uuid("payment_id").notNull().references(() => payments.id, { onDelete: "restrict" }),
+  providerRefundId: text("provider_refund_id"),
+  idempotencyKey: text("idempotency_key").notNull(),
+  status: paymentRefundStatus("status").default("created").notNull(),
+  amountMinor: bigint("amount_minor", { mode: "number" }).notNull(),
+  reason: text("reason").notNull(),
+  metadata: jsonb("metadata").default({}).notNull(),
+  ...timestamps,
+  completedAt: timestamp("completed_at", { withTimezone: true }),
+}, (table) => [
+  uniqueIndex("payment_refunds_idempotency_uidx").on(table.idempotencyKey),
+  uniqueIndex("payment_refunds_provider_id_uidx").on(table.providerRefundId),
+  index("payment_refunds_payment_created_idx").on(table.paymentId, table.createdAt),
+  check("payment_refunds_amount_positive_chk", sql`${table.amountMinor} > 0`),
+]);
+
+export const promoCodes = pgTable("promo_codes", {
+  id: uuid("id").defaultRandom().primaryKey(),
+  code: text("code").notNull(),
+  kind: promoKind("kind").notNull(),
+  discountPercent: integer("discount_percent"),
+  bonusCredits: integer("bonus_credits"),
+  maxRedemptions: integer("max_redemptions"),
+  maxPerUser: integer("max_per_user").default(1).notNull(),
+  redemptionCount: integer("redemption_count").default(0).notNull(),
+  startsAt: timestamp("starts_at", { withTimezone: true }).defaultNow().notNull(),
+  expiresAt: timestamp("expires_at", { withTimezone: true }),
+  isActive: boolean("is_active").default(true).notNull(),
+  ...timestamps,
+}, (table) => [
+  uniqueIndex("promo_codes_code_upper_uidx").on(sql`upper(${table.code})`),
+  index("promo_codes_active_window_idx").on(table.isActive, table.startsAt, table.expiresAt),
+  check("promo_codes_discount_chk", sql`(${table.kind} = 'discount' AND ${table.discountPercent} BETWEEN 1 AND 99 AND ${table.bonusCredits} IS NULL) OR (${table.kind} = 'credits' AND ${table.bonusCredits} > 0 AND ${table.discountPercent} IS NULL)`),
+  check("promo_codes_limits_chk", sql`${table.maxPerUser} = 1 AND (${table.maxRedemptions} IS NULL OR ${table.maxRedemptions} > 0) AND ${table.redemptionCount} >= 0`),
+]);
+
+export const promoRedemptions = pgTable("promo_redemptions", {
+  id: uuid("id").defaultRandom().primaryKey(),
+  promoCodeId: uuid("promo_code_id").notNull().references(() => promoCodes.id, { onDelete: "restrict" }),
+  userId: uuid("user_id").notNull().references(() => users.id, { onDelete: "restrict" }),
+  paymentId: uuid("payment_id").notNull().references(() => payments.id, { onDelete: "restrict" }),
+  createdAt: timestamp("created_at", { withTimezone: true }).defaultNow().notNull(),
+}, (table) => [
+  uniqueIndex("promo_redemptions_payment_uidx").on(table.paymentId),
+  uniqueIndex("promo_redemptions_code_user_uidx").on(table.promoCodeId, table.userId),
+  index("promo_redemptions_user_created_idx").on(table.userId, table.createdAt),
 ]);
 
 export const subscriptions = pgTable("subscriptions", {

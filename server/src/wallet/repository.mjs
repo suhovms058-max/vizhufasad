@@ -35,6 +35,54 @@ function sameReference(transaction, input, { compareAmount = false } = {}) {
     && (transaction.reference_id || null) === (input.referenceId || null);
 }
 
+export async function creditWalletWithClient(client, {
+  userId,
+  type,
+  amount,
+  idempotencyKey,
+  referenceType,
+  referenceId,
+  metadata = {},
+}) {
+  await lockIdempotency(client, idempotencyKey);
+  const existing = await client.query(
+    `select wt.*
+     from wallet_transactions wt
+     join wallets wallet on wallet.id = wt.wallet_id
+     where wt.idempotency_key = $1 and wallet.user_id = $2`,
+    [idempotencyKey, userId],
+  );
+  const expected = { type, amount, referenceType, referenceId };
+  if (existing.rowCount) {
+    if (!sameReference(existing.rows[0], expected, { compareAmount: true })) {
+      throw new WalletRepositoryError("IDEMPOTENCY_KEY_CONFLICT", 409);
+    }
+    return { transaction: existing.rows[0], idempotent: true };
+  }
+  const wallet = await client.query(
+    "select * from wallets where user_id = $1 and currency = 'CREDIT' for update",
+    [userId],
+  );
+  if (!wallet.rowCount) throw new WalletRepositoryError("WALLET_NOT_FOUND", 404);
+  const updated = await client.query(
+    `update wallets set balance = balance + $2, updated_at = now()
+     where id = $1 and balance + $2 >= 0 returning *`,
+    [wallet.rows[0].id, amount],
+  );
+  if (!updated.rowCount) throw new WalletRepositoryError("INSUFFICIENT_CREDITS", 409);
+  const transaction = await client.query(
+    `insert into wallet_transactions (
+      wallet_id, type, status, amount, balance_after, idempotency_key,
+      reference_type, reference_id, metadata, committed_at
+    ) values ($1, $2, 'committed', $3, $4, $5, $6, $7, $8, now()) returning *`,
+    [
+      wallet.rows[0].id, type, amount, updated.rows[0].balance,
+      idempotencyKey, referenceType || null, referenceId || null, metadata,
+    ],
+  );
+  return { transaction: transaction.rows[0], idempotent: false };
+}
+
 export async function grantFreeBonusWithClient(client, {
   userId,
   credits = 2,
@@ -187,45 +235,9 @@ export class WalletRepository {
     referenceId,
     metadata = {},
   }) {
-    return inTransaction(this.pool, async (client) => {
-      await lockIdempotency(client, idempotencyKey);
-      const existing = await client.query(
-        `select wt.*
-         from wallet_transactions wt
-         join wallets wallet on wallet.id = wt.wallet_id
-         where wt.idempotency_key = $1 and wallet.user_id = $2`,
-        [idempotencyKey, userId],
-      );
-      const expected = { type, amount, referenceType, referenceId };
-      if (existing.rowCount) {
-        if (!sameReference(existing.rows[0], expected, { compareAmount: true })) {
-          throw new WalletRepositoryError("IDEMPOTENCY_KEY_CONFLICT", 409);
-        }
-        return { transaction: existing.rows[0], idempotent: true };
-      }
-      const wallet = await client.query(
-        "select * from wallets where user_id = $1 and currency = 'CREDIT' for update",
-        [userId],
-      );
-      if (!wallet.rowCount) throw new WalletRepositoryError("WALLET_NOT_FOUND", 404);
-      const updated = await client.query(
-        `update wallets set balance = balance + $2, updated_at = now()
-         where id = $1 and balance + $2 >= 0 returning *`,
-        [wallet.rows[0].id, amount],
-      );
-      if (!updated.rowCount) throw new WalletRepositoryError("INSUFFICIENT_CREDITS", 409);
-      const transaction = await client.query(
-        `insert into wallet_transactions (
-          wallet_id, type, status, amount, balance_after, idempotency_key,
-          reference_type, reference_id, metadata, committed_at
-        ) values ($1, $2, 'committed', $3, $4, $5, $6, $7, $8, now()) returning *`,
-        [
-          wallet.rows[0].id, type, amount, updated.rows[0].balance,
-          idempotencyKey, referenceType || null, referenceId || null, metadata,
-        ],
-      );
-      return { transaction: transaction.rows[0], idempotent: false };
-    });
+    return inTransaction(this.pool, (client) => creditWalletWithClient(client, {
+      userId, type, amount, idempotencyKey, referenceType, referenceId, metadata,
+    }));
   }
 
   async reserve({ userId, actionCode, idempotencyKey, referenceType, referenceId }) {

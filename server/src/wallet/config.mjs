@@ -25,8 +25,5 @@ export function loadWalletConfig(environment = process.env) {
     ),
     freeBonusCredits: 2,
   };
-  if (config.paymentsEnabled) {
-    throw new Error("FEATURE_PAYMENTS_ENABLED cannot be enabled before a payment provider exists");
-  }
   return config;
 }
