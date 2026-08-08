@@ -61,6 +61,7 @@ const notificationsConfigured = notificationVariables.every((key) => process.env
 
 const app = express();
 const port = Number(process.env.PORT || 8080);
+const host = process.env.HOST || "0.0.0.0";
 const storageOrigin = new URL(process.env.S3_ENDPOINT).origin;
 const authConfig = loadAuthConfig();
 const walletConfig = loadWalletConfig();
@@ -164,7 +165,7 @@ app.use(
 );
 app.use("/api/wallet", createWalletRouter({ authService, walletService }));
 app.use("/api/catalog", createCatalogRouter({ authService, walletService }));
-app.use(createProjectPagesRouter({ authService, projectService, generationService }));
+app.use(createProjectPagesRouter({ authService, projectService, generationService, walletService }));
 app.use(createWalletPagesRouter({ authService, walletService }));
 app.use(createAuthPagesRouter({ service: authService, config: authConfig }));
 const legacyLeadsMode = String(process.env.LEGACY_LEADS_MODE || "deprecated").toLowerCase();
@@ -419,8 +420,8 @@ app.use((error, _request, response, _next) => {
 
 const httpServer = app.listen(
   port,
-  "0.0.0.0",
-  () => console.log(`VIZHUFASAD API listening on ${port}`),
+  host,
+  () => console.log(`VIZHUFASAD API listening on ${host}:${port}`),
 );
 
 let closing = false;

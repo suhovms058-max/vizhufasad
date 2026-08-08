@@ -282,3 +282,18 @@ npm run cleanup:generation-quality
 ```
 
 При включённой Standard-генерации автоматический QC нельзя отключить и требуется настроенный VLM. Для РФ `auto` сначала выбирает Yandex AI Studio; OpenAI используется только как явно доступный резерв. Пороговые переменные, read-only admin endpoint и retention описаны в [`docs/STAGE_9_GENERATION_QUALITY.md`](docs/STAGE_9_GENERATION_QUALITY.md).
+
+## Пользовательский путь Standard
+
+Текущий продуктовый интерфейс находится на VPS в `/app/*`: `/app/new` объединяет проект, прямую загрузку фото, automatic assessment, настройки фасада, подтверждение стоимости и постановку Standard в очередь. Страница результата восстанавливает настоящий статус после reload, показывает только прошедший quality gate результат, историю, избранное, до/после и баланс. Бесплатный результат выдаётся с водяным знаком.
+
+Публичная Next.js-страница ведёт на `NEXT_PUBLIC_APP_URL`. Старая lead-форма скрыта по умолчанию и включается только явным `NEXT_PUBLIC_LEGACY_LEADS_ENABLED=true`; во время GitHub Pages build флаг зафиксирован как `false`.
+
+```powershell
+cd server
+npm run db:migrate
+npm test
+npm run test:e2e
+```
+
+Подробные маршруты, запуск и ограничения: [`docs/STAGE_10_STANDARD_USER_FLOW.md`](docs/STAGE_10_STANDARD_USER_FLOW.md).
