@@ -1,4 +1,5 @@
 import { randomUUID } from "node:crypto";
+import { normalizeGenerationInput } from "../generation/contract.mjs";
 import {
   allowedUploadMimeTypes, hasReliableHeifDecoder, HEIF_MIME_TYPES, MAX_UPLOAD_BYTES,
 } from "./config.mjs";
@@ -41,8 +42,14 @@ export class ProjectService {
   }
 
   projectView(project) {
+    const facadeConfig = project.facade_config && Object.keys(project.facade_config).length
+      ? project.facade_config
+      : null;
     return {
       ...project,
+      configuration: facadeConfig
+        ? { ...facadeConfig, preserve: project.geometry_policy || {} }
+        : null,
       assessment: project.image_id && project.assessment_status
         ? {
           imageId: project.image_id,
@@ -85,6 +92,19 @@ export class ProjectService {
     const project = await this.repository.rename(userId, projectId, cleanTitle(title));
     if (!project) throw new ProjectError("PROJECT_NOT_FOUND", 404);
     return project;
+  }
+
+  async saveConfiguration(userId, projectId, value) {
+    const input = normalizeGenerationInput(value);
+    const { preserve, ...facadeConfig } = input;
+    const project = await this.repository.updateConfiguration(
+      userId,
+      projectId,
+      facadeConfig,
+      preserve,
+    );
+    if (!project) throw new ProjectError("PROJECT_NOT_FOUND", 404);
+    return this.projectView(project);
   }
 
   async remove(userId, projectId) {

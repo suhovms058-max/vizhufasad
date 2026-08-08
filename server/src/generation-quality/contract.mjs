@@ -76,12 +76,12 @@ export function qualityDecisionForAttempt(passed, assessmentNumber) {
 export function allowedQualityChanges(generationInput = {}) {
   const preserve = generationInput?.preserve || {};
   return Object.freeze({
-    floors: preserve.floors === false,
+    floors: preserve.floors === false && preserve.noNewFloors === false,
     roof: preserve.roof === false,
     windows: preserve.windows === false,
     doors: preserve.doors === false,
     perspective: preserve.perspective === false,
     position: preserve.housePosition === false,
-    balconiesTerraces: false,
+    balconiesTerraces: preserve.balconies === false || preserve.terraces === false,
   });
 }

@@ -54,6 +54,17 @@ export function createProjectsRouter({ authService, projectService }) {
       try { return respondError(response, error); } catch (unexpected) { return next(unexpected); }
     }
   });
+  router.patch("/:projectId/configuration", mutationLimiter, async (request, response, next) => {
+    try {
+      return response.json({
+        project: await projectService.saveConfiguration(
+          request.auth.user_id, request.params.projectId, request.body,
+        ),
+      });
+    } catch (error) {
+      try { return respondError(response, error); } catch (unexpected) { return next(unexpected); }
+    }
+  });
   router.delete("/:projectId", mutationLimiter, async (request, response, next) => {
     try {
       await projectService.remove(request.auth.user_id, request.params.projectId);

@@ -64,6 +64,17 @@ export class ProjectRepository {
     return result.rows[0] ?? null;
   }
 
+  async updateConfiguration(userId, projectId, facadeConfig, geometryPolicy) {
+    const result = await this.pool.query(
+      `update projects
+       set facade_config = $3, geometry_policy = $4, updated_at = now()
+       where id = $1 and user_id = $2 and deleted_at is null
+       returning *`,
+      [projectId, userId, facadeConfig, geometryPolicy],
+    );
+    return result.rows[0] ?? null;
+  }
+
   async createImage(input) {
     const client = await this.pool.connect();
     try {
@@ -214,17 +225,28 @@ export class ProjectRepository {
          where project_id = $1 and status <> 'deleted'`,
         [projectId],
       );
-      const images = await client.query(
-        `select storage_key, working_storage_key, thumbnail_storage_key
-         from source_images where project_id = $1`,
+      const objects = await client.query(
+        `select key from (
+           select unnest(array[storage_key, working_storage_key, thumbnail_storage_key]) as key
+             from source_images where project_id = $1
+           union all
+           select unnest(array[result_key, watermark_key]) as key
+             from generations where project_id = $1
+           union all
+           select attempt.result_key as key from generation_attempts attempt
+             join generations generation on generation.id = attempt.generation_id
+             where generation.project_id = $1
+           union all
+           select quality.diagnostic_key as key from generation_quality_assessments quality
+             join generations generation on generation.id = quality.generation_id
+             where generation.project_id = $1
+         ) stored where key is not null`,
         [projectId],
       );
       await client.query("commit");
       return {
         project: project.rows[0],
-        keys: images.rows.flatMap((row) => [
-          row.storage_key, row.working_storage_key, row.thumbnail_storage_key,
-        ]).filter(Boolean),
+        keys: objects.rows.map((row) => row.key),
       };
     } catch (error) {
       await client.query("rollback");
@@ -252,11 +274,21 @@ export class ProjectRepository {
 
   async findExpiredDeletedProjects(cutoff) {
     const result = await this.pool.query(
-      `select p.id, array_remove(array_agg(keys.key), null) as keys
+      `select p.id, coalesce(array_agg(stored.key) filter (where stored.key is not null), '{}') as keys
        from projects p
-       left join source_images i on i.project_id = p.id
-       left join lateral unnest(array[i.storage_key, i.working_storage_key, i.thumbnail_storage_key]) keys(key)
-         on true
+       left join lateral (
+         select unnest(array[i.storage_key, i.working_storage_key, i.thumbnail_storage_key]) as key
+           from source_images i where i.project_id = p.id
+         union all
+         select unnest(array[g.result_key, g.watermark_key]) as key
+           from generations g where g.project_id = p.id
+         union all
+         select a.result_key as key from generation_attempts a
+           join generations g on g.id = a.generation_id where g.project_id = p.id
+         union all
+         select q.diagnostic_key as key from generation_quality_assessments q
+           join generations g on g.id = q.generation_id where g.project_id = p.id
+       ) stored on true
        where p.deleted_at < $1 group by p.id`,
       [cutoff],
     );

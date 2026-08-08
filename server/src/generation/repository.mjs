@@ -100,15 +100,16 @@ export class GenerationRepository {
     return result.rows[0]?.paid === true;
   }
 
-  async attachReservationAndQueue(generationId, reservationId, queueJobId, priority) {
+  async attachReservationAndQueue(generationId, reservationId, queueJobId, priority, requiresWatermark) {
     assertGenerationTransition("created", "queued");
     const result = await this.pool.query(
       `update generations
        set wallet_reservation_id = $2, queue_job_id = $3, priority = $4,
+           requires_watermark = $5,
            status = 'queued', queued_at = coalesce(queued_at, now()), updated_at = now()
        where id = $1 and status = 'created'
        returning *`,
-      [generationId, reservationId, queueJobId, priority],
+      [generationId, reservationId, queueJobId, priority, requiresWatermark],
     );
     return result.rows[0] ?? null;
   }
@@ -395,5 +396,40 @@ export class GenerationRepository {
     );
     if (!result.rowCount) return null;
     return this.findOwned(userId, projectId, result.rows[0].id);
+  }
+
+  async listOwned(userId, projectId) {
+    const result = await this.pool.query(
+      `select g.id from generations g
+       join projects p on p.id = g.project_id
+       where g.project_id = $1 and p.user_id = $2 and p.deleted_at is null
+       order by g.is_favorite desc, g.created_at desc`,
+      [projectId, userId],
+    );
+    return Promise.all(result.rows.map((row) => this.findOwned(userId, projectId, row.id)));
+  }
+
+  async setFavoriteOwned(userId, projectId, generationId, favorite) {
+    const result = await this.pool.query(
+      `update generations g
+       set is_favorite = $4, favorited_at = case when $4 then now() else null end,
+           updated_at = now()
+       from projects p
+       where g.id = $1 and g.project_id = $2 and p.id = g.project_id
+         and p.user_id = $3 and p.deleted_at is null and g.status = 'completed'
+       returning g.*`,
+      [generationId, projectId, userId, favorite],
+    );
+    return result.rows[0] ?? null;
+  }
+
+  async setWatermarkKey(generationId, key) {
+    const result = await this.pool.query(
+      `update generations set watermark_key = $2, updated_at = now()
+       where id = $1 and status = 'completed' and requires_watermark = true
+       returning watermark_key`,
+      [generationId, key],
+    );
+    return result.rows[0]?.watermark_key ?? null;
   }
 }
