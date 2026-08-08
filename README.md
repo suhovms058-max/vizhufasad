@@ -35,6 +35,13 @@ npm run dev
 
 `NEXT_PUBLIC_LEADS_API_URL` встраивается в статическую сборку и не должен содержать секретов.
 
+Staging nginx обслуживает каталог `out`, поэтому сборка для Timeweb выполняется явно в режиме static export:
+
+```bash
+NEXT_OUTPUT=export npm run build
+test -f out/index.html
+```
+
 Проверка GitHub Pages export:
 
 ```bash
