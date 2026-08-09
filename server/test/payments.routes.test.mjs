@@ -22,7 +22,7 @@ async function withServer(callback) {
       assert.equal(body.InvId, "100001");
       return { acknowledgment: "OK100001" };
     },
-    async handleResult2() {},
+    async handleResult2(body) { assert.equal(body, "signed-result2-token"); },
   };
   const app = express();
   app.use("/api/payments/webhooks", createPaymentWebhookRouter({ paymentService }));
@@ -59,6 +59,18 @@ test("Robokassa ResultURL is unauthenticated and receives form data", async () =
     });
     assert.equal(response.status, 200);
     assert.equal(await response.text(), "OK100001");
+  });
+});
+
+test("Robokassa ResultUrl2 is unauthenticated and receives the compact JWS unchanged", async () => {
+  await withServer(async (baseUrl) => {
+    const response = await fetch(`${baseUrl}/api/payments/webhooks/robokassa/result2`, {
+      method: "POST",
+      headers: { "content-type": "application/jose" },
+      body: "signed-result2-token",
+    });
+    assert.equal(response.status, 200);
+    assert.equal(await response.text(), "OK");
   });
 });
 

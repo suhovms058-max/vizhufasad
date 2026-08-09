@@ -1,5 +1,5 @@
 import assert from "node:assert/strict";
-import { createHash } from "node:crypto";
+import { createHash, generateKeyPairSync, sign } from "node:crypto";
 import { mkdtempSync, rmSync, writeFileSync } from "node:fs";
 import { tmpdir } from "node:os";
 import { join } from "node:path";
@@ -114,6 +114,39 @@ test("ResultURL signature is mandatory and amount remains exact", () => {
   assert.throws(
     () => provider.verifyResult({ OutSum: "1.00", InvId: "100042", Shp_payment: paymentId, SignatureValue: "bad" }),
     (error) => error.code === "INVALID_WEBHOOK_SIGNATURE" && error.status === 401,
+  );
+});
+
+test("ResultUrl2 accepts only a valid RS256 notification for the configured shop", () => {
+  const { privateKey, publicKey } = generateKeyPairSync("rsa", { modulusLength: 2048 });
+  const config = loadPaymentConfig({
+    ...environment,
+    ROBOKASSA_RESULT2_URL: "https://stage.example.test/api/payments/webhooks/robokassa/result2",
+    ROBOKASSA_RESULT2_PUBLIC_KEY: publicKey.export({ type: "spki", format: "pem" }),
+  });
+  const provider = new RobokassaPaymentProvider(config);
+  const headerPart = Buffer.from(JSON.stringify({ alg: "RS256", typ: "JWT" })).toString("base64url");
+  const data = {
+    shop: "demo-shop",
+    opKey: "operation-key",
+    invId: "100042",
+    paymentMethod: "BankCard",
+    incSum: "790.00",
+    state: "OK",
+  };
+  const payloadPart = Buffer.from(JSON.stringify({ data })).toString("base64url");
+  const signaturePart = sign(
+    "RSA-SHA256",
+    Buffer.from(`${headerPart}.${payloadPart}`),
+    privateKey,
+  ).toString("base64url");
+  const compactJws = `${headerPart}.${payloadPart}.${signaturePart}`;
+
+  assert.deepEqual(provider.verifyResult2(compactJws), data);
+  const tamperedPayload = Buffer.from(JSON.stringify({ data: { ...data, incSum: "1.00" } })).toString("base64url");
+  assert.throws(
+    () => provider.verifyResult2(`${headerPart}.${tamperedPayload}.${signaturePart}`),
+    (error) => error.code === "INVALID_RESULT2_SIGNATURE" && error.status === 401,
   );
 });
 
