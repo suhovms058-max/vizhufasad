@@ -74,7 +74,9 @@ test("checkout is server-priced, signed and never exposes provider passwords", (
   assert.equal(url.searchParams.get("OutSum"), "790.00");
   assert.equal(url.searchParams.get("IsTest"), "1");
   assert.equal(url.searchParams.get("Shp_payment"), "4e0906df-e5e1-4b2f-8cf9-a7fd4b46b331");
-  const receipt = url.searchParams.get("Receipt");
+  const encodedReceipt = url.searchParams.get("Receipt");
+  const receipt = decodeURIComponent(encodedReceipt);
+  assert.match(checkout.url, /Receipt=%257B/);
   assert.deepEqual(JSON.parse(receipt), {
     items: [{
       name: "Пакет Старт",
@@ -85,16 +87,41 @@ test("checkout is server-priced, signed and never exposes provider passwords", (
       tax: "none",
     }],
   });
-  const successUrl = "https://stage.example.test/app/balance?payment_return=success&payment=4e0906df-e5e1-4b2f-8cf9-a7fd4b46b331";
-  const failUrl = "https://stage.example.test/app/balance?payment_return=fail&payment=4e0906df-e5e1-4b2f-8cf9-a7fd4b46b331";
+  const successUrl = "https://stage.example.test/app/balance";
+  const failUrl = "https://stage.example.test/app/balance";
+  assert.equal(url.searchParams.get("SuccessUrl2"), successUrl);
+  assert.equal(url.searchParams.get("FailUrl2"), failUrl);
   const expectedSignature = createHash("sha256").update([
     "demo-shop", "790.00", "100042", encodeURIComponent(receipt),
-    encodeURIComponent(successUrl), "GET", encodeURIComponent(failUrl), "GET",
+    successUrl, "GET", failUrl, "GET",
     "password-one", "Shp_payment=4e0906df-e5e1-4b2f-8cf9-a7fd4b46b331",
   ].join(":")).digest("hex");
   assert.equal(url.searchParams.get("SignatureValue"), expectedSignature);
   assert.ok(!checkout.url.includes("password-one"));
   assert.ok(!checkout.url.includes("password-two"));
+});
+
+test("checkout signs ResultUrl2 and return URLs using their original values", () => {
+  const result2Url = "https://stage.example.test/api/payments/webhooks/robokassa/result2";
+  const config = { ...loadPaymentConfig(environment), result2Url };
+  const provider = new RobokassaPaymentProvider(config);
+  const checkout = provider.createCheckout({
+    id: "4e0906df-e5e1-4b2f-8cf9-a7fd4b46b332",
+    provider_payment_id: "100043",
+    amount_minor: 79_000,
+    description: "Test package",
+    checkout_expires_at: new Date("2026-08-08T12:00:00Z"),
+  }, { email: "buyer@example.test" });
+  const url = new URL(checkout.url);
+  const receipt = decodeURIComponent(url.searchParams.get("Receipt"));
+  const successUrl = "https://stage.example.test/app/balance";
+  const custom = "Shp_payment=4e0906df-e5e1-4b2f-8cf9-a7fd4b46b332";
+  const expectedSignature = createHash("sha256").update([
+    "demo-shop", "790.00", "100043", encodeURIComponent(receipt), result2Url,
+    successUrl, "GET", successUrl, "GET", "password-one", custom,
+  ].join(":")).digest("hex");
+  assert.equal(url.searchParams.get("ResultUrl2"), result2Url);
+  assert.equal(url.searchParams.get("SignatureValue"), expectedSignature);
 });
 
 test("ResultURL signature is mandatory and amount remains exact", () => {

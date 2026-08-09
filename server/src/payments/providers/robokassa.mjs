@@ -36,11 +36,12 @@ export class RobokassaPaymentProvider {
         tax: "none",
       }],
     });
-    const successUrl = `${this.config.siteOrigin}/app/balance?payment_return=success&payment=${payment.id}`;
-    const failUrl = `${this.config.siteOrigin}/app/balance?payment_return=fail&payment=${payment.id}`;
-    const signatureParts = [this.config.merchantLogin, outSum, invId, encodeURIComponent(receipt)];
-    if (this.config.result2Url) signatureParts.push(encodeURIComponent(this.config.result2Url));
-    signatureParts.push(encodeURIComponent(successUrl), "GET", encodeURIComponent(failUrl), "GET");
+    const successUrl = `${this.config.siteOrigin}/app/balance`;
+    const failUrl = `${this.config.siteOrigin}/app/balance`;
+    const encodedReceipt = encodeURIComponent(receipt);
+    const signatureParts = [this.config.merchantLogin, outSum, invId, encodedReceipt];
+    if (this.config.result2Url) signatureParts.push(this.config.result2Url);
+    signatureParts.push(successUrl, "GET", failUrl, "GET");
     signatureParts.push(this.config.password1, custom);
     const parameters = new URLSearchParams({
       MerchantLogin: this.config.merchantLogin,
@@ -50,7 +51,9 @@ export class RobokassaPaymentProvider {
       Culture: "ru",
       Encoding: "utf-8",
       Email: customer.email,
-      Receipt: receipt,
+      // Robokassa signs the URL-encoded receipt and expects that encoded value
+      // to be encoded once more by the query string serializer.
+      Receipt: encodedReceipt,
       Shp_payment: payment.id,
       SignatureValue: digest(this.config.signatureAlgorithm, signatureParts.join(":")),
       SuccessUrl2: successUrl,
