@@ -1,5 +1,8 @@
 import assert from "node:assert/strict";
 import { createHash } from "node:crypto";
+import { mkdtempSync, rmSync, writeFileSync } from "node:fs";
+import { tmpdir } from "node:os";
+import { join } from "node:path";
 import test from "node:test";
 import { loadPaymentConfig } from "../src/payments/config.mjs";
 import { RobokassaPaymentProvider } from "../src/payments/providers/robokassa.mjs";
@@ -31,6 +34,30 @@ test("payment config is disabled by default and blocks accidental production tes
     () => loadPaymentConfig({ ...environment, FEATURE_SUBSCRIPTIONS_ENABLED: "true" }),
     /explicit Robokassa approval/,
   );
+});
+
+test("ResultUrl2 requires a verification key and can load it from a file", () => {
+  const result2Url = "https://stage.example.test/api/payments/webhooks/robokassa/result2";
+  assert.throws(
+    () => loadPaymentConfig({ ...environment, ROBOKASSA_RESULT2_URL: result2Url }),
+    /must be configured together/,
+  );
+
+  const directory = mkdtempSync(join(tmpdir(), "vizhufasad-robokassa-"));
+  const certificatePath = join(directory, "jwtsign.cer");
+  try {
+    writeFileSync(certificatePath, "-----BEGIN CERTIFICATE-----\ntest\n-----END CERTIFICATE-----\n");
+    const config = loadPaymentConfig({
+      ...environment,
+      ROBOKASSA_RESULT2_URL: result2Url,
+      ROBOKASSA_RESULT2_PUBLIC_KEY_FILE: certificatePath,
+    });
+    assert.equal(config.result2Url, result2Url);
+    assert.match(config.result2PublicKey, /BEGIN CERTIFICATE/);
+    assert.equal(config.result2PublicKeyFile, certificatePath);
+  } finally {
+    rmSync(directory, { recursive: true, force: true });
+  }
 });
 
 test("checkout is server-priced, signed and never exposes provider passwords", () => {

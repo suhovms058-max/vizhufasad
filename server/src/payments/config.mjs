@@ -1,3 +1,5 @@
+import { readFileSync } from "node:fs";
+
 function flag(value, fallback, name) {
   const normalized = String(value ?? fallback).trim().toLowerCase();
   if (normalized === "true") return true;
@@ -36,6 +38,14 @@ export function loadPaymentConfig(environment = process.env) {
     throw new Error("Production test payments require PAYMENT_ALLOW_TEST_MODE_IN_PRODUCTION=true");
   }
 
+  const result2PublicKeyFile = String(environment.ROBOKASSA_RESULT2_PUBLIC_KEY_FILE || "").trim() || null;
+  const inlineResult2PublicKey = String(environment.ROBOKASSA_RESULT2_PUBLIC_KEY || "")
+    .replaceAll("\\n", "\n")
+    .trim() || null;
+  const result2PublicKey = result2PublicKeyFile
+    ? readFileSync(result2PublicKeyFile, "utf8").trim()
+    : inlineResult2PublicKey;
+
   const config = {
     enabled,
     subscriptionsEnabled,
@@ -51,7 +61,8 @@ export function loadPaymentConfig(environment = process.env) {
     refundUrl: String(environment.ROBOKASSA_REFUND_URL || "https://services.robokassa.ru/RefundService/Refund/Create").trim(),
     refundStateUrl: String(environment.ROBOKASSA_REFUND_STATE_URL || "https://services.robokassa.ru/RefundService/Refund/GetState").trim(),
     result2Url: String(environment.ROBOKASSA_RESULT2_URL || "").trim() || null,
-    result2PublicKey: String(environment.ROBOKASSA_RESULT2_PUBLIC_KEY || "").replaceAll("\\n", "\n").trim() || null,
+    result2PublicKey,
+    result2PublicKeyFile,
     siteOrigin: String(environment.SITE_ORIGIN || "http://localhost:8080").replace(/\/$/u, ""),
     merchantName: String(environment.LEGAL_MERCHANT_NAME || "").trim() || null,
     merchantInn: String(environment.LEGAL_MERCHANT_INN || "").trim() || null,
@@ -70,6 +81,9 @@ export function loadPaymentConfig(environment = process.env) {
     config.merchantInn = required(environment, "LEGAL_MERCHANT_INN");
     config.merchantEmail = required(environment, "LEGAL_MERCHANT_EMAIL");
     config.merchantStatus = required(environment, "LEGAL_MERCHANT_STATUS");
+    if (Boolean(config.result2Url) !== Boolean(config.result2PublicKey)) {
+      throw new Error("ROBOKASSA_RESULT2_URL and ResultUrl2 public key must be configured together");
+    }
   }
   return Object.freeze(config);
 }

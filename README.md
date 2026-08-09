@@ -307,6 +307,16 @@ npm run test:e2e
 
 ## Разовые платежи Robokassa
 
+Публичный сертификат для проверки подписанного `ResultUrl2` скачивается только с официального адреса Robokassa и хранится отдельно от релиза. Перед заменой проверьте срок действия сертификата:
+
+```bash
+sudo install -d -m 755 /etc/vizhufasad
+curl --fail --silent --show-error --location \
+  https://docs.robokassa.ru/media/files/jwtsign.cer \
+  | sudo tee /etc/vizhufasad/robokassa-jwtsign.cer >/dev/null
+openssl x509 -in /etc/vizhufasad/robokassa-jwtsign.cer -noout -subject -issuer -dates
+```
+
 Этап 11 добавляет provider-independent платёжный модуль с адаптером Robokassa для самозанятого НПД. Checkout создаёт только сервер по активной версии тарифа из PostgreSQL. Кредиты начисляются один раз после валидного подписанного `ResultURL`; возврат пользователя через `SuccessUrl2` не меняет баланс.
 
 По умолчанию платежи и подписки выключены. Для локальной проверки без реального списания заполните только `server/.env`, примените миграции и явно включите тестовый магазин:
@@ -320,6 +330,8 @@ ROBOKASSA_MERCHANT_LOGIN=логин_тестового_магазина
 ROBOKASSA_PASSWORD1=тестовый_password_1
 ROBOKASSA_PASSWORD2=тестовый_password_2
 ROBOKASSA_SIGNATURE_ALGORITHM=sha256
+ROBOKASSA_RESULT2_URL=https://ваш_домен/api/payments/webhooks/robokassa/result2
+ROBOKASSA_RESULT2_PUBLIC_KEY_FILE=/etc/vizhufasad/robokassa-jwtsign.cer
 LEGAL_MERCHANT_NAME=ФИО_самозанятого
 LEGAL_MERCHANT_INN=ИНН_самозанятого
 LEGAL_MERCHANT_EMAIL=email_для_обращений
