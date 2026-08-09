@@ -7,10 +7,18 @@ function escapeHtml(value) {
     .replaceAll('"', "&quot;").replaceAll("'", "&#39;");
 }
 
+function cleanLegalValue(value) {
+  return String(value ?? "")
+    .split(/\s+LEGAL_MERCHANT_[A-Z_]+=/u, 1)[0]
+    .trim()
+    .replace(/^["']|["';]+$/gu, "")
+    .trim();
+}
+
 function legalPage(title, body, config) {
   const merchant = config.merchantName
-    ? `<p><strong>Исполнитель:</strong> ${escapeHtml(config.merchantName)}, ${escapeHtml(config.merchantStatus)}, ИНН ${escapeHtml(config.merchantInn)}.<br>
-       <strong>Email:</strong> ${escapeHtml(config.merchantEmail)}</p>`
+    ? `<p><strong>Исполнитель:</strong> ${escapeHtml(cleanLegalValue(config.merchantName))}, ${escapeHtml(cleanLegalValue(config.merchantStatus))}, ИНН ${escapeHtml(cleanLegalValue(config.merchantInn))}.<br>
+       <strong>Email:</strong> ${escapeHtml(cleanLegalValue(config.merchantEmail))}</p>`
     : "<p><strong>Оплата отключена.</strong> Реквизиты исполнителя будут опубликованы до включения приёма платежей.</p>";
   return `<!doctype html><html lang="ru"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1">
     <title>${escapeHtml(title)} — ВИЖУФАСАД</title><style>:root{font-family:Inter,system-ui,sans-serif;color:#17201b;background:#f5f6f2}body{margin:0}main{max-width:780px;margin:auto;padding:36px 20px;line-height:1.6}a{color:#176b46}section{background:#fff;padding:24px;border-radius:16px}h1,h2{line-height:1.2}</style></head>

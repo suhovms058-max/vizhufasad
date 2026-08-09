@@ -81,7 +81,7 @@ test("public offer identifies the automated digital service and published mercha
     paymentService: {},
     config: {
       siteOrigin: "https://stage.example.test",
-      merchantName: "Иванов Иван Иванович",
+      merchantName: "Иванов Иван Иванович LEGAL_MERCHANT_INN=000000000000 LEGAL_MERCHANT_EMAIL=merchant@example.test",
       merchantInn: "000000000000",
       merchantEmail: "merchant@example.test",
       merchantStatus: "Самозанятый, плательщик НПД",
@@ -95,6 +95,7 @@ test("public offer identifies the automated digital service and published mercha
     assert.equal(response.status, 200);
     assert.match(html, /Публичная оферта/);
     assert.match(html, /Иванов Иван Иванович/);
+    assert.doesNotMatch(html, /LEGAL_MERCHANT_/u);
     assert.match(html, /самостоятельного автоматического создания/);
     assert.doesNotMatch(html, /дизайнера или оператора[^<]*предоставляет/u);
   } finally {
