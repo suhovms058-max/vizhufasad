@@ -44,6 +44,8 @@ test("balance page uses catalog data and exposes no payment action", async () =>
     assert.match(html, /2 кредита/);
     assert.match(html, /790(?:\s|&nbsp;)*₽/);
     assert.match(html, /Standard/);
+    assert.match(html, /\/assets\/app-ui\.css/);
+    assert.match(html, /class="tariff-grid"/);
     assert.doesNotMatch(html, /Купить|Оплатить|payment|checkout/i);
   } finally {
     await new Promise((resolve) => server.close(resolve));

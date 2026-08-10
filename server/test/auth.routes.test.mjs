@@ -79,6 +79,24 @@ test("protected API and cabinet reject missing sessions", async () => {
     assert.equal(cabinet.headers.get("location"), "/auth/login");
   });
 });
+
+test("email login and verification pages use the responsive cabinet design", async () => {
+  const { app } = fixture();
+  await withServer(app, async (baseUrl) => {
+    const login = await fetch(`${baseUrl}/auth/login`);
+    const loginHtml = await login.text();
+    assert.equal(login.status, 200);
+    assert.match(loginHtml, /\/assets\/app-ui\.css/u);
+    assert.match(loginHtml, /class="panel auth-card"/u);
+    assert.match(loginHtml, /autocomplete="email"/u);
+    assert.doesNotMatch(loginHtml, /телефон[^<]*обязателен/iu);
+
+    const verify = await fetch(`${baseUrl}/auth/verify?challenge=challenge`);
+    const verifyHtml = await verify.text();
+    assert.match(verifyHtml, /autocomplete="one-time-code"/u);
+    assert.match(verifyHtml, /class="code-input"/u);
+  });
+});
 test("confirmation sets hardened cookie and logout revokes the session", async () => {
   const { app, revoked } = fixture();
   await withServer(app, async (baseUrl) => {

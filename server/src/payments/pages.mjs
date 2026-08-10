@@ -21,8 +21,12 @@ function legalPage(title, body, config) {
        <strong>Email:</strong> ${escapeHtml(cleanLegalValue(config.merchantEmail))}</p>`
     : "<p><strong>Оплата отключена.</strong> Реквизиты исполнителя будут опубликованы до включения приёма платежей.</p>";
   return `<!doctype html><html lang="ru"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1">
-    <title>${escapeHtml(title)} — ВИЖУФАСАД</title><style>:root{font-family:Inter,system-ui,sans-serif;color:#17201b;background:#f5f6f2}body{margin:0}main{max-width:780px;margin:auto;padding:36px 20px;line-height:1.6}a{color:#176b46}section{background:#fff;padding:24px;border-radius:16px}h1,h2{line-height:1.2}</style></head>
-    <body><main><p><a href="/">← На главную</a></p><section><h1>${escapeHtml(title)}</h1>${merchant}${body}</section></main></body></html>`;
+    <meta name="color-scheme" content="light"><title>${escapeHtml(title)} — ВИЖУФАСАД</title><link rel="stylesheet" href="/assets/app-ui.css"></head>
+    <body><a class="skip-link" href="#main">К содержанию</a><header class="app-header"><a class="brand" href="/">ВИЖУФАСАД</a>
+    <nav aria-label="Основная навигация"><a href="/">На главную</a><a href="/auth/login">Войти</a></nav></header>
+    <main id="main" class="app-main app-main-legal"><article class="panel legal-content"><p class="eyebrow">Правовая информация</p>
+    <h1>${escapeHtml(title)}</h1>${merchant}${body}</article></main><footer class="app-footer"><a href="/legal/offer">Условия оплаты</a>
+    <a href="/legal/privacy">Конфиденциальность</a><a href="/legal/refunds">Возвраты</a></footer></body></html>`;
 }
 
 function sameOrigin(request, config) {

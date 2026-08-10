@@ -94,6 +94,8 @@ test("public offer identifies the automated digital service and published mercha
     const html = await response.text();
     assert.equal(response.status, 200);
     assert.match(html, /Публичная оферта/);
+    assert.match(html, /\/assets\/app-ui\.css/u);
+    assert.match(html, /class="panel legal-content"/u);
     assert.match(html, /Иванов Иван Иванович/);
     assert.doesNotMatch(html, /LEGAL_MERCHANT_/u);
     assert.match(html, /самостоятельного автоматического создания/);

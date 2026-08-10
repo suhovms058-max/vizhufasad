@@ -38,17 +38,19 @@ Add signed, idempotent one-off credit purchases for a Russian self-employed merc
 
 - [x] Cover success, duplicate webhook, invalid signature, cancel, refund, promo, disabled subscription and amount mismatch.
 - [x] Run install, syntax check, typecheck, unit/integration tests, build and smoke checks.
-- [ ] Run one real provider test payment on staging without committing credentials.
+- [x] Run one real provider test payment on staging without committing credentials.
 - [ ] Commit, push and open a draft pull request without merging.
 
 ## Completion Gates
 
 - [x] Owner legal status is confirmed as self-employed NPD; Robokassa shop `vizhufasad` and separate test credentials are created. Robocheki SMZ activation remains part of the real staging test gate.
-- [ ] A real Robokassa test payment reaches the signed staging ResultURL.
-- [ ] Credits are granted once and only after confirmation.
-- [ ] Wrong signatures and client-side price changes are rejected.
-- [ ] Payment and receipt history are owner-scoped.
-- [ ] All mandatory checks pass.
+- [x] A real Robokassa test payment reaches the signed staging ResultURL.
+- [x] Credits are granted once and only after confirmation.
+- [x] Wrong signatures and client-side price changes are rejected.
+- [x] Payment and receipt history are owner-scoped.
+- [x] Mandatory local checks pass: frontend check/build, 120 server tests, 4 viewport E2E tests, Drizzle schema check and 5-case quality regression.
+- [ ] Robokassa activates the merchant after reviewing the public legal pages; keep production payments disabled until approval.
+- [ ] Restore the staging GenAPI credential and reconfirm one Standard generation because the live worker currently receives `GENAPI_HTTP_401` and refunds correctly.
 
 ## Known External Dependencies
 
