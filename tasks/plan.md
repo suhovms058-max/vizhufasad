@@ -39,7 +39,7 @@ Add signed, idempotent one-off credit purchases for a Russian self-employed merc
 - [x] Cover success, duplicate webhook, invalid signature, cancel, refund, promo, disabled subscription and amount mismatch.
 - [x] Run install, syntax check, typecheck, unit/integration tests, build and smoke checks.
 - [x] Run one real provider test payment on staging without committing credentials.
-- [ ] Commit, push and open a draft pull request without merging.
+- [x] Commit, push and open draft PR #11 without merging.
 
 ## Completion Gates
 
@@ -49,7 +49,7 @@ Add signed, idempotent one-off credit purchases for a Russian self-employed merc
 - [x] Wrong signatures and client-side price changes are rejected.
 - [x] Payment and receipt history are owner-scoped.
 - [x] Mandatory local checks pass after the Yandex QC adapter fix: frontend check/build, 120 server tests, 4 viewport E2E tests, Drizzle schema check and 5-case quality regression.
-- [ ] Robokassa activates the merchant after reviewing the public legal pages; keep production payments disabled until approval.
+- [ ] Robokassa activates the merchant after reviewing the public legal pages on `https://vizhufasad.ru`; keep production payments disabled until DNS delegation and approval are confirmed.
 - [x] Restore the staging GenAPI credential and verify authorization without exposing the secret (`GET /api/v1/user` returned HTTP 200).
 - [x] Confirm real `nano-banana-2` image editing and automatic Yandex QC on staging: the first candidate cost 20 RUB and required the single retry; the strengthened retry cost 20 RUB, passed at 9532/10000 and stayed within the approved 50 RUB cap.
 - [ ] Re-run the complete authenticated UI path into a persisted `completed` generation after a separate live-spend approval; the diagnostic retry deliberately did not alter the already-refunded failed record.

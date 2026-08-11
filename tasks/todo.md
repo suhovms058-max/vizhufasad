@@ -27,3 +27,5 @@
 - [x] Confirm the signed Robokassa demo payment becomes `paid` and grants 25 credits exactly once.
 - [ ] Wait for Robokassa merchant activation and keep production payments disabled until it is approved.
 - [x] Re-run the full mandatory suite after the QC fix: 120 server tests, frontend typecheck/build, Drizzle check, quality regression 5/5 and Stage 10 E2E 4/4.
+- [x] Audit the published landing, login and legal pages at 390/768/1440 widths; fix the 768px footer overflow and align the cabinet/legal UI with the graphite, warm-paper and copper landing-page style.
+- [ ] Wait for public DNS delegation of `vizhufasad.ru`; Google DNS, Cloudflare DNS and the system resolver still return no A/NS records, so HTTPS and the Robokassa production URL cannot be finalized yet.
