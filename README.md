@@ -47,7 +47,7 @@ test -f out/index.html
 ```bash
 GITHUB_ACTIONS=true \
 NEXT_PUBLIC_BASE_PATH=/vizhufasad \
-NEXT_PUBLIC_LEADS_API_URL=https://89-23-97-248.sslip.io/api/leads \
+NEXT_PUBLIC_LEADS_API_URL=https://vizhufasad.ru/api/leads \
 npm run build
 test -f out/index.html
 ```
@@ -121,8 +121,8 @@ npm test
 
 - Фронтенд: push в `main` запускает `.github/workflows/deploy-pages.yml`, создаёт static export `out/` и публикует его в GitHub Pages.
 - API: отдельный Node.js/Express-процесс на VPS Timeweb; GitHub Actions его не разворачивает.
-- Публичный адрес фронтенда: `https://suhovms058-max.github.io/vizhufasad/`.
-- Используемый фронтендом API: `https://89-23-97-248.sslip.io/api/leads`.
+- Публичный адрес фронтенда: `https://vizhufasad.ru/`.
+- Используемый фронтендом API: `https://vizhufasad.ru/api`.
 
 Изменения этого этапа находятся в отдельной ветке и не должны сливаться в `main` без проверки и явного решения владельца.
 

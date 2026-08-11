@@ -2,7 +2,7 @@
 
 import { ChangeEvent, useEffect, useState } from "react";
 
-const LEADS_API = "https://89-23-97-248.sslip.io/api/leads";
+const LEADS_API = "https://vizhufasad.ru/api/leads";
 
 const Arrow = () => (
   <svg viewBox="0 0 24 24" aria-hidden="true"><path d="M5 12h14M13 6l6 6-6 6" /></svg>
