@@ -20,8 +20,10 @@
 - [x] Confirm PostgreSQL, Redis and private object storage are healthy through `/health/ready`.
 - [x] Confirm the uploaded facade is stored and Yandex assessment completes automatically with no credit charge.
 - [x] Confirm the asynchronous worker refunds a failed provider request idempotently.
-- [ ] Replace the invalid staging `GENAPI_API_KEY`; two live Standard attempts currently end in `GENAPI_HTTP_401`.
-- [ ] Re-run the authenticated photo → settings → Standard → QC → result path on VPS after the key is restored.
+- [x] Replace the invalid staging `GENAPI_API_KEY` and verify the rotated key server-side without printing it.
+- [x] Fix the Yandex generation-QC adapter to use the working multimodal Chat Completions contract and deploy it with a rollback backup.
+- [x] Confirm a real GenAPI candidate (20 RUB), one strengthened retry (20 RUB) and passing Yandex QC (9532/10000) within the approved 50 RUB cap.
+- [ ] Re-run the authenticated photo → settings → Standard → QC → persisted result path on VPS with a new explicit live-spend approval.
 - [x] Confirm the signed Robokassa demo payment becomes `paid` and grants 25 credits exactly once.
 - [ ] Wait for Robokassa merchant activation and keep production payments disabled until it is approved.
-- [ ] Re-run the full mandatory suite after the remaining external blockers are resolved.
+- [x] Re-run the full mandatory suite after the QC fix: 120 server tests, frontend typecheck/build, Drizzle check, quality regression 5/5 and Stage 10 E2E 4/4.

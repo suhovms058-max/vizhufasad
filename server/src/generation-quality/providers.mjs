@@ -40,6 +40,79 @@ function requestBody({ model, sourceImage, candidateImage, prompt }) {
   };
 }
 
+function yandexRequestBody({ model, sourceImage, candidateImage, prompt }) {
+  const schema = structuredClone(VLM_QUALITY_RESULT_SCHEMA);
+  delete schema.properties.detectedChanges.uniqueItems;
+  return {
+    model,
+    messages: [{
+      role: "user",
+      content: [
+        { type: "text", text: prompt },
+        { type: "text", text: "IMAGE 1 — source photograph:" },
+        {
+          type: "image_url",
+          image_url: { url: `data:image/jpeg;base64,${sourceImage.toString("base64")}` },
+        },
+        { type: "text", text: "IMAGE 2 — generated candidate:" },
+        {
+          type: "image_url",
+          image_url: { url: `data:image/jpeg;base64,${candidateImage.toString("base64")}` },
+        },
+      ],
+    }],
+    max_tokens: 1_500,
+    reasoning_effort: "none",
+    response_format: {
+      type: "json_schema",
+      json_schema: {
+        name: GENERATION_QUALITY_SCHEMA_VERSION,
+        strict: true,
+        schema,
+      },
+    },
+  };
+}
+
+async function callYandexChatCompletions({
+  fetchImplementation, endpoint, headers, model, sourceImage, candidateImage, prompt, signal,
+}) {
+  let response;
+  try {
+    response = await fetchImplementation(endpoint, {
+      method: "POST",
+      signal,
+      headers: { ...headers, "Content-Type": "application/json" },
+      body: JSON.stringify(yandexRequestBody({
+        model, sourceImage, candidateImage, prompt,
+      })),
+    });
+  } catch (error) {
+    const timeout = error?.name === "AbortError" || error?.name === "TimeoutError";
+    throw new GenerationQualityError(
+      timeout ? "QUALITY_PROVIDER_TIMEOUT" : "QUALITY_PROVIDER_NETWORK_ERROR",
+      { retryable: true },
+    );
+  }
+  if (!response.ok) {
+    const retryable = [408, 409, 429].includes(response.status) || response.status >= 500;
+    throw new GenerationQualityError(`QUALITY_YANDEX_HTTP_${response.status}`, { retryable });
+  }
+  try {
+    const payload = await response.json();
+    if (payload?.choices?.[0]?.finish_reason !== "stop") {
+      throw new GenerationQualityError("QUALITY_PROVIDER_INCOMPLETE_OUTPUT", { retryable: true });
+    }
+    return {
+      observation: JSON.parse(payload?.choices?.[0]?.message?.content),
+      requestId: payload.id || response.headers.get("x-request-id") || null,
+    };
+  } catch (error) {
+    if (error instanceof GenerationQualityError) throw error;
+    throw new GenerationQualityError("QUALITY_PROVIDER_INVALID_JSON", { retryable: true });
+  }
+}
+
 class ResponsesGenerationQualityProvider {
   constructor({ name, apiKey, model, endpoint, headers = {}, fetchImplementation = fetch }) {
     this.name = name;
@@ -91,18 +164,28 @@ class ResponsesGenerationQualityProvider {
   }
 }
 
-export class YandexGenerationQualityProvider extends ResponsesGenerationQualityProvider {
+export class YandexGenerationQualityProvider {
   constructor({ apiKey, folderId, model, fetchImplementation = fetch }) {
-    const modelUri = String(model).startsWith("gpt://")
+    this.name = "yandex";
+    this.apiKey = apiKey;
+    this.model = String(model).startsWith("gpt://")
       ? String(model)
-      : `gpt://${folderId}/${model}/latest`;
-    super({
-      name: "yandex",
-      apiKey,
-      model: modelUri,
-      endpoint: "https://ai.api.cloud.yandex.net/v1/responses",
-      headers: { Authorization: `Api-Key ${apiKey}`, "OpenAI-Project": folderId },
-      fetchImplementation,
+      : `gpt://${folderId}/${model}`;
+    this.endpoint = "https://ai.api.cloud.yandex.net/v1/chat/completions";
+    this.headers = { Authorization: `Api-Key ${apiKey}`, "OpenAI-Project": folderId };
+    this.fetchImplementation = fetchImplementation;
+  }
+
+  compare({ sourceImage, candidateImage, prompt, signal }) {
+    return callYandexChatCompletions({
+      fetchImplementation: this.fetchImplementation,
+      endpoint: this.endpoint,
+      headers: this.headers,
+      model: this.model,
+      sourceImage,
+      candidateImage,
+      prompt,
+      signal,
     });
   }
 }
