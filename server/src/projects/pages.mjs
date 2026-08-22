@@ -213,7 +213,7 @@ function resultPage(project, generation, history, sourceUrl, resultUrl, balance,
 
 function comparisonPage(project, comparison) {
   const cards = comparison.items.map((item) => `<article class="comparison-card" data-generation-id="${escapeHtml(item.generationId)}">
-    <div class="comparison-image-frame"><img src="${escapeHtml(item.imageUrl)}" alt="${escapeHtml(generationKindLabel(item.kind))}, вариант ${escapeHtml(item.revision)}"></div>
+    <div class="comparison-image-frame" tabindex="0" aria-label="Масштабируемое изображение варианта ${escapeHtml(item.revision)}"><img src="${escapeHtml(item.imageUrl)}" alt="${escapeHtml(generationKindLabel(item.kind))}, вариант ${escapeHtml(item.revision)}"></div>
     <div class="comparison-card-body"><p class="eyebrow">${escapeHtml(generationKindLabel(item.kind))} · вариант ${escapeHtml(item.revision)}</p>
     <dl><div><dt>Стиль</dt><dd>${escapeHtml(item.style || "Автоподбор")}</dd></div><div><dt>Материалы</dt><dd>${escapeHtml((item.materials || []).join(", ") || "Автоподбор")}</dd></div>
     <div><dt>Палитра</dt><dd>${escapeHtml((item.palette || []).join(", ") || "Автоподбор")}</dd></div><div><dt>Режим</dt><dd>${escapeHtml(item.transformationLevel || "—")}</dd></div></dl>
