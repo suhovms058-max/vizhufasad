@@ -104,3 +104,32 @@ test("GenAPI provider uses each edit model's documented image field and controls
     assert.equal(body.get(control), expected, model);
   }
 });
+
+test("GenAPI sends a custom mask as a second image and fails closed for one-image models", async () => {
+  let body;
+  const provider = new GenApiGenerationProvider({
+    apiKey: "secret",
+    model: "nano-banana-2",
+    fetchImplementation: async (_url, options) => {
+      body = options.body;
+      return Response.json({ error: true }, { status: 422 });
+    },
+  });
+  await assert.rejects(provider.generate({
+    sourceImage: Buffer.from("source"),
+    maskImage: Buffer.from("mask"),
+    prompt: "change only white mask pixels",
+    seed: 1,
+    width: 1024,
+    height: 768,
+  }));
+  assert.equal(body.getAll("image_urls[]").length, 2);
+  const unsupported = new GenApiGenerationProvider({ apiKey: "secret", model: "restyle" });
+  await assert.rejects(
+    unsupported.generate({
+      sourceImage: Buffer.from("source"), maskImage: Buffer.from("mask"),
+      prompt: "edit", seed: 1, width: 1024, height: 768,
+    }),
+    (error) => error.code === "GENAPI_MODEL_MASK_UNSUPPORTED" && error.retryable === false,
+  );
+});

@@ -238,13 +238,18 @@ export const generations = pgTable("generations", {
   check("generations_priority_positive_chk", sql`${table.priority} > 0`),
   check("generations_parent_not_self_chk", sql`${table.parentGenerationId} IS NULL OR ${table.parentGenerationId} <> ${table.id}`),
   check("generations_edit_shape_chk", sql`
-    (${table.kind} <> 'edit' AND ${table.parentGenerationId} IS NULL AND ${table.editScope} IS NULL AND ${table.editPrompt} IS NULL)
+    (${table.kind} <> 'edit' AND ${table.parentGenerationId} IS NULL AND ${table.editScope} IS NULL
+      AND ${table.editPrompt} IS NULL AND ${table.editMaskBucket} IS NULL
+      AND ${table.editMaskKey} IS NULL AND ${table.editMaskMimeType} IS NULL)
     OR (${table.kind} = 'edit' AND ${table.parentGenerationId} IS NOT NULL AND ${table.editScope} IS NOT NULL
       AND length(btrim(${table.editPrompt})) BETWEEN 1 AND 700)
   `),
   check("generations_custom_mask_chk", sql`
-    ${table.editScope} <> 'custom_mask' OR (${table.editMaskBucket} IS NOT NULL AND ${table.editMaskKey} IS NOT NULL
+    (${table.editScope} = 'custom_mask' AND ${table.editMaskBucket} IS NOT NULL AND ${table.editMaskKey} IS NOT NULL
       AND ${table.editMaskMimeType} = 'image/png')
+    OR (${table.editScope} <> 'custom_mask' AND ${table.editMaskBucket} IS NULL
+      AND ${table.editMaskKey} IS NULL AND ${table.editMaskMimeType} IS NULL)
+    OR ${table.editScope} IS NULL
   `),
 ]);
 
@@ -389,6 +394,14 @@ export const generationComparisonItems = pgTable("generation_comparison_items", 
   uniqueIndex("generation_comparison_items_generation_uidx").on(table.comparisonId, table.generationId),
   uniqueIndex("generation_comparison_items_position_uidx").on(table.comparisonId, table.position),
   check("generation_comparison_items_position_chk", sql`${table.position} BETWEEN 1 AND 4`),
+]);
+
+export const projectGenerationSelections = pgTable("project_generation_selections", {
+  projectId: uuid("project_id").primaryKey().references(() => projects.id, { onDelete: "cascade" }),
+  generationId: uuid("generation_id").notNull().references(() => generations.id, { onDelete: "restrict" }),
+  updatedAt: timestamp("updated_at", { withTimezone: true }).defaultNow().notNull(),
+}, (table) => [
+  index("project_generation_selections_generation_idx").on(table.generationId),
 ]);
 
 export const wallets = pgTable("wallets", {

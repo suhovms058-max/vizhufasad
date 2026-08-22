@@ -25,7 +25,7 @@ if (missing.length) throw new Error(`Missing environment variables: ${missing.jo
 
 const config = loadGenerationConfig();
 const qualityConfig = loadGenerationQualityConfig();
-if (!config.enabled && !config.proEnabled) {
+if (!config.enabled && !config.proEnabled && !config.editorEnabled) {
   throw new Error("At least one generation feature must be enabled");
 }
 const repository = new GenerationRepository();

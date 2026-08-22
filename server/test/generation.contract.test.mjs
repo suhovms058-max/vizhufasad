@@ -125,6 +125,13 @@ test("generation configuration is disabled by default and selects the measured c
   ]);
   assert.throws(
     () => loadGenerationConfig({
+      FEATURE_GENERATION_EDITOR_ENABLED: "true",
+      GENAPI_API_KEY: "secret",
+    }),
+    (error) => error.code === "GENAPI_EDIT_MODEL_REQUIRED",
+  );
+  assert.throws(
+    () => loadGenerationConfig({
       NODE_ENV: "production",
       GENERATION_STAGING_ENABLED: "true",
       GENERATION_STAGING_SECRET: "a".repeat(32),

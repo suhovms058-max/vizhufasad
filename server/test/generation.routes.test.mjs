@@ -86,6 +86,65 @@ test("Pro route delegates to the Pro generation path", async () => {
   });
 });
 
+test("editor routes create an owner-scoped mask upload and child generation", async () => {
+  const calls = [];
+  const authService = { async sessionFromRequest() { return { user_id: "owner" }; } };
+  const generationService = {
+    async createEditMaskUpload(...args) {
+      calls.push(["mask", ...args]);
+      return { key: "private-mask.png", url: "https://storage.test/upload" };
+    },
+    async createEdit(...args) {
+      calls.push(["edit", ...args]);
+      return { id: "edit-1", kind: "edit", status: "queued" };
+    },
+  };
+  const app = express();
+  app.use(express.json());
+  app.use("/api/projects", createGenerationRouter({ authService, generationService }));
+  await withServer(app, async (baseUrl) => {
+    const route = `${baseUrl}/api/projects/project-1/generations/parent-1`;
+    const upload = await fetch(`${route}/edit-mask-upload`, {
+      method: "POST",
+      headers: { "content-type": "application/json" },
+      body: JSON.stringify({ contentType: "image/png", contentLength: 1234 }),
+    });
+    assert.equal(upload.status, 201);
+    const edit = await fetch(`${route}/edits`, {
+      method: "POST",
+      headers: { "content-type": "application/json", "idempotency-key": "edit-request-12345" },
+      body: JSON.stringify({ scope: "walls", command: "Сделать стены светлее" }),
+    });
+    assert.equal(edit.status, 202);
+    assert.equal((await edit.json()).generation.kind, "edit");
+    assert.deepEqual(calls.map((call) => call.slice(0, 4)), [
+      ["mask", "owner", "project-1", "parent-1"],
+      ["edit", "owner", "project-1", "parent-1"],
+    ]);
+  });
+});
+
+test("version routes expose the tree and restore a completed owner version", async () => {
+  const calls = [];
+  const authService = { async sessionFromRequest() { return { user_id: "owner" }; } };
+  const generationService = {
+    async versionTree(...args) { calls.push(["tree", ...args]); return { selectedGenerationId: "g1", nodes: [] }; },
+    async restoreVersion(...args) { calls.push(["restore", ...args]); return { id: args[2], status: "completed" }; },
+  };
+  const app = express();
+  app.use(express.json());
+  app.use("/api/projects", createGenerationRouter({ authService, generationService }));
+  await withServer(app, async (baseUrl) => {
+    const route = `${baseUrl}/api/projects/project-1/generation-versions`;
+    assert.equal((await fetch(route)).status, 200);
+    assert.equal((await fetch(`${route}/g1/restore`, { method: "POST" })).status, 200);
+    assert.deepEqual(calls, [
+      ["tree", "owner", "project-1"],
+      ["restore", "owner", "project-1", "g1"],
+    ]);
+  });
+});
+
 test("generation metrics are disabled without a bearer token and never expose configuration", async () => {
   const app = express();
   app.use("/internal/generation/metrics", createGenerationMetricsRouter({

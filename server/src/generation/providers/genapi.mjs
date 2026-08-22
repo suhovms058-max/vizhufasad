@@ -72,18 +72,24 @@ function closestAspectRatio(width, height) {
   ))[0];
 }
 
-function appendSource(body, field, sourceImage, sourceMimeType) {
+function appendSource(body, field, sourceImage, sourceMimeType, basename = "source") {
   const extension = sourceMimeType === "image/png" ? "png"
     : sourceMimeType === "image/webp" ? "webp" : "jpg";
-  body.append(field, new Blob([sourceImage], { type: sourceMimeType }), `source.${extension}`);
+  body.append(field, new Blob([sourceImage], { type: sourceMimeType }), `${basename}.${extension}`);
 }
 
-function createGenerationBody({ model, sourceImage, sourceMimeType, prompt, seed, width, height }) {
+function createGenerationBody({
+  model, sourceImage, sourceMimeType, maskImage, maskMimeType, prompt, seed, width, height,
+}) {
   const body = new FormData();
+  if (maskImage && model === "restyle") {
+    throw providerError("GENAPI_MODEL_MASK_UNSUPPORTED", 422, false);
+  }
   if (model === "nano-banana-2") {
     body.append("is_sync", "false");
     body.append("prompt", prompt);
     appendSource(body, "image_urls[]", sourceImage, sourceMimeType);
+    if (maskImage) appendSource(body, "image_urls[]", maskImage, maskMimeType, "mask");
     body.append("aspect_ratio", closestAspectRatio(width, height));
     body.append("resolution", "1K");
     body.append("num_images", "1");
@@ -97,6 +103,7 @@ function createGenerationBody({ model, sourceImage, sourceMimeType, prompt, seed
     body.append("is_sync", "false");
     body.append("prompt", prompt);
     appendSource(body, "image_urls[]", sourceImage, sourceMimeType);
+    if (maskImage) appendSource(body, "image_urls[]", maskImage, maskMimeType, "mask");
     body.append("width", String(width));
     body.append("height", String(height));
     body.append("num_images", "1");
@@ -115,6 +122,7 @@ function createGenerationBody({ model, sourceImage, sourceMimeType, prompt, seed
     body.append("safety_tolerance", "2");
     body.append("aspect_ratio", closestAspectRatio(width, height));
     appendSource(body, "images[]", sourceImage, sourceMimeType);
+    if (maskImage) appendSource(body, "images[]", maskImage, maskMimeType, "mask");
     return body;
   }
   if (model === "restyle") {
@@ -138,6 +146,7 @@ function createGenerationBody({ model, sourceImage, sourceMimeType, prompt, seed
   body.append("translate_input", "false");
   body.append("prompt", prompt);
   appendSource(body, "image_urls[]", sourceImage, sourceMimeType);
+  if (maskImage) appendSource(body, "image_urls[]", maskImage, maskMimeType, "mask");
   body.append("width", String(width));
   body.append("height", String(height));
   body.append("enable_safety_checker", "true");
@@ -203,12 +212,17 @@ export class GenApiGenerationProvider {
     return response;
   }
 
-  async generate({ sourceImage, sourceMimeType = "image/jpeg", prompt, seed, width, height, signal }) {
+  async generate({
+    sourceImage, sourceMimeType = "image/jpeg", maskImage = null,
+    maskMimeType = "image/png", prompt, seed, width, height, signal,
+  }) {
     const submittedAt = Date.now();
     const body = createGenerationBody({
       model: this.model,
       sourceImage,
       sourceMimeType,
+      maskImage,
+      maskMimeType,
       prompt,
       seed,
       width,

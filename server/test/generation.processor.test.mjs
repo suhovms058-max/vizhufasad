@@ -32,6 +32,7 @@ function harness({
   existingCandidate = false,
   generationKind = "standard",
   providerKinds,
+  editMask = false,
 } = {}) {
   const events = [];
   let status = "queued";
@@ -47,6 +48,10 @@ function harness({
     source_height: 1000,
     config_snapshot: { style: "modern", promptVersion: "standard-facade-v3" },
     kind: generationKind,
+    edit_scope: generationKind === "edit" ? (editMask ? "custom_mask" : "walls") : null,
+    edit_prompt: generationKind === "edit" ? "Изменить только выбранную область" : null,
+    edit_mask_key: editMask ? "mask.png" : null,
+    edit_mask_mime_type: editMask ? "image/png" : null,
   };
   const repository = {
     async claimForWorker() {
@@ -112,8 +117,8 @@ function harness({
     generationKinds: providerKinds,
     estimatedCostMinor: 100,
     currency: "RUB",
-    async generate() {
-      events.push(["provider"]);
+    async generate(input) {
+      events.push(["provider", Boolean(input.maskImage)]);
       if (providerError) throw providerError;
       return {
         provider: "mock", jobId: `job-${attemptNumber}`, model: "mock-edit",
@@ -161,6 +166,18 @@ test("Pro generation uses a Pro-capable provider and stores a distinct result", 
   assert.equal(getStatus(), "completed");
   assert.equal(events.some((event) => event[0] === "provider"), true);
   assert.equal(events.some((event) => event[0] === "stored" && event[1].endsWith("/pro.jpg")), true);
+});
+
+test("masked edit uses the parent result, passes the private mask and stores an edit version", async () => {
+  const { processor, job, events, getStatus } = harness({
+    generationKind: "edit",
+    providerKinds: ["edit"],
+    editMask: true,
+  });
+  await processor.process(job);
+  assert.equal(getStatus(), "completed");
+  assert.deepEqual(events.find((event) => event[0] === "provider"), ["provider", true]);
+  assert.equal(events.some((event) => event[0] === "stored" && event[1].endsWith("/edit.jpg")), true);
 });
 
 test("first quality rejection triggers one free stricter candidate and then passes", async () => {

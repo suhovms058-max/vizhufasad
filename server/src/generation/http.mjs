@@ -50,10 +50,62 @@ export function createGenerationRouter({ authService, generationService }) {
       try { return respondError(response, error); } catch (unexpected) { return next(unexpected); }
     }
   });
+  router.post("/:projectId/generations/:generationId/edit-mask-upload", limiter, async (request, response, next) => {
+    try {
+      return response.status(201).json({
+        upload: await generationService.createEditMaskUpload(
+          request.auth.user_id,
+          request.params.projectId,
+          request.params.generationId,
+          request.body,
+        ),
+      });
+    } catch (error) {
+      try { return respondError(response, error); } catch (unexpected) { return next(unexpected); }
+    }
+  });
+  router.post("/:projectId/generations/:generationId/edits", limiter, async (request, response, next) => {
+    try {
+      const idempotencyKey = request.get("idempotency-key") || request.body?.idempotencyKey;
+      return response.status(202).json({
+        generation: await generationService.createEdit(
+          request.auth.user_id,
+          request.params.projectId,
+          request.params.generationId,
+          request.body,
+          idempotencyKey,
+        ),
+      });
+    } catch (error) {
+      try { return respondError(response, error); } catch (unexpected) { return next(unexpected); }
+    }
+  });
   router.get("/:projectId/generations", async (request, response, next) => {
     try {
       return response.json({
         generations: await generationService.list(request.auth.user_id, request.params.projectId),
+      });
+    } catch (error) {
+      try { return respondError(response, error); } catch (unexpected) { return next(unexpected); }
+    }
+  });
+  router.get("/:projectId/generation-versions", async (request, response, next) => {
+    try {
+      return response.json({
+        tree: await generationService.versionTree(request.auth.user_id, request.params.projectId),
+      });
+    } catch (error) {
+      try { return respondError(response, error); } catch (unexpected) { return next(unexpected); }
+    }
+  });
+  router.post("/:projectId/generation-versions/:generationId/restore", limiter, async (request, response, next) => {
+    try {
+      return response.json({
+        generation: await generationService.restoreVersion(
+          request.auth.user_id,
+          request.params.projectId,
+          request.params.generationId,
+        ),
       });
     } catch (error) {
       try { return respondError(response, error); } catch (unexpected) { return next(unexpected); }

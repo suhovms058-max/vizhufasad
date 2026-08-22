@@ -86,6 +86,84 @@ export class GenerationRepository {
     }
   }
 
+  async createEditOwned({
+    userId,
+    projectId,
+    parentGenerationId,
+    idempotencyKey,
+    editScope,
+    editPrompt,
+    editMaskBucket = null,
+    editMaskKey = null,
+    editMaskMimeType = null,
+    configSnapshot,
+    geometryPolicySnapshot,
+  }) {
+    const client = await this.pool.connect();
+    try {
+      await client.query("begin");
+      const duplicate = await client.query(
+        `select g.* from generations g
+         join projects p on p.id = g.project_id
+         where g.idempotency_key = $1 and p.user_id = $2 and p.deleted_at is null`,
+        [idempotencyKey, userId],
+      );
+      if (duplicate.rowCount) {
+        await client.query("commit");
+        return { generation: duplicate.rows[0], created: false };
+      }
+      const parent = await client.query(
+        `select g.* from generations g
+         join projects p on p.id = g.project_id
+         where g.id = $1 and g.project_id = $2 and p.user_id = $3
+           and p.deleted_at is null and g.status = 'completed' and g.result_key is not null
+         for update of g`,
+        [parentGenerationId, projectId, userId],
+      );
+      if (!parent.rowCount) {
+        await client.query("rollback");
+        return null;
+      }
+      const revision = await client.query(
+        "select coalesce(max(revision), 0) + 1 as revision from generations where project_id = $1",
+        [projectId],
+      );
+      const inserted = await client.query(
+        `insert into generations (
+          project_id, source_image_id, revision, kind, parent_generation_id,
+          edit_scope, edit_prompt, edit_mask_bucket, edit_mask_key, edit_mask_mime_type,
+          status, idempotency_key, config_snapshot, geometry_policy_snapshot
+        ) values ($1, $2, $3, 'edit', $4, $5, $6, $7, $8, $9, 'created', $10, $11, $12)
+        returning *`,
+        [
+          projectId,
+          parent.rows[0].source_image_id,
+          Number(revision.rows[0].revision),
+          parentGenerationId,
+          editScope,
+          editPrompt,
+          editMaskBucket,
+          editMaskKey,
+          editMaskMimeType,
+          idempotencyKey,
+          configSnapshot,
+          geometryPolicySnapshot,
+        ],
+      );
+      await client.query(
+        "update projects set status = 'generation_queued', updated_at = now() where id = $1",
+        [projectId],
+      );
+      await client.query("commit");
+      return { generation: inserted.rows[0], parent: parent.rows[0], created: true };
+    } catch (error) {
+      await client.query("rollback");
+      throw error;
+    } finally {
+      client.release();
+    }
+  }
+
   async hasPaidCredits(userId) {
     const result = await this.pool.query(
       `select exists(
@@ -119,10 +197,12 @@ export class GenerationRepository {
   async findById(generationId) {
     const result = await this.pool.query(
       `select g.*, p.user_id, i.working_storage_key, i.width as source_width,
-              i.height as source_height
+              i.height as source_height,
+              case when g.kind = 'edit' then parent.result_key else i.working_storage_key end as provider_source_key
        from generations g
        join projects p on p.id = g.project_id
        join source_images i on i.id = g.source_image_id
+       left join generations parent on parent.id = g.parent_generation_id
        where g.id = $1 and p.deleted_at is null`,
       [generationId],
     );
@@ -409,6 +489,37 @@ export class GenerationRepository {
       [projectId, userId],
     );
     return Promise.all(result.rows.map((row) => this.findOwned(userId, projectId, row.id)));
+  }
+
+  async versionTreeOwned(userId, projectId) {
+    const result = await this.pool.query(
+      `select g.id, g.parent_generation_id, g.kind, g.revision, g.status,
+              g.edit_scope, g.edit_prompt, g.is_favorite, g.created_at, g.completed_at,
+              selection.generation_id = g.id as is_selected
+       from generations g
+       join projects p on p.id = g.project_id
+       left join project_generation_selections selection on selection.project_id = g.project_id
+       where g.project_id = $1 and p.user_id = $2 and p.deleted_at is null
+       order by g.revision asc, g.created_at asc`,
+      [projectId, userId],
+    );
+    return result.rows;
+  }
+
+  async selectVersionOwned(userId, projectId, generationId) {
+    const result = await this.pool.query(
+      `insert into project_generation_selections (project_id, generation_id, updated_at)
+       select g.project_id, g.id, now()
+       from generations g
+       join projects p on p.id = g.project_id
+       where g.id = $1 and g.project_id = $2 and p.user_id = $3
+         and p.deleted_at is null and g.status = 'completed' and g.result_key is not null
+       on conflict (project_id) do update
+       set generation_id = excluded.generation_id, updated_at = now()
+       returning *`,
+      [generationId, projectId, userId],
+    );
+    return result.rows[0] ?? null;
   }
 
   async setFavoriteOwned(userId, projectId, generationId, favorite) {

@@ -20,7 +20,16 @@ const preserveLabels = {
   housePosition: "house position and scale within the frame",
 };
 
-export function composeGenerationPrompt(input, { qualityRetryReasons = [] } = {}) {
+const editScopeLabels = {
+  full_facade: "the visible facade finish only",
+  walls: "the wall finish surfaces only",
+  plinth: "the existing plinth/base surfaces only",
+  roof: "the visible roof finish only, without changing its outline, pitch or structure",
+  entrance: "the existing entrance group surfaces only",
+  custom_mask: "only the white editable pixels in the second supplied mask image",
+};
+
+export function composeGenerationPrompt(input, { qualityRetryReasons = [], edit = null } = {}) {
   const protectedItems = Object.entries(input.preserve)
     .filter(([, enabled]) => enabled)
     .map(([key]) => preserveLabels[key]);
@@ -28,7 +37,12 @@ export function composeGenerationPrompt(input, { qualityRetryReasons = [] } = {}
     .filter(([, enabled]) => !enabled)
     .map(([key]) => preserveLabels[key]);
   const prompt = [
-    "TASK: Edit the supplied photograph of the exact same real house. Show the house as a fully completed, photorealistic exterior facade concept, not as an unfinished shell with merely painted walls and not as a different house.",
+    edit
+      ? "TASK: Edit the supplied already-completed facade visualization of the exact same real house. Return a photorealistic corrected version of that same image, not a redesign of the entire house."
+      : "TASK: Edit the supplied photograph of the exact same real house. Show the house as a fully completed, photorealistic exterior facade concept, not as an unfinished shell with merely painted walls and not as a different house.",
+    edit
+      ? `EDIT BOUNDARY: Change ${editScopeLabels[edit.scope]}. Client command: ${edit.command}. Everything outside this boundary must remain visually identical to the supplied result. The second image, when supplied, is a black-and-white mask: white pixels may change and black pixels are protected.`
+      : "",
     modeInstructions[input.transformationLevel],
     "CLIENT BRIEF — apply these choices consistently to all suitable visible facade surfaces:",
     `Required facade style: ${input.style}.`,

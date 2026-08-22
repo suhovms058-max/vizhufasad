@@ -27,9 +27,25 @@ export function createGenerationProviders(config) {
       generationKinds: ["pro"],
     }));
   }
+  if (config.editorEnabled && config.provider === "genapi") {
+    providers.push(new GenApiGenerationProvider({
+      apiKey: config.apiKey,
+      model: config.editModel,
+      endpoint: config.endpoint,
+      estimatedCostMinor: config.editEstimatedCostMinor,
+      currency: config.currency,
+      pollIntervalMs: config.pollIntervalMs,
+      resultMaxBytes: config.resultMaxBytes,
+      generationKinds: ["edit"],
+    }));
+  }
   if ((config.enabled || config.proEnabled) && config.fallbackProvider === "cloudru-self-hosted") {
     const fallback = new UnavailableGenerationProvider();
-    fallback.generationKinds = config.proEnabled ? ["standard", "pro"] : ["standard"];
+    fallback.generationKinds = [
+      ...(config.enabled ? ["standard"] : []),
+      ...(config.proEnabled ? ["pro"] : []),
+      ...(config.editorEnabled ? ["edit"] : []),
+    ];
     providers.push(fallback);
   }
   return providers;

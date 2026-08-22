@@ -1,5 +1,8 @@
 export const GENERATION_MODES = Object.freeze(["gentle", "balanced", "conceptual"]);
 export const GENERATION_KINDS = Object.freeze(["standard", "pro", "edit"]);
+export const GENERATION_EDIT_SCOPES = Object.freeze([
+  "full_facade", "walls", "plinth", "roof", "entrance", "custom_mask",
+]);
 export const GENERATION_PROMPT_VERSION = "standard-facade-v3";
 export const GENERATION_INPUT_VERSION = "1";
 export const GENERATION_STATUSES = Object.freeze([
@@ -27,6 +30,7 @@ const generationStatusSet = new Set(GENERATION_STATUSES);
 
 const modeSet = new Set(GENERATION_MODES);
 const kindSet = new Set(GENERATION_KINDS);
+const editScopeSet = new Set(GENERATION_EDIT_SCOPES);
 
 export class GenerationError extends Error {
   constructor(code, status = 400, { retryable = false, details = null } = {}) {
@@ -139,6 +143,23 @@ export function normalizeGenerationKind(value, { allowEdit = false } = {}) {
     throw new GenerationError("INVALID_GENERATION_KIND");
   }
   return kind;
+}
+
+export function normalizeGenerationEditInput(value = {}) {
+  if (!value || typeof value !== "object" || Array.isArray(value)) {
+    throw new GenerationError("INVALID_GENERATION_EDIT_INPUT");
+  }
+  const scope = String(value.scope || "").trim().toLowerCase();
+  if (!editScopeSet.has(scope)) throw new GenerationError("INVALID_GENERATION_EDIT_SCOPE");
+  const command = cleanText(value.command, "edit_command", 700, { required: true });
+  const maskKey = cleanText(value.maskKey, "edit_mask_key", 500);
+  if (scope === "custom_mask" && !maskKey) {
+    throw new GenerationError("EDIT_MASK_REQUIRED");
+  }
+  if (scope !== "custom_mask" && maskKey) {
+    throw new GenerationError("EDIT_MASK_NOT_ALLOWED");
+  }
+  return Object.freeze({ scope, command, maskKey: maskKey || null });
 }
 
 export function assertGenerationProvider(provider) {

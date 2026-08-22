@@ -15,6 +15,7 @@ const requiredTables = [
   "payments", "subscriptions", "audit_logs", "photo_assessments", "photo_assessment_attempts",
   "action_costs",
   "generation_upscales", "generation_comparisons", "generation_comparison_items",
+  "project_generation_selections",
 ];
 
 test("migrations create every required table", () => {

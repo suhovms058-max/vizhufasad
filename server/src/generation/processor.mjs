@@ -85,7 +85,7 @@ export class GenerationProcessor {
   }
 
   async generateCandidate({
-    generation, sourceImage, input, candidateNumber, retryReasons, dimensions, signal,
+    generation, sourceImage, maskImage, input, candidateNumber, retryReasons, dimensions, signal,
   }) {
     const generating = await this.repository.transition(
       generation.id,
@@ -93,7 +93,10 @@ export class GenerationProcessor {
       "generating",
     );
     if (!generating) throw new GenerationError("GENERATION_STATE_CONFLICT", 409);
-    const prompt = composeGenerationPrompt(input, { qualityRetryReasons: retryReasons });
+    const edit = generation.kind === "edit"
+      ? { scope: generation.edit_scope, command: generation.edit_prompt }
+      : null;
+    const prompt = composeGenerationPrompt(input, { qualityRetryReasons: retryReasons, edit });
     let lastError;
     const kind = generation.kind || "standard";
     const providers = this.providers.filter((provider) => (
@@ -121,6 +124,8 @@ export class GenerationProcessor {
         const providerResult = await provider.generate({
           sourceImage,
           sourceMimeType: "image/jpeg",
+          maskImage,
+          maskMimeType: generation.edit_mask_mime_type || "image/png",
           prompt: prompt.prompt,
           seed,
           ...dimensions,
@@ -208,9 +213,12 @@ export class GenerationProcessor {
       const input = normalizeGenerationInput(generation.config_snapshot);
       const allowedChanges = allowedQualityChanges(input);
       const sourceImage = await this.storage.getPrivateObjectBuffer(
-        generation.working_storage_key,
+        generation.provider_source_key || generation.working_storage_key,
         25 * 1024 * 1024,
       );
+      const maskImage = generation.edit_mask_key
+        ? await this.storage.getPrivateObjectBuffer(generation.edit_mask_key, 5 * 1024 * 1024)
+        : null;
       const dimensions = outputDimensions(generation.source_width, generation.source_height);
       const previous = await this.qualityRepository.listForGeneration(generationId);
       const alreadyPassed = previous.find((assessment) => assessment.decision === "passed");
@@ -245,10 +253,15 @@ export class GenerationProcessor {
             candidate.result_key,
             this.config.resultMaxBytes,
           );
-          prompt = composeGenerationPrompt(input, { qualityRetryReasons: retryReasons });
+          prompt = composeGenerationPrompt(input, {
+            qualityRetryReasons: retryReasons,
+            edit: generation.kind === "edit"
+              ? { scope: generation.edit_scope, command: generation.edit_prompt }
+              : null,
+          });
         } else {
           const generated = await this.generateCandidate({
-            generation, sourceImage, input, candidateNumber, retryReasons,
+            generation, sourceImage, maskImage, input, candidateNumber, retryReasons,
             dimensions, signal: workerSignal,
           });
           candidate = generated.attempt;

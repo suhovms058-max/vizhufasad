@@ -1,5 +1,7 @@
+import { randomUUID } from "node:crypto";
+import sharp from "sharp";
 import {
-  GenerationError, normalizeGenerationInput, normalizeGenerationKind,
+  GenerationError, normalizeGenerationEditInput, normalizeGenerationInput, normalizeGenerationKind,
 } from "./contract.mjs";
 import { composeGenerationPrompt } from "./prompt.mjs";
 import { createFreeWatermark } from "./watermark.mjs";
@@ -15,7 +17,10 @@ function cleanIdempotencyKey(value, userId, kind) {
 const actionCodeByKind = Object.freeze({
   standard: "standard_generation",
   pro: "pro_generation",
+  edit: "text_revision",
 });
+
+const MAX_EDIT_MASK_BYTES = 5 * 1024 * 1024;
 
 export class GenerationService {
   constructor({ repository, storage, walletService, queue, config }) {
@@ -32,6 +37,9 @@ export class GenerationService {
     }
     if (kind === "pro" && !this.config.proEnabled) {
       throw new GenerationError("PRO_GENERATION_DISABLED", 404);
+    }
+    if (kind === "edit" && !this.config.editorEnabled) {
+      throw new GenerationError("GENERATION_EDITOR_DISABLED", 404);
     }
   }
 
@@ -59,6 +67,90 @@ export class GenerationService {
       geometryPolicySnapshot: input.preserve,
     });
     if (!created) throw new GenerationError("GENERATION_SOURCE_NOT_ELIGIBLE", 409);
+    return this.queueCreated(kind, userId, projectId, created);
+  }
+
+  async createEditMaskUpload(userId, projectId, parentGenerationId, value = {}) {
+    this.assertEnabled("edit");
+    const parent = await this.repository.findOwned(userId, projectId, parentGenerationId);
+    if (!parent || parent.status !== "completed" || !parent.result_key) {
+      throw new GenerationError("EDIT_PARENT_NOT_READY", 409);
+    }
+    const contentLength = Number(value.contentLength);
+    if (!Number.isInteger(contentLength) || contentLength < 1 || contentLength > MAX_EDIT_MASK_BYTES) {
+      throw new GenerationError("INVALID_EDIT_MASK_SIZE");
+    }
+    if (String(value.contentType || "").toLowerCase() !== "image/png") {
+      throw new GenerationError("INVALID_EDIT_MASK_TYPE");
+    }
+    const key = `users/${userId}/projects/${projectId}/edit-masks/${parentGenerationId}/${randomUUID()}.png`;
+    return {
+      key,
+      ...(await this.storage.createUploadUrl({ key, contentType: "image/png", contentLength })),
+    };
+  }
+
+  async validateEditMask(userId, projectId, parent, maskKey) {
+    const prefix = `users/${userId}/projects/${projectId}/edit-masks/${parent.id}/`;
+    if (!maskKey.startsWith(prefix) || !maskKey.endsWith(".png")) {
+      throw new GenerationError("INVALID_EDIT_MASK_KEY");
+    }
+    const head = await this.storage.headPrivateObject(maskKey);
+    if (head.contentType !== "image/png" || head.contentLength < 1 || head.contentLength > MAX_EDIT_MASK_BYTES) {
+      throw new GenerationError("INVALID_EDIT_MASK_OBJECT");
+    }
+    try {
+      const [mask, source] = await Promise.all([
+        this.storage.getPrivateObjectBuffer(maskKey, MAX_EDIT_MASK_BYTES),
+        this.storage.getPrivateObjectBuffer(parent.result_key, this.config.resultMaxBytes),
+      ]);
+      const [maskMetadata, sourceMetadata] = await Promise.all([
+        sharp(mask, { limitInputPixels: 80_000_000 }).metadata(),
+        sharp(source, { limitInputPixels: 80_000_000 }).metadata(),
+      ]);
+      if (maskMetadata.format !== "png" || !maskMetadata.width || !maskMetadata.height
+        || maskMetadata.width !== sourceMetadata.width || maskMetadata.height !== sourceMetadata.height) {
+        throw new Error("MASK_DIMENSIONS_MISMATCH");
+      }
+    } catch {
+      throw new GenerationError("INVALID_EDIT_MASK_OBJECT");
+    }
+  }
+
+  async createEdit(userId, projectId, parentGenerationId, value, requestedIdempotencyKey) {
+    this.assertEnabled("edit");
+    const edit = normalizeGenerationEditInput(value);
+    const parent = await this.repository.findOwned(userId, projectId, parentGenerationId);
+    if (!parent || parent.status !== "completed" || !parent.result_key) {
+      throw new GenerationError("EDIT_PARENT_NOT_READY", 409);
+    }
+    if (edit.maskKey) await this.validateEditMask(userId, projectId, parent, edit.maskKey);
+    const input = normalizeGenerationInput(parent.config_snapshot);
+    const prompt = composeGenerationPrompt(input, { edit });
+    const created = await this.repository.createEditOwned({
+      userId,
+      projectId,
+      parentGenerationId,
+      idempotencyKey: cleanIdempotencyKey(requestedIdempotencyKey, userId, "edit"),
+      editScope: edit.scope,
+      editPrompt: edit.command,
+      editMaskBucket: edit.maskKey ? this.storage.getStorageBucket() : null,
+      editMaskKey: edit.maskKey,
+      editMaskMimeType: edit.maskKey ? "image/png" : null,
+      configSnapshot: {
+        ...input,
+        generationKind: "edit",
+        editScope: edit.scope,
+        editCommand: edit.command,
+        promptVersion: prompt.version,
+      },
+      geometryPolicySnapshot: input.preserve,
+    });
+    if (!created) throw new GenerationError("EDIT_PARENT_NOT_READY", 409);
+    return this.queueCreated("edit", userId, projectId, created);
+  }
+
+  async queueCreated(kind, userId, projectId, created) {
     if (!created.created && created.generation.status !== "created") {
       if (["queued", "retrying"].includes(created.generation.status)) {
         await this.queue.enqueue(
@@ -168,6 +260,20 @@ export class GenerationService {
     return Promise.all(generations.map((generation) => this.view(
       userId, projectId, generation.id,
     )));
+  }
+
+  async versionTree(userId, projectId) {
+    const nodes = await this.repository.versionTreeOwned(userId, projectId);
+    if (!nodes.length) return { selectedGenerationId: null, nodes: [] };
+    const explicit = nodes.find((node) => node.is_selected)?.id;
+    const fallback = [...nodes].reverse().find((node) => node.status === "completed")?.id || null;
+    return { selectedGenerationId: explicit || fallback, nodes };
+  }
+
+  async restoreVersion(userId, projectId, generationId) {
+    const selected = await this.repository.selectVersionOwned(userId, projectId, generationId);
+    if (!selected) throw new GenerationError("GENERATION_NOT_FOUND", 404);
+    return this.view(userId, projectId, generationId);
   }
 
   async favorite(userId, projectId, generationId, favorite) {
