@@ -1,0 +1,13 @@
+# Stage 12 checklist
+
+- [x] Confirm Stage 11 production payments and wallet prerequisites.
+- [x] Isolate Stage 12 in `codex/stage-12-pro-editor-4k`.
+- [x] Add the durable Stage 12 data model.
+- [x] Implement and measure Pro generation for 2 credits.
+- [x] Implement text and protected-area editing for 1 credit.
+- [x] Implement version-tree navigation.
+- [x] Implement verified 4K upscale for 1 credit.
+- [x] Implement Optimum/Maximum comparison for up to four results.
+- [x] Run approved live provider smokes.
+- [x] Run the final mandatory suite.
+- [x] Update documentation, commit, push and prepare a draft PR without merging.

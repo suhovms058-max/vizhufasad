@@ -1,0 +1,125 @@
+{
+  "version": "7",
+  "dialect": "postgresql",
+  "entries": [
+    {
+      "idx": 0,
+      "version": "7",
+      "when": 1785186817872,
+      "tag": "0000_initial_data_infrastructure",
+      "breakpoints": true
+    },
+    {
+      "idx": 1,
+      "version": "7",
+      "when": 1785187868836,
+      "tag": "0001_add_data_invariants",
+      "breakpoints": true
+    },
+    {
+      "idx": 2,
+      "version": "7",
+      "when": 1785258000000,
+      "tag": "0002_passwordless_auth",
+      "breakpoints": true
+    },
+    {
+      "idx": 3,
+      "version": "7",
+      "when": 1785266905578,
+      "tag": "0003_project_image_lifecycle",
+      "breakpoints": true
+    },
+    {
+      "idx": 4,
+      "version": "7",
+      "when": 1785270038070,
+      "tag": "0004_automatic_photo_assessment",
+      "breakpoints": true
+    },
+    {
+      "idx": 5,
+      "version": "7",
+      "when": 1785272984782,
+      "tag": "0005_wallet_tariff_catalog",
+      "breakpoints": true
+    },
+    {
+      "idx": 6,
+      "version": "7",
+      "when": 1785314377823,
+      "tag": "0006_standard_generation",
+      "breakpoints": true
+    },
+    {
+      "idx": 7,
+      "version": "7",
+      "when": 1785316815919,
+      "tag": "0007_generation_wallet_fk",
+      "breakpoints": true
+    },
+    {
+      "idx": 8,
+      "version": "7",
+      "when": 1785329677206,
+      "tag": "0008_generation_queue",
+      "breakpoints": true
+    },
+    {
+      "idx": 9,
+      "version": "7",
+      "when": 1785680142999,
+      "tag": "0009_generation_quality_control",
+      "breakpoints": true
+    },
+    {
+      "idx": 10,
+      "version": "7",
+      "when": 1785685744708,
+      "tag": "0010_stage_10_user_flow",
+      "breakpoints": true
+    },
+    {
+      "idx": 11,
+      "version": "7",
+      "when": 1786188382995,
+      "tag": "0011_common_paper_doll",
+      "breakpoints": true
+    },
+    {
+      "idx": 12,
+      "version": "7",
+      "when": 1786189391163,
+      "tag": "0012_sloppy_mentor",
+      "breakpoints": true
+    },
+    {
+      "idx": 13,
+      "version": "7",
+      "when": 1787407646359,
+      "tag": "0013_stage_12_pro_editor_4k",
+      "breakpoints": true
+    },
+    {
+      "idx": 14,
+      "version": "7",
+      "when": 1787408154376,
+      "tag": "0014_stage12_edit_invariants",
+      "breakpoints": true
+    },
+    {
+      "idx": 15,
+      "version": "7",
+      "when": 1787408228574,
+      "tag": "0015_stage12_version_selection",
+      "breakpoints": true
+    },
+    {
+      "idx": 16,
+      "version": "7",
+      "when": 1787408552533,
+      "tag": "0016_stage12_upscale_quality",
+      "breakpoints": true
+    }
+  ]
+}

@@ -1,3 +1,4 @@
+import "dotenv/config";
 import { randomBytes } from "node:crypto";
 import { mkdir, readFile, writeFile } from "node:fs/promises";
 import path from "node:path";
@@ -7,38 +8,229 @@ import rateLimit from "express-rate-limit";
 import helmet from "helmet";
 import multer from "multer";
 import nodemailer from "nodemailer";
-import sharp from "sharp";
+import { loadAuthConfig } from "./src/auth/config.mjs";
+import { createAuthRouter } from "./src/auth/http.mjs";
+import { createAuthMailer } from "./src/auth/mailer.mjs";
+import { createAuthPagesRouter } from "./src/auth/pages.mjs";
+import { AuthRepository } from "./src/auth/repository.mjs";
+import { AuthService } from "./src/auth/service.mjs";
+import { closeDatabase } from "./src/db/client.mjs";
+import { liveness, readiness } from "./src/health.mjs";
+import { ensurePrivateBucket } from "./src/infra/storage.mjs";
+import * as storage from "./src/infra/storage.mjs";
+import { closeRedis } from "./src/infra/redis.mjs";
+import { loadGenerationConfig } from "./src/generation/config.mjs";
+import { loadGenerationQualityConfig } from "./src/generation-quality/config.mjs";
+import { createGenerationQualityDiagnosticsRouter } from "./src/generation-quality/http.mjs";
+import { GenerationQualityRepository } from "./src/generation-quality/repository.mjs";
+import {
+  createGenerationMetricsRouter, createGenerationRouter, createGenerationStagingRouter,
+} from "./src/generation/http.mjs";
+import { GenerationMetrics } from "./src/generation/metrics.mjs";
+import { createGenerationQueue } from "./src/generation/queue.mjs";
+import { GenerationRepository } from "./src/generation/repository.mjs";
+import { GenerationService } from "./src/generation/service.mjs";
+import { loadProjectConfig } from "./src/projects/config.mjs";
+import { createProjectsRouter } from "./src/projects/http.mjs";
+import { createProjectPagesRouter } from "./src/projects/pages.mjs";
+import { ProjectRepository } from "./src/projects/repository.mjs";
+import { ProjectService } from "./src/projects/service.mjs";
+import { loadPhotoAssessmentConfig } from "./src/photo-assessment/config.mjs";
+import { PhotoAssessmentOrchestrator } from "./src/photo-assessment/orchestrator.mjs";
+import { createPhotoAssessmentProviders } from "./src/photo-assessment/providers.mjs";
+import { PhotoAssessmentRepository } from "./src/photo-assessment/repository.mjs";
+import { PhotoAssessmentService } from "./src/photo-assessment/service.mjs";
+import { analyzeTechnicalPhoto } from "./src/photo-assessment/technical.mjs";
+import { loadPaymentConfig } from "./src/payments/config.mjs";
+import { createPaymentRouter, createPaymentWebhookRouter } from "./src/payments/http.mjs";
+import { createPaymentPagesRouter } from "./src/payments/pages.mjs";
+import { RobokassaPaymentProvider } from "./src/payments/providers/robokassa.mjs";
+import { PaymentRepository } from "./src/payments/repository.mjs";
+import { PaymentService } from "./src/payments/service.mjs";
+import { loadWalletConfig } from "./src/wallet/config.mjs";
+import { createCatalogRouter, createWalletRouter } from "./src/wallet/http.mjs";
+import { createWalletPagesRouter } from "./src/wallet/pages.mjs";
+import { WalletRepository } from "./src/wallet/repository.mjs";
+import { WalletService } from "./src/wallet/service.mjs";
+import { createComparisonRouter } from "./src/comparison/http.mjs";
+import { ComparisonRepository } from "./src/comparison/repository.mjs";
+import { ComparisonService } from "./src/comparison/service.mjs";
+import { loadUpscaleConfig } from "./src/upscale/config.mjs";
+import { createUpscaleRouter } from "./src/upscale/http.mjs";
+import { createUpscaleQueue } from "./src/upscale/queue.mjs";
+import { UpscaleRepository } from "./src/upscale/repository.mjs";
+import { UpscaleService } from "./src/upscale/service.mjs";
 
-const required = ["SITE_ORIGIN", "MAX_BOT_TOKEN", "MAX_CHAT_ID", "SMTP_USER", "SMTP_PASSWORD", "LEADS_EMAIL"];
+const required = [
+  "SITE_ORIGIN", "DATABASE_URL", "REDIS_URL", "S3_ENDPOINT",
+  "S3_ACCESS_KEY_ID", "S3_SECRET_ACCESS_KEY", "S3_BUCKET",
+];
 const missing = required.filter((key) => !process.env[key]);
 if (missing.length) {
   console.error(`Missing environment variables: ${missing.join(", ")}`);
   process.exit(1);
 }
+const notificationVariables = ["MAX_BOT_TOKEN", "MAX_CHAT_ID", "SMTP_USER", "SMTP_PASSWORD", "LEADS_EMAIL"];
+const notificationsConfigured = notificationVariables.every((key) => process.env[key]);
 
 const app = express();
 const port = Number(process.env.PORT || 8080);
+const host = process.env.HOST || "0.0.0.0";
+const storageOrigin = new URL(process.env.S3_ENDPOINT).origin;
+const authConfig = loadAuthConfig();
+const walletConfig = loadWalletConfig();
+const paymentConfig = loadPaymentConfig();
+const paymentCheckoutOrigin = new URL(paymentConfig.checkoutUrl).origin;
+const walletRepository = new WalletRepository();
+const walletService = new WalletService({
+  repository: walletRepository,
+  config: walletConfig,
+});
+const paymentRepository = new PaymentRepository();
+const paymentProvider = new RobokassaPaymentProvider(paymentConfig);
+const paymentService = new PaymentService({
+  repository: paymentRepository,
+  provider: paymentProvider,
+  config: paymentConfig,
+});
+const generationConfig = loadGenerationConfig();
+const upscaleConfig = loadUpscaleConfig();
+const generationQualityConfig = loadGenerationQualityConfig();
+const generationRepository = new GenerationRepository();
+const generationQualityRepository = new GenerationQualityRepository();
+const generationQueue = createGenerationQueue(generationConfig);
+const generationService = new GenerationService({
+  repository: generationRepository,
+  storage,
+  walletService,
+  queue: generationQueue,
+  config: generationConfig,
+});
+const upscaleRepository = new UpscaleRepository();
+const upscaleQueue = createUpscaleQueue(upscaleConfig);
+const upscaleService = new UpscaleService({
+  repository: upscaleRepository,
+  queue: upscaleQueue,
+  walletService,
+  storage,
+  config: upscaleConfig,
+});
+const comparisonService = new ComparisonService({
+  repository: new ComparisonRepository(),
+  storage,
+  signedUrlTtlSeconds: generationConfig.resultSignedUrlTtlSeconds,
+});
+const generationMetrics = new GenerationMetrics({
+  repository: generationRepository,
+  queue: generationQueue,
+  qualityRepository: generationQualityRepository,
+});
+const authRepository = new AuthRepository(undefined, walletConfig);
+const authService = new AuthService({
+  repository: authRepository,
+  mailer: createAuthMailer(authConfig),
+  config: authConfig,
+});
+const projectConfig = loadProjectConfig();
+const projectRepository = new ProjectRepository();
+const photoAssessmentConfig = loadPhotoAssessmentConfig();
+const photoAssessmentRepository = new PhotoAssessmentRepository();
+const photoAssessmentOrchestrator = new PhotoAssessmentOrchestrator({
+  providers: createPhotoAssessmentProviders(photoAssessmentConfig),
+  config: photoAssessmentConfig,
+});
+const photoAssessmentService = new PhotoAssessmentService({
+  repository: photoAssessmentRepository,
+  orchestrator: photoAssessmentOrchestrator,
+  storage,
+});
+const projectService = new ProjectService({
+  repository: projectRepository,
+  storage,
+  config: projectConfig,
+  assessmentService: photoAssessmentService,
+});
 const maxApi = "https://platform-api2.max.ru";
 const allowedImages = new Set(["image/jpeg", "image/png", "image/webp"]);
 const dataDir = path.resolve(process.env.DATA_DIR || "./data");
 const ordersDir = path.join(dataDir, "orders");
 const photosDir = path.join(dataDir, "photos");
-const requestedAiProvider = cleanProvider(process.env.AI_PROVIDER || "auto");
-const yandexConfigured = Boolean(process.env.YANDEX_API_KEY && process.env.YANDEX_FOLDER_ID);
-const openAiConfigured = Boolean(process.env.OPENAI_API_KEY);
-const aiProvider = requestedAiProvider === "auto"
-  ? (yandexConfigured ? "yandex" : (openAiConfigured ? "openai" : "none"))
-  : requestedAiProvider;
-const aiEnabled = aiProvider === "yandex" ? yandexConfigured : aiProvider === "openai" ? openAiConfigured : false;
-const aiModel = aiProvider === "yandex"
-  ? (process.env.YANDEX_MODEL || "qwen3.6-35b-a3b")
-  : (process.env.OPENAI_MODEL || "gpt-4.1-mini");
-await Promise.all([mkdir(ordersDir, { recursive: true }), mkdir(photosDir, { recursive: true })]);
+const aiEnabled = photoAssessmentConfig.primary !== "none";
+await Promise.all([
+  mkdir(ordersDir, { recursive: true }),
+  mkdir(photosDir, { recursive: true }),
+  ensurePrivateBucket(),
+]);
 
 app.set("trust proxy", 1);
-app.use(helmet());
-app.use(cors({ origin: process.env.SITE_ORIGIN, methods: ["GET", "POST"] }));
+app.use(helmet({
+  contentSecurityPolicy: {
+    directives: {
+      imgSrc: ["'self'", "data:", "blob:", storageOrigin],
+      connectSrc: ["'self'", storageOrigin],
+      formAction: ["'self'", paymentCheckoutOrigin],
+    },
+  },
+}));
+app.use(cors({
+  origin: process.env.SITE_ORIGIN,
+  methods: ["GET", "POST", "PATCH", "DELETE", "OPTIONS"],
+  credentials: true,
+}));
+app.use("/api/payments/webhooks", createPaymentWebhookRouter({ paymentService }));
 app.use(express.json({ limit: "32kb" }));
+app.use("/assets", express.static(path.resolve("./public"), {
+  dotfiles: "deny",
+  fallthrough: false,
+  maxAge: process.env.NODE_ENV === "production" ? "1h" : 0,
+}));
+app.use("/api/auth", createAuthRouter({ service: authService, config: authConfig }));
+app.use("/api/projects", createProjectsRouter({ authService, projectService }));
+app.use("/api/projects", createGenerationRouter({ authService, generationService }));
+app.use("/api/projects", createUpscaleRouter({ authService, upscaleService }));
+app.use("/api/projects", createComparisonRouter({ authService, comparisonService }));
+app.use(
+  "/api/staging/generation",
+  createGenerationStagingRouter({ generationService, config: generationConfig }),
+);
+app.use(
+  "/internal/generation/metrics",
+  createGenerationMetricsRouter({ metrics: generationMetrics, config: generationConfig }),
+);
+app.use(
+  "/internal/generation/quality",
+  createGenerationQualityDiagnosticsRouter({
+    repository: generationQualityRepository,
+    storage,
+    config: generationQualityConfig,
+  }),
+);
+app.use("/api/wallet", createWalletRouter({ authService, walletService }));
+app.use("/api/catalog", createCatalogRouter({ authService, walletService }));
+app.use("/api/payments", createPaymentRouter({ authService, paymentService }));
+app.use(createProjectPagesRouter({
+  authService, projectService, generationService, walletService,
+  generationConfig, upscaleConfig, comparisonService,
+}));
+app.use(createWalletPagesRouter({
+  authService, walletService, paymentService, paymentConfig,
+}));
+app.use(createPaymentPagesRouter({ authService, paymentService, config: paymentConfig }));
+app.use(createAuthPagesRouter({ service: authService, config: authConfig }));
+const legacyLeadsMode = String(process.env.LEGACY_LEADS_MODE || "deprecated").toLowerCase();
+if (!["deprecated", "disabled"].includes(legacyLeadsMode)) {
+  throw new Error("LEGACY_LEADS_MODE must be deprecated or disabled");
+}
+app.use("/api/leads", (_request, response, next) => {
+  response.set("Deprecation", "true");
+  response.set("Link", '</app/new>; rel="successor-version"');
+  response.set("Warning", '299 - "Legacy leads API is deprecated; migrate to /app/new"');
+  if (process.env.LEGACY_LEADS_SUNSET) response.set("Sunset", process.env.LEGACY_LEADS_SUNSET);
+  if (legacyLeadsMode === "disabled") {
+    return response.status(410).json({ ok: false, error: "LEGACY_LEADS_DISABLED" });
+  }
+  return next();
+});
 app.use("/api/leads", rateLimit({ windowMs: 15 * 60 * 1000, limit: 8, standardHeaders: true }));
 app.use("/api/orders", rateLimit({ windowMs: 15 * 60 * 1000, limit: 30, standardHeaders: true }));
 
@@ -63,10 +255,6 @@ const mailer = nodemailer.createTransport({
 });
 
 const clean = (value, max = 500) => String(value || "").replace(/[<>]/g, "").trim().slice(0, max);
-function cleanProvider(value) {
-  const provider = String(value || "auto").trim().toLowerCase();
-  return new Set(["auto", "yandex", "openai", "none"]).has(provider) ? provider : "auto";
-}
 const makeOrderId = () => {
   const date = new Date().toISOString().slice(0, 10).replaceAll("-", "");
   return `VF-${date}-${randomBytes(4).toString("hex").toUpperCase()}`;
@@ -76,192 +264,58 @@ const orderFile = (id) => path.join(ordersDir, `${id}.json`);
 const saveOrder = (order) => writeFile(orderFile(order.id), JSON.stringify(order, null, 2), { mode: 0o600 });
 
 async function assessPhoto(file) {
-  const image = sharp(file.buffer, { failOn: "warning" });
-  const [metadata, stats] = await Promise.all([image.metadata(), image.stats()]);
-  const width = metadata.width || 0;
-  const height = metadata.height || 0;
-  const shortSide = Math.min(width, height);
-  const longSide = Math.max(width, height);
-  const reasons = [];
-  const meetsMinimumResolution = shortSide >= 420 && longSide >= 640;
-  const meetsRecommendedResolution = shortSide >= 800 && longSide >= 1200;
-  if (!meetsMinimumResolution) reasons.push("Разрешение фото ниже минимально допустимого — 640×420");
-  else if (!meetsRecommendedResolution) reasons.push("Разрешение ниже рекомендуемого, но допустимо для обработки");
-  if (width && height && (width / height < 0.45 || width / height > 2.6)) reasons.push("Слишком узкий или панорамный кадр");
-  if (stats.entropy < 2.4) reasons.push("На снимке мало различимых деталей");
-  const accepted = meetsMinimumResolution;
+  const technical = await analyzeTechnicalPhoto(file.buffer);
+  const accepted = !technical.blocking.includes("resolution_below_minimum");
+  const reasons = [...technical.blocking, ...technical.warnings];
   return {
     accepted,
-    label: accepted ? "Фото подходит для автоматической обработки" : "Нужна проверка качества фото",
+    label: accepted ? "Фото прошло техническую проверку" : "Нужно переснять фотографию",
     reasons,
-    width,
-    height,
-    format: metadata.format,
+    width: technical.width,
+    height: technical.height,
+    format: technical.format,
+    technical,
   };
-}
-
-const aiPhotoSchema = {
-  type: "object",
-  additionalProperties: false,
-  properties: {
-    decision: { type: "string", enum: ["accepted", "retake_required", "manual_review"] },
-    confidence: { type: "number", minimum: 0, maximum: 1 },
-    houseVisible: { type: "boolean" },
-    facadeVisible: { type: "boolean" },
-    geometryReadable: { type: "boolean" },
-    obstructionLevel: { type: "string", enum: ["none", "minor", "major"] },
-    perspective: { type: "string", enum: ["good", "acceptable", "poor"] },
-    issues: { type: "array", items: { type: "string" }, maxItems: 6 },
-    customerMessage: { type: "string" },
-    operatorSummary: { type: "string" },
-  },
-  required: [
-    "decision", "confidence", "houseVisible", "facadeVisible", "geometryReadable",
-    "obstructionLevel", "perspective", "issues", "customerMessage", "operatorSummary",
-  ],
-};
-
-function readResponseText(payload) {
-  for (const item of payload?.output || []) {
-    for (const content of item?.content || []) {
-      if (content?.type === "output_text" && content.text) return content.text;
-    }
-  }
-  throw new Error("OPENAI_EMPTY_OUTPUT");
-}
-
-const assessmentPrompt = [
-  "Ты проверяешь фотографию дома для сервиса визуализации отделки фасада.",
-  "Оцени только пригодность исходного фото, не предлагай дизайн.",
-  "accepted: фасад и основные границы дома хорошо видны, геометрия читается, перспектива пригодна для визуализации.",
-  "retake_required: это не дом или фасад, дом почти не виден, кадр сильно перекрыт, обрезан или геометрия нечитаема.",
-  "manual_review: пограничный случай, где решение должен принять оператор.",
-  "Небольшие деревья, забор или перспективные искажения допустимы.",
-  "Верни только JSON без Markdown со всеми полями: decision, confidence, houseVisible, facadeVisible, geometryReadable, obstructionLevel, perspective, issues, customerMessage, operatorSummary.",
-  "decision: accepted, retake_required или manual_review; confidence: число 0..1; obstructionLevel: none, minor или major; perspective: good, acceptable или poor.",
-  "issues — массив не более 6 коротких строк. customerMessage и operatorSummary пиши по-русски, просто и доброжелательно.",
-].join(" ");
-
-function extractAssessmentText(value) {
-  if (typeof value === "string") return value;
-  if (Array.isArray(value)) {
-    return value.map(extractAssessmentText).filter(Boolean).join("\n");
-  }
-  if (value && typeof value === "object") {
-    for (const key of ["text", "content", "value", "output_text"]) {
-      const extracted = extractAssessmentText(value[key]);
-      if (extracted) return extracted;
-    }
-    return JSON.stringify(value);
-  }
-  return "";
-}
-
-function parseAssessment(content) {
-  const normalized = extractAssessmentText(content).trim().replace(/^```(?:json)?\s*/i, "").replace(/\s*```$/, "");
-  const start = normalized.indexOf("{");
-  const end = normalized.lastIndexOf("}");
-  if (start < 0 || end <= start) throw new Error("AI_INVALID_JSON");
-  const result = JSON.parse(normalized.slice(start, end + 1));
-  const decisions = new Set(["accepted", "retake_required", "manual_review"]);
-  const obstructions = new Set(["none", "minor", "major"]);
-  const perspectives = new Set(["good", "acceptable", "poor"]);
-  if (!decisions.has(result.decision) || !obstructions.has(result.obstructionLevel) || !perspectives.has(result.perspective)) {
-    throw new Error("AI_INVALID_ASSESSMENT");
-  }
-  const confidence = Number(result.confidence);
-  if (!Number.isFinite(confidence) || confidence < 0 || confidence > 1) throw new Error("AI_INVALID_CONFIDENCE");
-  return {
-    decision: result.decision,
-    confidence,
-    houseVisible: Boolean(result.houseVisible),
-    facadeVisible: Boolean(result.facadeVisible),
-    geometryReadable: Boolean(result.geometryReadable),
-    obstructionLevel: result.obstructionLevel,
-    perspective: result.perspective,
-    issues: Array.isArray(result.issues) ? result.issues.map((item) => clean(item, 180)).filter(Boolean).slice(0, 6) : [],
-    customerMessage: clean(result.customerMessage, 600),
-    operatorSummary: clean(result.operatorSummary, 600),
-  };
-}
-
-async function assessPhotoWithYandex(file, signal) {
-  const imageUrl = `data:${file.mimetype};base64,${file.buffer.toString("base64")}`;
-  const apiResponse = await fetch("https://ai.api.cloud.yandex.net/v1/chat/completions", {
-    method: "POST",
-    signal,
-    headers: {
-      Authorization: `Api-Key ${process.env.YANDEX_API_KEY}`,
-      "OpenAI-Project": process.env.YANDEX_FOLDER_ID,
-      "Content-Type": "application/json",
-    },
-    body: JSON.stringify({
-      model: `gpt://${process.env.YANDEX_FOLDER_ID}/${aiModel}`,
-      temperature: 0.1,
-      max_tokens: 900,
-      response_format: {
-        type: "json_schema",
-        json_schema: {
-          name: "facade_photo_assessment",
-          strict: true,
-          schema: aiPhotoSchema,
-        },
-      },
-      messages: [{
-        role: "user",
-        content: [
-          { type: "text", text: assessmentPrompt },
-          { type: "image_url", image_url: { url: imageUrl } },
-        ],
-      }],
-    }),
-  });
-  if (!apiResponse.ok) throw new Error(`YANDEX_${apiResponse.status}: ${(await apiResponse.text()).slice(0, 500)}`);
-  const payload = await apiResponse.json();
-  return parseAssessment(payload?.choices?.[0]?.message?.content);
-}
-
-async function assessPhotoWithOpenAi(file, signal) {
-  const imageUrl = `data:${file.mimetype};base64,${file.buffer.toString("base64")}`;
-  const apiResponse = await fetch("https://api.openai.com/v1/responses", {
-    method: "POST",
-    signal,
-    headers: { Authorization: `Bearer ${process.env.OPENAI_API_KEY}`, "Content-Type": "application/json" },
-    body: JSON.stringify({
-      model: aiModel,
-      store: false,
-      max_output_tokens: 900,
-      input: [{ role: "user", content: [
-        { type: "input_text", text: assessmentPrompt },
-        { type: "input_image", image_url: imageUrl, detail: "high" },
-      ] }],
-      text: { format: { type: "json_schema", name: "facade_photo_assessment", strict: true, schema: aiPhotoSchema } },
-    }),
-  });
-  if (!apiResponse.ok) throw new Error(`OPENAI_${apiResponse.status}: ${(await apiResponse.text()).slice(0, 500)}`);
-  return parseAssessment(readResponseText(await apiResponse.json()));
 }
 
 async function assessPhotoWithAi(file) {
   if (!aiEnabled) return { enabled: false, status: "not_configured" };
-  const controller = new AbortController();
-  const timeout = setTimeout(() => controller.abort(), Number(process.env.AI_TIMEOUT_MS || process.env.OPENAI_TIMEOUT_MS || 45_000));
   try {
-    const result = aiProvider === "yandex"
-      ? await assessPhotoWithYandex(file, controller.signal)
-      : await assessPhotoWithOpenAi(file, controller.signal);
-    return { enabled: true, status: "completed", provider: aiProvider, model: aiModel, checkedAt: new Date().toISOString(), ...result };
-  } finally {
-    clearTimeout(timeout);
+    const technical = await analyzeTechnicalPhoto(file.buffer);
+    const result = await photoAssessmentOrchestrator.assess({
+      image: file.buffer,
+      technical,
+    });
+    return {
+      enabled: true,
+      status: "completed",
+      provider: result.provider,
+      model: result.model,
+      checkedAt: new Date().toISOString(),
+      decision: result.decision,
+      confidence: result.technicalResult.observation.confidence,
+      customerMessage: result.userResult.summary,
+      issues: result.userResult.recommendations,
+      technicalResult: result.technicalResult,
+      userResult: result.userResult,
+    };
+  } catch (error) {
+    return {
+      enabled: true,
+      status: "failed",
+      checkedAt: new Date().toISOString(),
+      error: error?.code || "PHOTO_ASSESSMENT_UNAVAILABLE",
+    };
   }
 }
 
 function decideOrderStatus(quality, aiAssessment) {
-  if (!quality.accepted) return "photo_review_required";
+  if (!quality.accepted) return "photo_retake_required";
   if (aiAssessment?.status !== "completed") return "queued_for_ai";
-  if (aiAssessment.decision === "accepted" && aiAssessment.confidence >= 0.72) return "queued_for_generation";
-  if (aiAssessment.decision === "retake_required" && aiAssessment.confidence >= 0.72) return "photo_retake_required";
-  return "photo_review_required";
+  if (["accepted", "accepted_with_warning"].includes(aiAssessment.decision)) {
+    return "queued_for_generation";
+  }
+  return "photo_retake_required";
 }
 
 const formatLead = ({ id, name, contact, wishes, packageName, quality, aiAssessment, status }) => [
@@ -272,7 +326,7 @@ const formatLead = ({ id, name, contact, wishes, packageName, quality, aiAssessm
   quality.reasons.length ? `Замечания: ${quality.reasons.join("; ")}` : null,
   `Размер фото: ${quality.width}×${quality.height}`,
   aiAssessment?.status === "completed" ? `ИИ-проверка: ${aiAssessment.decision} (${Math.round(aiAssessment.confidence * 100)}%)` : null,
-  aiAssessment?.status === "completed" ? `Вывод ИИ: ${aiAssessment.operatorSummary}` : null,
+  aiAssessment?.status === "completed" ? `Автоматический вывод: ${aiAssessment.customerMessage}` : null,
   aiAssessment?.status === "failed" ? "ИИ-проверка временно недоступна — заявка сохранена для повторной обработки" : null,
   `Тариф: ${packageName}`,
   `Имя: ${name}`,
@@ -319,13 +373,9 @@ async function sendToMail(text, file, contact) {
   });
 }
 
-app.get("/health", (_request, response) => response.json({
-  ok: true,
-  service: "vizhufasad-leads",
-  automation: "photo-ai-v3",
-  ai: aiEnabled ? "configured" : "not_configured",
-  aiProvider,
-}));
+app.get("/health/live", liveness);
+app.get("/health", readiness);
+app.get("/health/ready", readiness);
 
 app.get("/api/orders/:id/status", async (request, response) => {
   try {
@@ -350,6 +400,9 @@ app.get("/api/orders/:id/status", async (request, response) => {
 });
 
 app.post("/api/leads", upload.single("photo"), async (request, response) => {
+  if (!notificationsConfigured) {
+    return response.status(503).json({ ok: false, error: "Сервис уведомлений временно не настроен" });
+  }
   const name = clean(request.body.name, 80);
   const contact = clean(request.body.contact, 120);
   const wishes = clean(request.body.wishes, 1200);
@@ -414,4 +467,27 @@ app.use((error, _request, response, _next) => {
   return response.status(500).json({ ok: false, error: "Ошибка обработки заявки" });
 });
 
-app.listen(port, "0.0.0.0", () => console.log(`VIZHUFASAD leads API listening on ${port}`));
+const httpServer = app.listen(
+  port,
+  host,
+  () => console.log(`VIZHUFASAD API listening on ${host}:${port}`),
+);
+
+let closing = false;
+async function shutdown(signal) {
+  if (closing) return;
+  closing = true;
+  console.log("VIZHUFASAD API graceful shutdown", { signal });
+  httpServer.close(async () => {
+    await Promise.allSettled([
+      generationQueue.close(),
+      upscaleQueue.close(),
+      closeRedis(),
+      closeDatabase(),
+    ]);
+    process.exit(0);
+  });
+  setTimeout(() => process.exit(1), 15_000).unref();
+}
+process.once("SIGTERM", () => shutdown("SIGTERM"));
+process.once("SIGINT", () => shutdown("SIGINT"));
