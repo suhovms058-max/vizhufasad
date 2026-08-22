@@ -33,6 +33,7 @@ function harness({
   generationKind = "standard",
   providerKinds,
   editMask = false,
+  resumableRequestId = null,
 } = {}) {
   const events = [];
   let status = "queued";
@@ -63,6 +64,12 @@ function harness({
     async heartbeat() {},
     async transition(_id, _from, to) { status = to; events.push(["status", to]); return generation; },
     async nextAttemptNumber() { attemptNumber += 1; return attemptNumber; },
+    async resumeProviderAttempt() {
+      if (!resumableRequestId) return null;
+      events.push(["resumed", resumableRequestId]);
+      return { id: "attempt-resumed", seed: 7, provider_request_id: resumableRequestId };
+    },
+    async attachProviderRequest(_id, requestId) { return requestId; },
     async startAttempt(input) {
       events.push(["attempt", input.candidateNumber]);
       return { id: `attempt-${attemptNumber}` };
@@ -118,7 +125,9 @@ function harness({
     estimatedCostMinor: 100,
     currency: "RUB",
     async generate(input) {
-      events.push(["provider", Boolean(input.maskImage)]);
+      const event = ["provider", Boolean(input.maskImage)];
+      if (input.resumeRequestId) event.push(input.resumeRequestId);
+      events.push(event);
       if (providerError) throw providerError;
       return {
         provider: "mock", jobId: `job-${attemptNumber}`, model: "mock-edit",
@@ -178,6 +187,14 @@ test("masked edit uses the parent result, passes the private mask and stores an 
   assert.equal(getStatus(), "completed");
   assert.deepEqual(events.find((event) => event[0] === "provider"), ["provider", true]);
   assert.equal(events.some((event) => event[0] === "stored" && event[1].endsWith("/edit.jpg")), true);
+});
+
+test("worker restart resumes the persisted GenAPI request instead of creating another paid attempt", async () => {
+  const { processor, job, events } = harness({ resumableRequestId: "paid-request-42" });
+  await processor.process(job);
+  assert.deepEqual(events.find((event) => event[0] === "resumed"), ["resumed", "paid-request-42"]);
+  assert.deepEqual(events.find((event) => event[0] === "provider"), ["provider", false, "paid-request-42"]);
+  assert.equal(events.some((event) => event[0] === "attempt"), false);
 });
 
 test("first quality rejection triggers one free stricter candidate and then passes", async () => {

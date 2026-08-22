@@ -103,19 +103,26 @@ export class GenerationProcessor {
       provider.generationKinds == null || provider.generationKinds.includes(kind)
     ));
     for (const provider of providers) {
-      const seed = this.seedFactory();
-      const attemptNumber = await this.repository.nextAttemptNumber(generation.id);
-      const attempt = await this.repository.startAttempt({
-        generationId: generation.id,
-        attemptNumber,
-        provider: provider.name,
-        model: provider.model,
-        promptVersion: prompt.version,
-        seed,
-        estimatedCostMinor: provider.estimatedCostMinor ?? null,
-        currency: provider.currency ?? null,
-        candidateNumber,
-      });
+      let attempt = await this.repository.resumeProviderAttempt?.(
+        generation.id, candidateNumber, provider.name, provider.model,
+      );
+      const resumedRequestId = attempt?.provider_request_id || null;
+      const seed = attempt?.seed || this.seedFactory();
+      if (!attempt) {
+        const attemptNumber = await this.repository.nextAttemptNumber(generation.id);
+        attempt = await this.repository.startAttempt({
+          generationId: generation.id,
+          attemptNumber,
+          provider: provider.name,
+          model: provider.model,
+          promptVersion: prompt.version,
+          seed,
+          estimatedCostMinor: provider.estimatedCostMinor ?? null,
+          currency: provider.currency ?? null,
+          candidateNumber,
+        });
+      }
+      let submittedRequestId = resumedRequestId;
       const timeoutSignal = AbortSignal.timeout(this.config.timeoutMs);
       const providerSignal = signal
         ? AbortSignal.any([signal, timeoutSignal])
@@ -130,6 +137,14 @@ export class GenerationProcessor {
           seed,
           ...dimensions,
           signal: providerSignal,
+          resumeRequestId: resumedRequestId,
+          onSubmitted: async (requestId) => {
+            submittedRequestId = requestId;
+            const stored = await this.repository.attachProviderRequest(attempt.id, requestId);
+            if (stored !== requestId) {
+              throw new GenerationError("GENAPI_REQUEST_ID_PERSIST_FAILED", 500, { retryable: true });
+            }
+          },
         });
         const candidateImage = await normalizeAndCheckProviderResult(providerResult.result);
         const key = `users/${generation.user_id}/projects/${generation.project_id}/generations/${generation.id}/quality/candidate-${candidateNumber}-${attempt.id}.jpg`;
@@ -153,6 +168,7 @@ export class GenerationProcessor {
           ? caught
           : new GenerationError("GENERATION_PROVIDER_FAILED", 502, { retryable: true });
         await this.repository.failAttempt(attempt.id, lastError);
+        if (submittedRequestId) throw lastError;
         if (!lastError.retryable) break;
       }
     }

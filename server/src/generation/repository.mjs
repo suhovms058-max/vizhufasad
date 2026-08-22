@@ -272,13 +272,38 @@ export class GenerationRepository {
     return result.rows[0];
   }
 
+  async resumeProviderAttempt(generationId, candidateNumber, provider, model) {
+    const result = await this.pool.query(
+      `update generation_attempts set status = 'started', finished_at = null
+       where id = (
+         select id from generation_attempts
+         where generation_id = $1 and candidate_number = $2 and provider = $3 and model = $4
+           and provider_request_id is not null and status in ('started', 'retryable_failed')
+         order by attempt_number desc limit 1
+       ) returning *`,
+      [generationId, candidateNumber, provider, model],
+    );
+    return result.rows[0] ?? null;
+  }
+
+  async attachProviderRequest(attemptId, requestId) {
+    const result = await this.pool.query(
+      `update generation_attempts set provider_request_id = coalesce(provider_request_id, $2)
+       where id = $1 and status = 'started'
+         and (provider_request_id is null or provider_request_id = $2)
+       returning provider_request_id`,
+      [attemptId, String(requestId)],
+    );
+    return result.rows[0]?.provider_request_id ?? null;
+  }
+
   async succeedAttempt(attemptId, result) {
     await this.pool.query(
       `update generation_attempts set status = 'succeeded',
         provider_request_id = $2, model = $3, seed = $4, duration_ms = $5,
         estimated_cost_minor = $6, actual_cost_minor = $7, cost_currency = $8,
         finished_at = now()
-       where id = $1 and status = 'started'`,
+       where id = $1 and status in ('started', 'retryable_failed')`,
       [
         attemptId, result.jobId, result.model, result.seed, result.durationMs,
         result.estimatedCostMinor, result.actualCostMinor, result.currency,
@@ -313,7 +338,7 @@ export class GenerationRepository {
     await this.pool.query(
       `update generation_attempts set status = $2, error_code = $3,
         error_details = $4, finished_at = now()
-       where id = $1 and status = 'started'`,
+       where id = $1 and status in ('started', 'retryable_failed')`,
       [
         attemptId,
         error.retryable ? "retryable_failed" : "terminal_failed",

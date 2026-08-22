@@ -77,18 +77,25 @@ export class GenApiUpscaleProvider {
     return response;
   }
 
-  async upscale({ sourceImage, sourceMimeType = "image/jpeg", signal }) {
+  async upscale({
+    sourceImage, sourceMimeType = "image/jpeg", signal,
+    resumeRequestId = null, onSubmitted = null,
+  }) {
     const startedAt = Date.now();
-    const body = new FormData();
-    const extension = sourceMimeType === "image/png" ? "png" : "jpg";
-    body.append("image_url", new Blob([sourceImage], { type: sourceMimeType }), `source.${extension}`);
-    body.append("upscaling_factor", String(this.factor));
-    body.append("is_sync", "false");
-    const created = await json(await this.request(`/networks/${encodeURIComponent(this.model)}`, {
-      method: "POST", body,
-    }, signal));
-    const requestId = created?.request_id ?? created?.id;
-    if (requestId == null) throw new UpscaleError("UPSCALE_INVALID_CREATE_RESPONSE", 502, { retryable: true });
+    let requestId = resumeRequestId;
+    if (requestId == null) {
+      const body = new FormData();
+      const extension = sourceMimeType === "image/png" ? "png" : "jpg";
+      body.append("image_url", new Blob([sourceImage], { type: sourceMimeType }), `source.${extension}`);
+      body.append("upscaling_factor", String(this.factor));
+      body.append("is_sync", "false");
+      const created = await json(await this.request(`/networks/${encodeURIComponent(this.model)}`, {
+        method: "POST", body,
+      }, signal));
+      requestId = created?.request_id ?? created?.id;
+      if (requestId == null) throw new UpscaleError("UPSCALE_INVALID_CREATE_RESPONSE", 502, { retryable: true });
+      if (onSubmitted) await onSubmitted(String(requestId));
+    }
     let payload;
     while (true) {
       await wait(this.pollIntervalMs, undefined, { signal });

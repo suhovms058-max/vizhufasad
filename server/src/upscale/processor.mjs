@@ -83,7 +83,19 @@ export class UpscaleProcessor {
       const source = await this.storage.getPrivateObjectBuffer(upscale.source_key, this.config.resultMaxBytes);
       const timeout = AbortSignal.timeout(this.config.timeoutMs);
       const signal = workerSignal ? AbortSignal.any([workerSignal, timeout]) : timeout;
-      const providerResult = await this.provider.upscale({ sourceImage: source, signal });
+      const providerResult = await this.provider.upscale({
+        sourceImage: source,
+        signal,
+        resumeRequestId: upscale.provider_request_id || null,
+        onSubmitted: async (requestId) => {
+          const stored = await this.repository.attachProviderRequest(
+            id, requestId, this.provider.name, this.provider.model,
+          );
+          if (stored !== requestId) {
+            throw new UpscaleError("UPSCALE_REQUEST_ID_PERSIST_FAILED", 500, { retryable: true });
+          }
+        },
+      });
       const qualityResult = await validateUpscale(source, providerResult.result);
       const output = await sharp(providerResult.result, { limitInputPixels: 100_000_000 })
         .rotate().toColorspace("srgb").jpeg({ quality: 95, chromaSubsampling: "4:4:4" }).toBuffer();

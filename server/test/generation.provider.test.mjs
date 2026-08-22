@@ -37,13 +37,16 @@ test("GenAPI provider submits image edit, polls and downloads the temporary resu
       throw new Error(`Unexpected URL ${url}`);
     },
   });
+  let submitted;
   const result = await provider.generate({
     sourceImage: Buffer.from("source"),
     prompt: "edit facade",
     seed: 123,
     width: 1024,
     height: 768,
+    async onSubmitted(requestId) { submitted = requestId; },
   });
+  assert.equal(submitted, "42");
   assert.equal(result.provider, "genapi");
   assert.equal(result.jobId, "42");
   assert.equal(result.model, "flux-2-pro");
@@ -103,6 +106,27 @@ test("GenAPI provider uses each edit model's documented image field and controls
     assert.equal(body.get(imageField).type, "image/jpeg", model);
     assert.equal(body.get(control), expected, model);
   }
+});
+
+test("GenAPI resumes a persisted paid request without submitting another generation", async () => {
+  const calls = [];
+  const provider = new GenApiGenerationProvider({
+    apiKey: "secret", pollIntervalMs: 1,
+    fetchImplementation: async (url, options = {}) => {
+      calls.push([String(url), options.method]);
+      assert.equal(String(url).includes("/networks/"), false);
+      if (String(url).includes("/request/get/paid-42")) {
+        return Response.json({ status: "success", result: ["https://files.test/result.jpg"] });
+      }
+      return new Response(Buffer.from("result"), { headers: { "content-type": "image/jpeg" } });
+    },
+  });
+  const result = await provider.generate({
+    sourceImage: Buffer.from("source"), prompt: "edit", seed: 1, width: 1024, height: 768,
+    resumeRequestId: "paid-42",
+  });
+  assert.equal(result.jobId, "paid-42");
+  assert.deepEqual(calls.map((call) => call[1]), ["GET", "GET"]);
 });
 
 test("GenAPI sends a custom mask as a second image and fails closed for one-image models", async () => {

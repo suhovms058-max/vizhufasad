@@ -74,6 +74,18 @@ export class UpscaleRepository {
     return result.rows[0] ?? null;
   }
 
+  async attachProviderRequest(id, requestId, provider, model) {
+    const result = await this.pool.query(
+      `update generation_upscales set provider_request_id = coalesce(provider_request_id, $2),
+         provider = $3, model = $4, updated_at = now()
+       where id = $1 and status = 'processing'
+         and (provider_request_id is null or provider_request_id = $2)
+       returning provider_request_id`,
+      [id, String(requestId), provider, model],
+    );
+    return result.rows[0]?.provider_request_id ?? null;
+  }
+
   async markRetryable(id, code) {
     await this.pool.query(
       `update generation_upscales set status = 'queued', failure_code = $2, updated_at = now()

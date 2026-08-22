@@ -62,7 +62,11 @@ export class UpscaleService {
     if (!upscale) throw new UpscaleError("UPSCALE_NOT_FOUND", 404);
     const { source_bucket: _sourceBucket, source_key: _sourceKey, result_bucket: _resultBucket,
       result_key: resultKey, wallet_reservation_id: _reservation, queue_job_id: _job, ...safe } = upscale;
-    return { ...safe, resultAvailable: upscale.status === "completed" && Boolean(resultKey) };
+    return {
+      ...safe,
+      resultAvailable: upscale.status === "completed" && Boolean(resultKey),
+      cancellable: ["created", "queued"].includes(upscale.status),
+    };
   }
 
   async resultUrl(userId, projectId, id) {

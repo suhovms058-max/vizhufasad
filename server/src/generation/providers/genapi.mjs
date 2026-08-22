@@ -215,27 +215,32 @@ export class GenApiGenerationProvider {
   async generate({
     sourceImage, sourceMimeType = "image/jpeg", maskImage = null,
     maskMimeType = "image/png", prompt, seed, width, height, signal,
+    resumeRequestId = null, onSubmitted = null,
   }) {
     const submittedAt = Date.now();
-    const body = createGenerationBody({
-      model: this.model,
-      sourceImage,
-      sourceMimeType,
-      maskImage,
-      maskMimeType,
-      prompt,
-      seed,
-      width,
-      height,
-    });
-    const createResponse = await this.request(`/networks/${encodeURIComponent(this.model)}`, {
-      method: "POST",
-      headers: this.headers(),
-      body,
-    }, signal);
-    const created = await safeJson(createResponse);
-    const requestId = created?.request_id ?? created?.id;
-    if (requestId == null) throw providerError("GENAPI_INVALID_CREATE_RESPONSE", 502, true);
+    let requestId = resumeRequestId;
+    if (requestId == null) {
+      const body = createGenerationBody({
+        model: this.model,
+        sourceImage,
+        sourceMimeType,
+        maskImage,
+        maskMimeType,
+        prompt,
+        seed,
+        width,
+        height,
+      });
+      const createResponse = await this.request(`/networks/${encodeURIComponent(this.model)}`, {
+        method: "POST",
+        headers: this.headers(),
+        body,
+      }, signal);
+      const created = await safeJson(createResponse);
+      requestId = created?.request_id ?? created?.id;
+      if (requestId == null) throw providerError("GENAPI_INVALID_CREATE_RESPONSE", 502, true);
+      if (onSubmitted) await onSubmitted(String(requestId));
+    }
 
     let payload;
     while (true) {

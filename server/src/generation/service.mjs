@@ -222,6 +222,7 @@ export class GenerationService {
     return {
       ...safe,
       resultAvailable: generation.status === "completed" && Boolean(key),
+      cancellable: ["created", "queued", "retrying"].includes(generation.status),
     };
   }
 

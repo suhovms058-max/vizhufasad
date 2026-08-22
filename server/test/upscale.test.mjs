@@ -54,6 +54,27 @@ test("GenAPI DRCT adapter sends a 4x image upscale and returns provider cost", a
   assert.equal(result.actualCostMinor, 850);
 });
 
+test("DRCT adapter resumes the persisted request id instead of paying twice", async () => {
+  const calls = [];
+  const output = await image(3840, 2160);
+  const provider = new GenApiUpscaleProvider({
+    apiKey: "secret", pollIntervalMs: 1,
+    fetchImplementation: async (url, options = {}) => {
+      calls.push([String(url), options.method]);
+      assert.equal(String(url).includes("/networks/"), false);
+      if (String(url).includes("/request/get/paid-upscale")) {
+        return Response.json({ status: "success", result: ["https://files.test/result.jpg"] });
+      }
+      return new Response(output, { headers: { "content-type": "image/jpeg" } });
+    },
+  });
+  const result = await provider.upscale({
+    sourceImage: await image(960, 540), resumeRequestId: "paid-upscale",
+  });
+  assert.equal(result.requestId, "paid-upscale");
+  assert.deepEqual(calls.map((call) => call[1]), ["GET", undefined]);
+});
+
 test("upscale service reserves one credit and enqueues idempotently", async () => {
   const events = [];
   const row = { id: "upscale-1", status: "created" };
