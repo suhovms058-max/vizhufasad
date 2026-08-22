@@ -75,7 +75,7 @@ export class WalletService {
       features: {
         wallet: this.config.walletEnabled,
         tariffCatalog: this.config.tariffCatalogEnabled,
-        payments: false,
+        payments: this.config.paymentsEnabled,
       },
     };
   }

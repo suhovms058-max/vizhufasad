@@ -12,11 +12,8 @@ test("wallet feature flags default to the safe stage 6 configuration", () => {
   });
 });
 
-test("payments cannot be exposed before a provider exists", () => {
-  assert.throws(
-    () => loadWalletConfig({ FEATURE_PAYMENTS_ENABLED: "true" }),
-    /cannot be enabled before a payment provider exists/,
-  );
+test("payments become visible only through an explicit feature flag", () => {
+  assert.equal(loadWalletConfig({ FEATURE_PAYMENTS_ENABLED: "true" }).paymentsEnabled, true);
 });
 
 test("feature flag values are strict booleans", () => {

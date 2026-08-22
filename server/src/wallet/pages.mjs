@@ -1,3 +1,4 @@
+import { randomUUID } from "node:crypto";
 import express from "express";
 import { createRequireSession } from "../auth/http.mjs";
 
@@ -23,59 +24,98 @@ function creditsLabel(value) {
   return `${amount} ${noun}`;
 }
 
+const statusLabels = {
+  created: "Создан",
+  pending: "Ожидает оплаты",
+  paid: "Оплачен",
+  cancelled: "Отменён",
+  failed: "Ошибка",
+  refunded: "Возвращён",
+};
+
 function page(body) {
   return `<!doctype html><html lang="ru"><head><meta charset="utf-8">
   <meta name="viewport" content="width=device-width,initial-scale=1">
-  <title>Баланс и тарифы — ВИЖУФАСАД</title>
-  <style>
-  :root{font-family:Inter,system-ui,sans-serif;color:#17201b;background:#f2f4ef}
-  body{margin:0}header{padding:20px max(24px,calc((100% - 980px)/2));background:#173d2c}
-  header a{color:#fff;text-decoration:none;font-weight:800}main{max-width:980px;margin:auto;padding:36px 24px}
-  nav{display:flex;gap:18px;flex-wrap:wrap;margin-bottom:28px}a{color:#176b46}.balance{font-size:2.2rem;font-weight:800}
-  .grid{display:grid;grid-template-columns:repeat(auto-fit,minmax(210px,1fr));gap:16px}
-  .card{background:#fff;border-radius:14px;padding:20px;box-shadow:0 3px 16px #173d2c12}
-  table{width:100%;border-collapse:collapse;background:#fff}th,td{text-align:left;padding:12px;border-bottom:1px solid #dce3dd}
-  .muted{color:#617066}
-  </style></head><body><header><a href="/app">ВИЖУФАСАД</a></header><main>${body}</main></body></html>`;
+  <meta name="color-scheme" content="light"><title>Баланс и тарифы — ВИЖУФАСАД</title>
+  <link rel="stylesheet" href="/assets/app-ui.css"></head><body><a class="skip-link" href="#main">К содержанию</a>
+  <header class="app-header"><a class="brand" href="/app">ВИЖУФАСАД</a><nav aria-label="Основная навигация">
+  <a href="/app">Мои проекты</a><a href="/app/new">Новый проект</a><a href="/app/balance" aria-current="page">Баланс</a><a href="/app/settings">Настройки</a></nav></header>
+  <main id="main" class="app-main">${body}</main><footer class="app-footer"><a href="/legal/offer">Условия оплаты</a>
+  <a href="/legal/privacy">Конфиденциальность</a><a href="/legal/refunds">Возвраты</a></footer></body></html>`;
 }
 
-const navigation = `<nav><a href="/app">Мои проекты</a><a href="/app/new">Новый проект</a>
-  <a href="/app/balance">Баланс и тарифы</a><a href="/app/settings">Настройки</a></nav>`;
+function returnNotice(query) {
+  if (query.payment_error) {
+    const messages = {
+      PROMO_NOT_AVAILABLE: "Промокод недействителен или срок его действия закончился.",
+      PROMO_ALREADY_USED: "Этот промокод уже был использован вашим аккаунтом.",
+      PROMO_LIMIT_REACHED: "Лимит применений промокода исчерпан.",
+      INSUFFICIENT_CREDITS: "Возврат невозможен: часть купленных кредитов уже использована.",
+      REFUND_OPERATION_KEY_UNAVAILABLE: "Автоматический возврат ещё недоступен: Robokassa не передала идентификатор операции.",
+    };
+    return `<div class="notice error" role="alert">${escapeHtml(messages[query.payment_error] || "Операцию выполнить не удалось. Баланс не изменён.")}</div>`;
+  }
+  if (query.refund === "pending") {
+    return '<div class="notice success" role="status">Запрос возврата передан в Robokassa. Итоговый статус появится в истории.</div>';
+  }
+  if (!query.payment_return) return "";
+  const failed = query.payment_return === "fail";
+  return `<div class="notice ${failed ? "error" : "success"}" role="status">
+    ${failed
+      ? "Платёж не завершён. Кредиты не начислялись."
+      : "Вы вернулись со страницы оплаты. Это не подтверждение платежа: баланс изменится только после подписанного уведомления Robokassa."}
+  </div>`;
+}
 
-export function createWalletPagesRouter({ authService, walletService }) {
+export function createWalletPagesRouter({ authService, walletService, paymentService, paymentConfig }) {
   const router = express.Router();
   router.use("/app", createRequireSession(authService, { html: true }));
   router.get("/app/balance", async (request, response, next) => {
     try {
-      const [wallet, catalog, history] = await Promise.all([
+      const paymentHistoryPromise = paymentConfig?.enabled
+        ? paymentService.history(request.auth.user_id, 30)
+        : Promise.resolve([]);
+      const [wallet, catalog, history, payments] = await Promise.all([
         walletService.summary(request.auth.user_id),
         walletService.catalog(),
         walletService.history(request.auth.user_id, 20),
+        paymentHistoryPromise,
       ]);
-      const tariffs = catalog.tariffs.map((tariff) => `<article class="card">
-        <h3>${escapeHtml(tariff.name)}</h3>
-        <p><strong>${escapeHtml(rubles(tariff.priceMinor))}</strong></p>
+      const tariffs = catalog.tariffs.map((tariff) => `<article class="panel tariff-card">
+        <h3>${escapeHtml(tariff.name)}</h3><p><strong>${escapeHtml(rubles(tariff.priceMinor))}</strong></p>
         <p>${escapeHtml(creditsLabel(tariff.credits))}</p>
+        ${paymentConfig?.enabled && tariff.priceMinor > 0 ? `<form method="post" action="/app/payments/checkout">
+          <input type="hidden" name="tariffPlanId" value="${escapeHtml(tariff.id)}">
+          <input type="hidden" name="idempotencyKey" value="${randomUUID()}">
+          <label for="promo-${escapeHtml(tariff.id)}">Промокод, если есть</label>
+          <input id="promo-${escapeHtml(tariff.id)}" name="promoCode" maxlength="32" autocomplete="off">
+          <p><button type="submit">Перейти к оплате</button></p></form>` : ""}
       </article>`).join("");
-      const actions = catalog.actions.map((action) => `<tr>
-        <td>${escapeHtml(action.name)}</td>
-        <td>${action.credits === 0 ? "Бесплатно" : `${escapeHtml(action.credits)} кр.`}</td>
+      const actions = catalog.actions.map((action) => `<tr><td>${escapeHtml(action.name)}</td>
+        <td>${action.credits === 0 ? "Бесплатно" : `${escapeHtml(action.credits)} кр.`}</td></tr>`).join("");
+      const walletRows = history.map((item) => `<tr><td>${escapeHtml(new Date(item.created_at).toLocaleDateString("ru-RU"))}</td>
+        <td>${escapeHtml(item.type)}</td><td>${Number(item.amount) > 0 ? "+" : ""}${escapeHtml(item.amount)}</td>
+        <td>${escapeHtml(item.balance_after)}</td></tr>`).join("");
+      const paymentRows = payments.map((payment) => `<tr>
+        <td>${escapeHtml(new Date(payment.createdAt).toLocaleString("ru-RU"))}</td>
+        <td>${escapeHtml(payment.tariffName || payment.description)}</td><td>${escapeHtml(rubles(payment.amountMinor))}</td>
+        <td>${escapeHtml(statusLabels[payment.status] || payment.status)}</td>
+        <td class="optional">${payment.receipts?.length
+          ? payment.receipts.map((receipt) => escapeHtml(receipt.status === "succeeded" ? "Чек выдан" : "Чек формирует Robokassa")).join("<br>")
+          : "—"}</td>
+        <td>${payment.refundable && paymentConfig.password3 ? `<form method="post" action="/app/payments/${escapeHtml(payment.id)}/refund">
+          <input type="hidden" name="idempotencyKey" value="${randomUUID()}"><button class="secondary" type="submit">Вернуть</button></form>` : ""}</td>
       </tr>`).join("");
-      const rows = history.map((transaction) => `<tr>
-        <td>${escapeHtml(new Date(transaction.created_at).toLocaleDateString("ru-RU"))}</td>
-        <td>${escapeHtml(transaction.type)}</td>
-        <td>${Number(transaction.amount) > 0 ? "+" : ""}${escapeHtml(transaction.amount)}</td>
-        <td>${escapeHtml(transaction.balance_after)}</td>
-      </tr>`).join("");
-      return response.type("html").send(page(`${navigation}
-        <h1>Баланс и тарифы</h1>
-        <section class="card"><p class="muted">Доступно</p>
-          <p class="balance">${escapeHtml(creditsLabel(wallet.balance))}</p></section>
-        <h2>Пакеты кредитов</h2><div class="grid">${tariffs}</div>
-        <p class="muted">Пакеты приведены как единая справочная тарифная сетка.</p>
-        <h2>Стоимость действий</h2><table><tbody>${actions}</tbody></table>
-        <h2>История</h2><table><thead><tr><th>Дата</th><th>Операция</th>
-          <th>Изменение</th><th>Баланс</th></tr></thead><tbody>${rows}</tbody></table>`));
+      return response.type("html").send(page(`${returnNotice(request.query)}
+        <section class="page-heading"><div><p class="eyebrow">Кошелёк</p><h1>Баланс и тарифы</h1></div></section>
+        <section class="panel balance-card"><p class="muted">Доступно</p>
+          <p class="balance-value">${escapeHtml(creditsLabel(wallet.balance))}</p></section>
+        <h2>Пакеты кредитов</h2><div class="tariff-grid">${tariffs}</div>
+        <p class="muted">Цена и количество кредитов загружаются из единого серверного справочника.</p>
+        ${paymentConfig?.enabled ? "" : '<p class="notice">Платежи временно выключены. Неработающая оплата пользователю не показывается.</p>'}
+        <h2>Стоимость действий</h2><div class="table-wrap"><table><tbody>${actions}</tbody></table></div>
+        ${paymentConfig?.enabled ? `<h2>Платежи и чеки</h2><div class="table-wrap"><table><thead><tr><th>Дата</th><th>Пакет</th><th>Сумма</th><th>Статус</th><th class="optional">Чек</th><th></th></tr></thead><tbody>${paymentRows || '<tr><td colspan="6">Платежей пока нет</td></tr>'}</tbody></table></div>` : ""}
+        <h2>История баланса</h2><div class="table-wrap"><table><thead><tr><th>Дата</th><th>Операция</th><th>Изменение</th><th>Баланс</th></tr></thead><tbody>${walletRows}</tbody></table></div>`));
     } catch (error) {
       return next(error);
     }

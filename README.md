@@ -35,12 +35,19 @@ npm run dev
 
 `NEXT_PUBLIC_LEADS_API_URL` встраивается в статическую сборку и не должен содержать секретов.
 
+Staging nginx обслуживает каталог `out`, поэтому сборка для Timeweb выполняется явно в режиме static export:
+
+```bash
+NEXT_OUTPUT=export npm run build
+test -f out/index.html
+```
+
 Проверка GitHub Pages export:
 
 ```bash
 GITHUB_ACTIONS=true \
 NEXT_PUBLIC_BASE_PATH=/vizhufasad \
-NEXT_PUBLIC_LEADS_API_URL=https://89-23-97-248.sslip.io/api/leads \
+NEXT_PUBLIC_LEADS_API_URL=https://vizhufasad.ru/api/leads \
 npm run build
 test -f out/index.html
 ```
@@ -114,8 +121,8 @@ npm test
 
 - Фронтенд: push в `main` запускает `.github/workflows/deploy-pages.yml`, создаёт static export `out/` и публикует его в GitHub Pages.
 - API: отдельный Node.js/Express-процесс на VPS Timeweb; GitHub Actions его не разворачивает.
-- Публичный адрес фронтенда: `https://suhovms058-max.github.io/vizhufasad/`.
-- Используемый фронтендом API: `https://89-23-97-248.sslip.io/api/leads`.
+- Публичный адрес фронтенда: `https://vizhufasad.ru/`.
+- Используемый фронтендом API: `https://vizhufasad.ru/api`.
 
 Изменения этого этапа находятся в отдельной ветке и не должны сливаться в `main` без проверки и явного решения владельца.
 
@@ -297,3 +304,56 @@ npm run test:e2e
 ```
 
 Подробные маршруты, запуск и ограничения: [`docs/STAGE_10_STANDARD_USER_FLOW.md`](docs/STAGE_10_STANDARD_USER_FLOW.md).
+
+## Разовые платежи Robokassa
+
+Публичный сертификат для проверки подписанного `ResultUrl2` скачивается только с официального адреса Robokassa и хранится отдельно от релиза. Перед заменой проверьте срок действия сертификата:
+
+```bash
+sudo install -d -m 755 /etc/vizhufasad
+curl --fail --silent --show-error --location \
+  https://docs.robokassa.ru/media/files/jwtsign.cer \
+  | sudo tee /etc/vizhufasad/robokassa-jwtsign.cer >/dev/null
+openssl x509 -in /etc/vizhufasad/robokassa-jwtsign.cer -noout -subject -issuer -dates
+```
+
+Этап 11 добавляет provider-independent платёжный модуль с адаптером Robokassa для самозанятого НПД. Checkout создаёт только сервер по активной версии тарифа из PostgreSQL. Кредиты начисляются один раз после валидного подписанного `ResultURL`; возврат пользователя через `SuccessUrl2` не меняет баланс.
+
+По умолчанию платежи и подписки выключены. Для локальной проверки без реального списания заполните только `server/.env`, примените миграции и явно включите тестовый магазин:
+
+```dotenv
+FEATURE_PAYMENTS_ENABLED=true
+FEATURE_SUBSCRIPTIONS_ENABLED=false
+PAYMENT_PROVIDER=robokassa
+PAYMENT_TEST_MODE=true
+ROBOKASSA_MERCHANT_LOGIN=логин_тестового_магазина
+ROBOKASSA_PASSWORD1=тестовый_password_1
+ROBOKASSA_PASSWORD2=тестовый_password_2
+ROBOKASSA_SIGNATURE_ALGORITHM=sha256
+ROBOKASSA_OPERATION_STATE_URL=https://auth.robokassa.ru/Merchant/WebService/Service.asmx/OpStateExt
+ROBOKASSA_RESULT2_URL=https://ваш_домен/api/payments/webhooks/robokassa/result2
+ROBOKASSA_RESULT2_PUBLIC_KEY_FILE=/etc/vizhufasad/robokassa-jwtsign.cer
+LEGAL_MERCHANT_NAME=ФИО_самозанятого
+LEGAL_MERCHANT_INN=ИНН_самозанятого
+LEGAL_MERCHANT_EMAIL=email_для_обращений
+LEGAL_MERCHANT_STATUS=Самозанятый, плательщик НПД
+```
+
+В production тестовый режим дополнительно требует осознанного `PAYMENT_ALLOW_TEST_MODE_IN_PRODUCTION=true`. Перед боевым включением установите `PAYMENT_TEST_MODE=false`, замените тестовые Password #1/#2 боевыми и снова проведите контрольный платёж. Для автоматических возвратов отдельно задайте боевой `ROBOKASSA_PASSWORD3`; без него возврат через API недоступен. `OpKey` приходит в проверенном `ResultUrl2`, а при недоставленном уведомлении может быть восстановлен штатным read-only запросом `OpStateExt`. После переключения `PAYMENT_ALLOW_TEST_MODE_IN_PRODUCTION` следует вернуть в `false`. Значения паролей, ИНН и персональные реквизиты не коммитятся.
+
+```powershell
+docker compose up -d
+cd server
+npm ci
+npm run db:migrate
+npm run db:seed
+npm run check
+npm test
+npm run smoke:payments
+# Только для оплаченного счёта: получить и сохранить OpKey без запуска возврата.
+node scripts/sync-robokassa-operation-state.mjs <InvId>
+```
+
+Маршруты: `POST /api/payments/checkout`, `GET /api/payments`, `GET /api/payments/:id`, `POST /api/payments/:id/refund`, подписанный callback `POST /api/payments/webhooks/robokassa/result`. История платежей и чеков доступна владельцу на `/app/balance`. Подписка Plus не показывается и `FEATURE_SUBSCRIPTIONS_ENABLED` остаётся `false`, пока Robokassa отдельно не согласует рекуррентные платежи для магазина.
+
+Выбор и официальные источники: [`docs/PAYMENT_PROVIDER_DECISION.md`](docs/PAYMENT_PROVIDER_DECISION.md).

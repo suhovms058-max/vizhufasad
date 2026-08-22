@@ -8,14 +8,27 @@ function escapeHtml(value) {
     .replaceAll('"', "&quot;").replaceAll("'", "&#39;");
 }
 
-function page(title, body) {
-  return `<!doctype html><html lang="ru"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1"><title>${escapeHtml(title)} — ВИЖУФАСАД</title></head><body><header><a href="/">ВИЖУФАСАД</a></header><main><h1>${escapeHtml(title)}</h1>${body}</main></body></html>`;
+function page(title, body, { cabinet = false, narrow = false } = {}) {
+  const navigation = cabinet
+    ? `<nav aria-label="Основная навигация"><a href="/app">Мои проекты</a><a href="/app/new">Новый проект</a>
+       <a href="/app/balance">Баланс</a><a href="/app/settings">Настройки</a></nav>`
+    : `<nav aria-label="Основная навигация"><a href="/">На главную</a></nav>`;
+  return `<!doctype html><html lang="ru"><head><meta charset="utf-8">
+    <meta name="viewport" content="width=device-width,initial-scale=1"><meta name="color-scheme" content="light">
+    <title>${escapeHtml(title)} — ВИЖУФАСАД</title><link rel="stylesheet" href="/assets/app-ui.css"></head><body>
+    <a class="skip-link" href="#main">К содержанию</a><header class="app-header"><a class="brand" href="/">ВИЖУФАСАД</a>${navigation}</header>
+    <main id="main" class="app-main${narrow ? " app-main-narrow" : ""}">${body}</main>
+    <footer class="app-footer"><a href="/legal/offer">Условия оплаты</a><a href="/legal/privacy">Конфиденциальность</a><a href="/legal/refunds">Возвраты</a></footer>
+    </body></html>`;
 }
 
 function loginForm(message = "") {
-  return page("Вход", `${message ? `<p role="alert">${escapeHtml(message)}</p>` : ""}
-    <p>Получите одноразовый код по email. Пароль и телефон не требуются.</p>
-    <form method="post" action="/auth/login"><label>Email <input name="email" type="email" autocomplete="email" required maxlength="254"></label><button type="submit">Получить код</button></form>`);
+  return page("Вход", `<section class="panel auth-card"><p class="eyebrow">Личный кабинет</p><h1>Вход по email</h1>
+    ${message ? `<p class="notice error" role="alert">${escapeHtml(message)}</p>` : ""}
+    <p class="muted">Получите одноразовый код. Пароль и телефон не требуются.</p>
+    <form class="form-stack" method="post" action="/auth/login"><label>Email
+      <input name="email" type="email" autocomplete="email" inputmode="email" required maxlength="254" placeholder="name@example.ru"></label>
+      <button type="submit">Получить код</button></form></section>`, { narrow: true });
 }
 
 export function createAuthPagesRouter({ service, config }) {
@@ -53,9 +66,11 @@ export function createAuthPagesRouter({ service, config }) {
 
   router.get("/auth/verify", (request, response) => {
     const challenge = String(request.query.challenge || "");
-    response.type("html").send(page("Подтверждение входа", `
-      <p>Введите шестизначный код из письма.</p>
-      <form method="post" action="/auth/verify"><input type="hidden" name="challengeId" value="${escapeHtml(challenge)}"><label>Код <input name="code" inputmode="numeric" autocomplete="one-time-code" pattern="[0-9]{6}" maxlength="6" required></label><button type="submit">Войти</button></form>`));
+    response.type("html").send(page("Подтверждение входа", `<section class="panel auth-card">
+      <p class="eyebrow">Безопасный вход</p><h1>Введите код</h1><p class="muted">Шестизначный код отправлен на ваш email.</p>
+      <form class="form-stack" method="post" action="/auth/verify"><input type="hidden" name="challengeId" value="${escapeHtml(challenge)}">
+      <label>Код <input class="code-input" name="code" inputmode="numeric" autocomplete="one-time-code" pattern="[0-9]{6}" maxlength="6" required></label>
+      <button type="submit">Войти</button></form><p><a href="/auth/login">Запросить новый код</a></p></section>`, { narrow: true }));
   });
   router.post("/auth/verify", verifyLimiter, async (request, response, next) => {
     try {
@@ -81,12 +96,15 @@ export function createAuthPagesRouter({ service, config }) {
   router.get(["/app", "/app/projects"], (request, response) => response.type("html").send(page(
     "Мои проекты",
     `${navigation}<p>Проектов пока нет.</p><p>Здесь появятся автоматические визуализации фасада.</p>`,
+    { cabinet: true },
   )));
   router.get("/app/settings", (request, response) => response.type("html").send(page(
     "Настройки",
-    `${navigation}<p>Email: ${escapeHtml(request.auth.email)}</p>
-     <form method="post" action="/app/logout"><button type="submit">Выйти</button></form>
-     <form method="post" action="/app/account/delete"><button type="submit">Запросить удаление аккаунта</button></form>`,
+    `<section class="page-heading"><div><p class="eyebrow">Аккаунт</p><h1>Настройки</h1></div></section>
+     <section class="panel settings-panel"><p class="muted">Email</p><p><strong>${escapeHtml(request.auth.email)}</strong></p>
+     <div class="actions"><form method="post" action="/app/logout"><button type="submit">Выйти</button></form>
+     <form method="post" action="/app/account/delete"><button class="danger" type="submit">Запросить удаление аккаунта</button></form></div></section>`,
+    { cabinet: true },
   )));
   router.post("/app/logout", async (request, response, next) => {
     try {

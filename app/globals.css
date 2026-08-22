@@ -218,6 +218,9 @@ h2 { font-size: clamp(48px, 5vw, 76px); margin-top: 24px; }
   .popular { top: 0; }
   .featured { padding-top: 52px; }
   .deliverVisual { width: calc(100% - 40px); }
+  .footer { grid-template-columns: 1fr; }
+  .footer > div:not(.logo) { justify-content: flex-start; flex-wrap: wrap; }
+  .footer > small { grid-column: 1; overflow-wrap: anywhere; }
 }
 
 @media (max-width: 720px) {
@@ -263,9 +266,6 @@ h2 { font-size: clamp(48px, 5vw, 76px); margin-top: 24px; }
   .faqItem > span { font-size: 17px; display: flex; flex-direction: column; gap: 8px; }
   .faqItem > span b { margin: 0; }
   .faqItem p { padding-left: 0; }
-  .footer { grid-template-columns: 1fr; }
-  .footer > div:not(.logo) { justify-content: flex-start; flex-wrap: wrap; }
-  .footer > small { grid-column: 1; }
   .modal { padding: 38px 22px 25px; }
   .modal h3 { font-size: 32px; }
 }

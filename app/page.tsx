@@ -4,9 +4,10 @@ import { ChangeEvent, useEffect, useState } from "react";
 
 const LEADS_API =
   process.env.NEXT_PUBLIC_LEADS_API_URL ||
-  "https://89-23-97-248.sslip.io/api/leads";
-const APP_URL = process.env.NEXT_PUBLIC_APP_URL || "https://89-23-97-248.sslip.io/app/new";
+  "/api/leads";
+const APP_URL = process.env.NEXT_PUBLIC_APP_URL || "/app/new";
 const LEGACY_LEADS_ENABLED = process.env.NEXT_PUBLIC_LEGACY_LEADS_ENABLED === "true";
+const PAYMENTS_ENABLED = process.env.NEXT_PUBLIC_PAYMENTS_ENABLED === "true";
 
 const Arrow = () => (
   <svg viewBox="0 0 24 24" aria-hidden="true"><path d="M5 12h14M13 6l6 6-6 6" /></svg>
@@ -244,7 +245,9 @@ export default function App() {
             <button className="button copper" onClick={() => startOrder("realization")}>Открыть кабинет <Arrow /></button>
           </article>
         </div>
-        <p className="pricingNote">Оплата пока не подключена и не показывается в кабинете. Цены берутся из единого тарифного справочника.</p>
+        <p className="pricingNote">{PAYMENTS_ENABLED
+          ? "Разовая покупка кредитов доступна в кабинете. Подписки и автопродление выключены."
+          : "Оплата временно выключена и не показывается в кабинете."} Цены берутся из единого тарифного справочника.</p>
       </section>
 
       <section className="audience section">
@@ -278,8 +281,8 @@ export default function App() {
       <footer className="footer shell">
         <div className="logo"><span className="logoMark">ВФ</span><span>ВИЖУФАСАД<small>AI-ВИЗУАЛИЗАЦИЯ ФАСАДОВ</small></span></div>
         <p>Визуализация отделки домов и строений по всей России.</p>
-        <div><a href="#pricing">Тарифы</a><a href="#faq">Вопросы</a><a href="mailto:vizhufasad0058@bk.ru">vizhufasad0058@bk.ru</a></div>
-        <small>© 2026 ВИЖУФАСАД · Информация на сайте не является публичной офертой</small>
+        <div><a href="#pricing">Тарифы</a><a href="#faq">Вопросы</a><a href="/legal/offer">Условия оплаты</a><a href="/legal/privacy">Конфиденциальность</a><a href="/legal/refunds">Возвраты</a><a href="mailto:vizhufasad0058@bk.ru">vizhufasad0058@bk.ru</a></div>
+        <small>© 2026 ВИЖУФАСАД · Условия цифровой услуги опубликованы в публичной оферте</small>
       </footer>
 
       {LEGACY_LEADS_ENABLED && modal && (

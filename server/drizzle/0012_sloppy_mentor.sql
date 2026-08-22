@@ -1,0 +1,2 @@
+ALTER TABLE "promo_codes" DROP CONSTRAINT "promo_codes_limits_chk";--> statement-breakpoint
+ALTER TABLE "promo_codes" ADD CONSTRAINT "promo_codes_limits_chk" CHECK ("promo_codes"."max_per_user" = 1 AND ("promo_codes"."max_redemptions" IS NULL OR "promo_codes"."max_redemptions" > 0) AND "promo_codes"."redemption_count" >= 0);

@@ -91,8 +91,8 @@ jobs:
       - name: Build static site
         env:
           NEXT_PUBLIC_BASE_PATH: /vizhufasad
-          NEXT_PUBLIC_LEADS_API_URL: https://89-23-97-248.sslip.io/api/leads
-          NEXT_PUBLIC_APP_URL: https://89-23-97-248.sslip.io/app/new
+          NEXT_PUBLIC_LEADS_API_URL: https://vizhufasad.ru/api/leads
+          NEXT_PUBLIC_APP_URL: https://vizhufasad.ru/app/new
           NEXT_PUBLIC_LEGACY_LEADS_ENABLED: "false"
         run: npm run build
 

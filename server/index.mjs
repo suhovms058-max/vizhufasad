@@ -41,6 +41,12 @@ import { createPhotoAssessmentProviders } from "./src/photo-assessment/providers
 import { PhotoAssessmentRepository } from "./src/photo-assessment/repository.mjs";
 import { PhotoAssessmentService } from "./src/photo-assessment/service.mjs";
 import { analyzeTechnicalPhoto } from "./src/photo-assessment/technical.mjs";
+import { loadPaymentConfig } from "./src/payments/config.mjs";
+import { createPaymentRouter, createPaymentWebhookRouter } from "./src/payments/http.mjs";
+import { createPaymentPagesRouter } from "./src/payments/pages.mjs";
+import { RobokassaPaymentProvider } from "./src/payments/providers/robokassa.mjs";
+import { PaymentRepository } from "./src/payments/repository.mjs";
+import { PaymentService } from "./src/payments/service.mjs";
 import { loadWalletConfig } from "./src/wallet/config.mjs";
 import { createCatalogRouter, createWalletRouter } from "./src/wallet/http.mjs";
 import { createWalletPagesRouter } from "./src/wallet/pages.mjs";
@@ -65,10 +71,19 @@ const host = process.env.HOST || "0.0.0.0";
 const storageOrigin = new URL(process.env.S3_ENDPOINT).origin;
 const authConfig = loadAuthConfig();
 const walletConfig = loadWalletConfig();
+const paymentConfig = loadPaymentConfig();
+const paymentCheckoutOrigin = new URL(paymentConfig.checkoutUrl).origin;
 const walletRepository = new WalletRepository();
 const walletService = new WalletService({
   repository: walletRepository,
   config: walletConfig,
+});
+const paymentRepository = new PaymentRepository();
+const paymentProvider = new RobokassaPaymentProvider(paymentConfig);
+const paymentService = new PaymentService({
+  repository: paymentRepository,
+  provider: paymentProvider,
+  config: paymentConfig,
 });
 const generationConfig = loadGenerationConfig();
 const generationQualityConfig = loadGenerationQualityConfig();
@@ -130,6 +145,7 @@ app.use(helmet({
     directives: {
       imgSrc: ["'self'", "data:", "blob:", storageOrigin],
       connectSrc: ["'self'", storageOrigin],
+      formAction: ["'self'", paymentCheckoutOrigin],
     },
   },
 }));
@@ -138,6 +154,7 @@ app.use(cors({
   methods: ["GET", "POST", "PATCH", "DELETE", "OPTIONS"],
   credentials: true,
 }));
+app.use("/api/payments/webhooks", createPaymentWebhookRouter({ paymentService }));
 app.use(express.json({ limit: "32kb" }));
 app.use("/assets", express.static(path.resolve("./public"), {
   dotfiles: "deny",
@@ -165,8 +182,12 @@ app.use(
 );
 app.use("/api/wallet", createWalletRouter({ authService, walletService }));
 app.use("/api/catalog", createCatalogRouter({ authService, walletService }));
+app.use("/api/payments", createPaymentRouter({ authService, paymentService }));
 app.use(createProjectPagesRouter({ authService, projectService, generationService, walletService }));
-app.use(createWalletPagesRouter({ authService, walletService }));
+app.use(createWalletPagesRouter({
+  authService, walletService, paymentService, paymentConfig,
+}));
+app.use(createPaymentPagesRouter({ authService, paymentService, config: paymentConfig }));
 app.use(createAuthPagesRouter({ service: authService, config: authConfig }));
 const legacyLeadsMode = String(process.env.LEGACY_LEADS_MODE || "deprecated").toLowerCase();
 if (!["deprecated", "disabled"].includes(legacyLeadsMode)) {
