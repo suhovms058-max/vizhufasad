@@ -31,6 +31,8 @@ function legalPage(title, body, config) {
 
 function sameOrigin(request, config) {
   const origin = request.get("origin");
+  const fetchSite = String(request.get("sec-fetch-site") || "").toLowerCase();
+  if (fetchSite === "same-origin") return true;
   if (!origin) return true;
   try { return new URL(origin).origin === new URL(config.siteOrigin).origin; } catch { return false; }
 }
@@ -54,6 +56,16 @@ export function createPaymentPagesRouter({ authService, paymentService, config }
       if (!sameOrigin(request, config)) return response.status(403).send("Недопустимый источник запроса");
       await paymentService.refund(request.auth.user_id, request.params.id, { reason: "customer_request" }, request.body.idempotencyKey);
       return response.redirect(303, "/app/balance?refund=pending");
+    } catch (error) {
+      if (error?.code) return response.redirect(303, `/app/balance?payment_error=${encodeURIComponent(error.code)}`);
+      return next(error);
+    }
+  });
+  router.post("/app/payments/:id/cancel", express.urlencoded({ extended: false, limit: "8kb" }), requireHtmlSession, async (request, response, next) => {
+    try {
+      if (!sameOrigin(request, config)) return response.status(403).send("Недопустимый источник запроса");
+      await paymentService.cancel(request.auth.user_id, request.params.id);
+      return response.redirect(303, "/app/balance?payment_cancel=ok");
     } catch (error) {
       if (error?.code) return response.redirect(303, `/app/balance?payment_error=${encodeURIComponent(error.code)}`);
       return next(error);

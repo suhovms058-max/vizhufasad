@@ -109,7 +109,12 @@ export class PaymentService {
     this.assertEnabled();
     const payment = await this.repository.findInternal(paymentId, userId);
     if (!payment) throw new PaymentError("PAYMENT_NOT_FOUND", 404);
-    const operationKey = payment.metadata?.operationKey;
+    let operationKey = payment.metadata?.operationKey;
+    if (!operationKey && payment.status === "paid" && typeof this.provider.getOperationState === "function") {
+      const operationState = await this.provider.getOperationState(payment.provider_payment_id);
+      operationKey = operationState.operationKey;
+      await this.repository.saveOperationState(payment.id, operationState);
+    }
     if (!operationKey) throw new PaymentError("REFUND_OPERATION_KEY_UNAVAILABLE", 409);
     const reason = required(input.reason || "customer_request", "INVALID_REFUND_REASON", 200);
     const reserved = await this.repository.reserveRefund(userId, paymentId, reason, idempotencyKey);

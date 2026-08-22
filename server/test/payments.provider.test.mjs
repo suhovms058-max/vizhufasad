@@ -195,6 +195,41 @@ test("refund adapter signs JWT and returns provider request id", async () => {
   assert.equal(payload.RefundSum, 790);
 });
 
+test("operation state fallback retrieves OpKey using Password #2 without exposing it", async () => {
+  let requestUrl;
+  const provider = new RobokassaPaymentProvider(loadPaymentConfig(environment), async (url) => {
+    requestUrl = new URL(url);
+    return {
+      ok: true,
+      async text() {
+        return `<?xml version="1.0"?><OperationStateResponse><Result><Code>0</Code></Result><State><Code>100</Code></State><Info><OpKey>operation-key</OpKey></Info></OperationStateResponse>`;
+      },
+    };
+  });
+  const result = await provider.getOperationState("100042");
+  assert.deepEqual(result, { operationKey: "operation-key", stateCode: "100", providerPaymentId: "100042" });
+  assert.equal(requestUrl.searchParams.get("MerchantLogin"), "demo-shop");
+  assert.equal(requestUrl.searchParams.get("InvoiceID"), "100042");
+  assert.equal(
+    requestUrl.searchParams.get("Signature"),
+    createHash("sha256").update("demo-shop:100042:password-two").digest("hex"),
+  );
+  assert.equal(requestUrl.toString().includes("password-two"), false);
+});
+
+test("operation state fallback rejects unpaid or malformed provider responses", async () => {
+  const provider = new RobokassaPaymentProvider(loadPaymentConfig(environment), async () => ({
+    ok: true,
+    async text() {
+      return `<OperationStateResponse><Result><Code>0</Code></Result><State><Code>50</Code></State><Info /></OperationStateResponse>`;
+    },
+  }));
+  await assert.rejects(
+    provider.getOperationState("100042"),
+    (error) => error.code === "PROVIDER_OPERATION_STATE_FAILED" && error.status === 502,
+  );
+});
+
 test("refund status maps provider reconciliation states", async () => {
   const states = [
     [{ label: "processing", amount: 790 }, "pending"],

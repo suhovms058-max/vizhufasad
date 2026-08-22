@@ -22,6 +22,20 @@ async function lock(client, value) {
   await client.query("select pg_advisory_xact_lock(hashtextextended($1, 0))", [value]);
 }
 
+async function releasePromoReservation(client, payment) {
+  if (!payment?.promo_code_id) return false;
+  const released = await client.query(
+    "delete from promo_redemptions where payment_id = $1 returning id",
+    [payment.id],
+  );
+  if (!released.rowCount) return false;
+  await client.query(
+    "update promo_codes set redemption_count = greatest(0, redemption_count - 1), updated_at = now() where id = $1",
+    [payment.promo_code_id],
+  );
+  return true;
+}
+
 async function releaseExpiredPayments(client) {
   const expired = await client.query(
     `select payment.id, payment.promo_code_id from payments payment
@@ -29,18 +43,7 @@ async function releaseExpiredPayments(client) {
      for update skip locked`,
   );
   for (const payment of expired.rows) {
-    if (payment.promo_code_id) {
-      const released = await client.query(
-        "delete from promo_redemptions where payment_id = $1 returning id",
-        [payment.id],
-      );
-      if (released.rowCount) {
-        await client.query(
-          "update promo_codes set redemption_count = greatest(0, redemption_count - 1), updated_at = now() where id = $1",
-          [payment.promo_code_id],
-        );
-      }
-    }
+    await releasePromoReservation(client, payment);
   }
   if (expired.rowCount) {
     await client.query(
@@ -114,6 +117,19 @@ export class PaymentRepository {
         );
         if (!promoResult.rowCount) throw new PaymentError("PROMO_NOT_AVAILABLE", 409);
         promo = promoResult.rows[0];
+        const activeCheckout = await client.query(
+          `select payment.*, tariff.name tariff_name
+           from payments payment
+           left join tariff_plans tariff on tariff.id = payment.tariff_plan_id
+           where payment.user_id = $1 and payment.tariff_plan_id = $2
+             and payment.promo_code_id = $3 and payment.status in ('created', 'pending')
+             and payment.checkout_expires_at > now()
+           order by payment.created_at desc limit 1 for update of payment`,
+          [userId, tariffPlanId, promo.id],
+        );
+        if (activeCheckout.rowCount) {
+          return { payment: activeCheckout.rows[0], idempotent: true };
+        }
         if (promo.max_redemptions !== null && promo.redemption_count >= promo.max_redemptions) {
           throw new PaymentError("PROMO_LIMIT_REACHED", 409);
         }
@@ -173,12 +189,20 @@ export class PaymentRepository {
   }
 
   async markFailed(paymentId, code) {
-    await this.pool.query(
-      `update payments set status = 'failed', failed_at = now(), updated_at = now(),
-       metadata = metadata || jsonb_build_object('failureCode', $2::text)
-       where id = $1 and status in ('created', 'pending')`,
-      [paymentId, code],
-    );
+    return transaction(this.pool, async (client) => {
+      const selected = await client.query(
+        "select id, status, promo_code_id from payments where id = $1 for update",
+        [paymentId],
+      );
+      if (!selected.rowCount || !["created", "pending"].includes(selected.rows[0].status)) return;
+      await client.query(
+        `update payments set status = 'failed', failed_at = now(), updated_at = now(),
+         metadata = metadata || jsonb_build_object('failureCode', $2::text)
+         where id = $1`,
+        [paymentId, code],
+      );
+      await releasePromoReservation(client, selected.rows[0]);
+    });
   }
 
   async findInternal(paymentId, userId = null) {
@@ -233,18 +257,7 @@ export class PaymentRepository {
       if (!["created", "pending", "failed"].includes(payment.status)) {
         throw new PaymentError("PAYMENT_CANNOT_BE_CANCELLED", 409);
       }
-      if (payment.promo_code_id) {
-        const released = await client.query(
-          "delete from promo_redemptions where payment_id = $1 returning promo_code_id",
-          [payment.id],
-        );
-        if (released.rowCount) {
-          await client.query(
-            "update promo_codes set redemption_count = greatest(0, redemption_count - 1), updated_at = now() where id = $1",
-            [payment.promo_code_id],
-          );
-        }
-      }
+      await releasePromoReservation(client, payment);
       const updated = await client.query(
         "update payments set status = 'cancelled', cancelled_at = now(), updated_at = now() where id = $1 returning *",
         [payment.id],
@@ -353,6 +366,18 @@ export class PaymentRepository {
       ), updated_at = now()
       where provider = 'robokassa' and provider_payment_id = $1 returning id`,
       [String(data.invId), data.opKey, data.paymentMethod, data.state],
+    );
+    if (!result.rowCount) throw new PaymentError("PAYMENT_NOT_FOUND", 404);
+    return result.rows[0];
+  }
+
+  async saveOperationState(paymentId, data) {
+    const result = await this.pool.query(
+      `update payments set metadata = metadata || jsonb_build_object(
+        'operationKey', $2::text, 'operationStateCode', $3::text, 'operationStateCheckedAt', now()::text
+      ), updated_at = now()
+      where id = $1 and provider = 'robokassa' returning id`,
+      [paymentId, data.operationKey, data.stateCode],
     );
     if (!result.rowCount) throw new PaymentError("PAYMENT_NOT_FOUND", 404);
     return result.rows[0];

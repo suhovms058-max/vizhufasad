@@ -62,16 +62,64 @@ test("Robokassa ResultURL is unauthenticated and receives form data", async () =
   });
 });
 
-test("Robokassa ResultUrl2 is unauthenticated and receives the compact JWS unchanged", async () => {
+test("Robokassa ResultUrl2 receives compact JWS regardless of provider content type", async () => {
   await withServer(async (baseUrl) => {
     const response = await fetch(`${baseUrl}/api/payments/webhooks/robokassa/result2`, {
       method: "POST",
-      headers: { "content-type": "application/jose" },
+      headers: { "content-type": "application/octet-stream" },
       body: "signed-result2-token",
     });
     assert.equal(response.status, 200);
     assert.equal(await response.text(), "OK");
   });
+});
+
+test("payment form accepts browser same-origin metadata and rejects cross-site posts", async () => {
+  let checkoutCalls = 0;
+  const app = express();
+  app.use(createPaymentPagesRouter({
+    authService: { async sessionFromRequest() { return { user_id: "user-id", email: "buyer@example.test" }; } },
+    paymentService: {
+      async createCheckout() {
+        checkoutCalls += 1;
+        return { payment: { id: "payment-id" }, checkout: { url: "https://pay.test" } };
+      },
+    },
+    config: { siteOrigin: "https://vizhufasad.ru" },
+  }));
+  const server = app.listen(0, "127.0.0.1");
+  await new Promise((resolve) => server.once("listening", resolve));
+  const url = `http://127.0.0.1:${server.address().port}/app/payments/checkout`;
+  const body = new URLSearchParams({ tariffPlanId: "tariff-id", idempotencyKey: "checkout-key" });
+  try {
+    const sameOrigin = await fetch(url, {
+      method: "POST",
+      redirect: "manual",
+      headers: {
+        origin: "null",
+        "sec-fetch-site": "same-origin",
+        "content-type": "application/x-www-form-urlencoded",
+      },
+      body,
+    });
+    assert.equal(sameOrigin.status, 303);
+    assert.equal(sameOrigin.headers.get("location"), "https://pay.test");
+
+    const crossSite = await fetch(url, {
+      method: "POST",
+      redirect: "manual",
+      headers: {
+        origin: "https://attacker.example",
+        "sec-fetch-site": "cross-site",
+        "content-type": "application/x-www-form-urlencoded",
+      },
+      body,
+    });
+    assert.equal(crossSite.status, 403);
+    assert.equal(checkoutCalls, 1);
+  } finally {
+    await new Promise((resolve) => server.close(resolve));
+  }
 });
 
 test("public offer identifies the automated digital service and published merchant", async () => {

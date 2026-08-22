@@ -60,6 +60,7 @@ export function loadPaymentConfig(environment = process.env) {
     checkoutUrl: String(environment.ROBOKASSA_CHECKOUT_URL || "https://auth.robokassa.ru/Merchant/Index.aspx").trim(),
     refundUrl: String(environment.ROBOKASSA_REFUND_URL || "https://services.robokassa.ru/RefundService/Refund/Create").trim(),
     refundStateUrl: String(environment.ROBOKASSA_REFUND_STATE_URL || "https://services.robokassa.ru/RefundService/Refund/GetState").trim(),
+    operationStateUrl: String(environment.ROBOKASSA_OPERATION_STATE_URL || "https://auth.robokassa.ru/Merchant/WebService/Service.asmx/OpStateExt").trim(),
     result2Url: String(environment.ROBOKASSA_RESULT2_URL || "").trim() || null,
     result2PublicKey,
     result2PublicKeyFile,

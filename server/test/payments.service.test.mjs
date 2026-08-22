@@ -79,3 +79,34 @@ test("payment history reconciles a finished provider refund without blocking on 
   assert.equal(calls.length, 1);
   assert.equal(calls[0].refundId, "refund-finished");
 });
+
+test("refund recovers and stores a missing operation key before reserving", async () => {
+  const calls = [];
+  const repository = {
+    async findInternal() {
+      return { ...payment, status: "paid", metadata: {} };
+    },
+    async saveOperationState(paymentId, state) { calls.push(["save", paymentId, state]); },
+    async reserveRefund() {
+      return { refund: { id: "refund-id" }, idempotent: false };
+    },
+    async completeRefund(_userId, _refundId, result) { return result; },
+    async failRefund() { assert.fail("refund must not fail"); },
+  };
+  const provider = {
+    async getOperationState(providerPaymentId) {
+      assert.equal(providerPaymentId, "100001");
+      return { operationKey: "recovered-key", stateCode: "100", providerPaymentId };
+    },
+    async createRefund(input) {
+      assert.equal(input.operationKey, "recovered-key");
+      return { providerRefundId: "provider-refund", status: "pending" };
+    },
+  };
+  const service = new PaymentService({ repository, provider, config: { enabled: true } });
+  const result = await service.refund("user-id", "payment-id", { reason: "customer_request" }, "refund-key");
+  assert.equal(result.providerRefundId, "provider-refund");
+  assert.equal(calls.length, 1);
+  assert.equal(calls[0][0], "save");
+  assert.equal(calls[0][2].operationKey, "recovered-key");
+});

@@ -145,3 +145,37 @@ test("pending payment cancellation releases the reserved promo exactly once", { 
     await closeDatabase();
   }
 });
+
+test("active promo checkout is reused and a failed checkout releases its reservation", { skip: !enabled }, async () => {
+  const pool = getPool();
+  const fixture = await setup(pool);
+  const repository = new PaymentRepository(pool);
+  try {
+    const promoCode = (await pool.query("select code from promo_codes where id = $1", [fixture.promoId])).rows[0].code;
+    const first = await repository.create({
+      userId: fixture.userId, tariffPlanId: fixture.tariff.id, promoCode,
+      idempotencyKey: `checkout:${randomUUID()}`, expiresAt: new Date(Date.now() + 30 * 60_000),
+    });
+    await repository.markPending(first.payment.id);
+
+    const repeated = await repository.create({
+      userId: fixture.userId, tariffPlanId: fixture.tariff.id, promoCode,
+      idempotencyKey: `checkout:${randomUUID()}`, expiresAt: new Date(Date.now() + 30 * 60_000),
+    });
+    assert.equal(repeated.idempotent, true);
+    assert.equal(repeated.payment.id, first.payment.id);
+    assert.equal(Number((await pool.query("select redemption_count from promo_codes where id = $1", [fixture.promoId])).rows[0].redemption_count), 1);
+
+    await repository.markFailed(first.payment.id, "CHECKOUT_CREATION_FAILED");
+    assert.equal(Number((await pool.query("select redemption_count from promo_codes where id = $1", [fixture.promoId])).rows[0].redemption_count), 0);
+
+    const replacement = await repository.create({
+      userId: fixture.userId, tariffPlanId: fixture.tariff.id, promoCode,
+      idempotencyKey: `checkout:${randomUUID()}`, expiresAt: new Date(Date.now() + 30 * 60_000),
+    });
+    assert.notEqual(replacement.payment.id, first.payment.id);
+  } finally {
+    await cleanup(pool, fixture.userId, fixture.promoId);
+    await closeDatabase();
+  }
+});

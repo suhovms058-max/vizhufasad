@@ -23,6 +23,7 @@
     "smoke:photo-assessment": "node --test test/photo-assessment.integration.test.mjs",
     "smoke:wallet": "node --test test/wallet.integration.test.mjs",
     "smoke:payments": "node --test --test-concurrency=1 test/payments.provider.test.mjs test/payments.routes.test.mjs test/payments.integration.test.mjs",
+    "smoke:payments:live": "node scripts/smoke-robokassa-live.mjs",
     "smoke:queue": "node --test test/generation.queue.integration.test.mjs test/generation.integration.test.mjs",
     "smoke:generation-quality": "node --test test/generation-quality.golden.test.mjs test/generation-quality.integration.test.mjs test/generation.processor.test.mjs",
     "smoke:generation": "node scripts/smoke-standard-generation.mjs",

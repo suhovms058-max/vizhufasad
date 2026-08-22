@@ -15,6 +15,11 @@ function base64url(value) {
   return Buffer.from(value).toString("base64url");
 }
 
+function xmlValue(xml, tag) {
+  const match = String(xml || "").match(new RegExp(`<${tag}>([^<]*)</${tag}>`, "u"));
+  return match?.[1]?.trim() || null;
+}
+
 export class RobokassaPaymentProvider {
   constructor(config, fetchImpl = globalThis.fetch) {
     this.config = config;
@@ -141,6 +146,27 @@ export class RobokassaPaymentProvider {
       throw new PaymentError("PROVIDER_REFUND_FAILED", 502);
     }
     return { providerRefundId: result.requestId, status: "pending" };
+  }
+
+  async getOperationState(providerPaymentId) {
+    const invoiceId = String(providerPaymentId || "").trim();
+    if (!/^\d+$/u.test(invoiceId)) throw new PaymentError("INVALID_PROVIDER_PAYMENT_ID", 400);
+    const url = new URL(this.config.operationStateUrl);
+    url.searchParams.set("MerchantLogin", this.config.merchantLogin);
+    url.searchParams.set("InvoiceID", invoiceId);
+    url.searchParams.set(
+      "Signature",
+      digest(this.config.signatureAlgorithm, `${this.config.merchantLogin}:${invoiceId}:${this.config.password2}`),
+    );
+    const response = await this.fetch(url, { headers: { accept: "application/xml, text/xml" } });
+    const xml = await response.text().catch(() => "");
+    const resultCode = xml.match(/<Result>\s*<Code>(\d+)<\/Code>/u)?.[1] || null;
+    const stateCode = xml.match(/<State>\s*<Code>(\d+)<\/Code>/u)?.[1] || null;
+    const operationKey = xmlValue(xml, "OpKey");
+    if (!response.ok || resultCode !== "0" || stateCode !== "100" || !operationKey) {
+      throw new PaymentError("PROVIDER_OPERATION_STATE_FAILED", 502);
+    }
+    return { operationKey, stateCode, providerPaymentId: invoiceId };
   }
 
   async getRefundState(providerRefundId) {

@@ -72,6 +72,7 @@ const storageOrigin = new URL(process.env.S3_ENDPOINT).origin;
 const authConfig = loadAuthConfig();
 const walletConfig = loadWalletConfig();
 const paymentConfig = loadPaymentConfig();
+const paymentCheckoutOrigin = new URL(paymentConfig.checkoutUrl).origin;
 const walletRepository = new WalletRepository();
 const walletService = new WalletService({
   repository: walletRepository,
@@ -144,6 +145,7 @@ app.use(helmet({
     directives: {
       imgSrc: ["'self'", "data:", "blob:", storageOrigin],
       connectSrc: ["'self'", storageOrigin],
+      formAction: ["'self'", paymentCheckoutOrigin],
     },
   },
 }));

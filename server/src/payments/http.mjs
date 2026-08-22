@@ -79,7 +79,7 @@ export function createPaymentWebhookRouter({ paymentService }) {
   );
   router.post(
     "/robokassa/result2",
-    express.text({ type: ["application/jose", "application/jwt", "text/plain"], limit: "32kb" }),
+    express.text({ type: () => true, limit: "32kb" }),
     async (request, response, next) => {
       try {
         await paymentService.handleResult2(request.body);
