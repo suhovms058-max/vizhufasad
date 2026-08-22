@@ -10,4 +10,4 @@
 - [x] Implement Optimum/Maximum comparison for up to four results.
 - [x] Run approved live provider smokes.
 - [x] Run the final mandatory suite.
-- [ ] Update documentation, commit, push and prepare a draft PR without merging.
+- [x] Update documentation, commit, push and prepare a draft PR without merging.
