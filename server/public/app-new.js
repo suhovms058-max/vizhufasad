@@ -10,6 +10,7 @@
     IMAGE_DECODE_FAILED: "Файл повреждён или не декодируется.",
     INSUFFICIENT_BALANCE: "Недостаточно кредитов для Standard.",
     STANDARD_GENERATION_DISABLED: "Standard-генерация пока не включена на этом сервере.",
+    PRO_GENERATION_DISABLED: "Pro пока не включён: модель должна пройти реальную проверку качества.",
   };
 
   async function request(url, options = {}) {
@@ -123,6 +124,7 @@
     const draftStatus = form.querySelector("#draft-status");
     const wishes = form.querySelector("#wishes");
     const count = form.querySelector("#wishes-count");
+    const costText = form.querySelector("#cost-confirm-text");
     const storageKey = `vizhufasad:stage10:draft:${projectId}`;
     let saveTimer;
 
@@ -173,8 +175,16 @@
     };
     try { applyDraft(JSON.parse(localStorage.getItem(storageKey) || "null")); } catch {}
     const updateCount = () => { count.textContent = String(wishes.value.length); };
+    const updateGenerationKind = () => {
+      const kind = new FormData(form).get("generationKind") === "pro" ? "pro" : "standard";
+      const label = kind === "pro" ? "Pro" : "Standard";
+      const cost = kind === "pro" ? root.dataset.proCost : root.dataset.standardCost;
+      start.textContent = `Запустить ${label}`;
+      costText.textContent = `Подтверждаю списание ${cost} ${Number(cost) === 1 ? "кредита" : "кредитов"} за ${label}. Assessment и скачивание бесплатны.`;
+    };
     updateCount();
-    form.addEventListener("input", () => { updateCount(); scheduleSave(); });
+    updateGenerationKind();
+    form.addEventListener("input", () => { updateCount(); updateGenerationKind(); scheduleSave(); });
     form.addEventListener("change", scheduleSave);
     form.addEventListener("submit", async (event) => {
       event.preventDefault();
@@ -185,10 +195,11 @@
       try {
         clearTimeout(saveTimer);
         const config = await save();
-        const keyName = `vizhufasad:stage10:start:${projectId}`;
+        const kind = new FormData(form).get("generationKind") === "pro" ? "pro" : "standard";
+        const keyName = `vizhufasad:stage12:start:${kind}:${projectId}`;
         let idempotencyKey = localStorage.getItem(keyName);
         if (!idempotencyKey) { idempotencyKey = crypto.randomUUID(); localStorage.setItem(keyName, idempotencyKey); }
-        const body = await request(`/api/projects/${encodeURIComponent(projectId)}/generations/standard`, {
+        const body = await request(`/api/projects/${encodeURIComponent(projectId)}/generations/${kind}`, {
           method: "POST", headers: { "Idempotency-Key": idempotencyKey },
           body: JSON.stringify({ sourceImageId: imageId, input: config }),
         });

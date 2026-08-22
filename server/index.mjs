@@ -208,7 +208,10 @@ app.use(
 app.use("/api/wallet", createWalletRouter({ authService, walletService }));
 app.use("/api/catalog", createCatalogRouter({ authService, walletService }));
 app.use("/api/payments", createPaymentRouter({ authService, paymentService }));
-app.use(createProjectPagesRouter({ authService, projectService, generationService, walletService }));
+app.use(createProjectPagesRouter({
+  authService, projectService, generationService, walletService,
+  generationConfig, upscaleConfig, comparisonService,
+}));
 app.use(createWalletPagesRouter({
   authService, walletService, paymentService, paymentConfig,
 }));
