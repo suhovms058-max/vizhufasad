@@ -1,0 +1,33 @@
+[Unit]
+Description=VIZHUFASAD Production Generation Worker
+After=network-online.target docker.service vizhufasad-api.service
+Wants=network-online.target
+Requires=docker.service
+
+[Service]
+Type=simple
+User=www-data
+Group=www-data
+WorkingDirectory=/opt/vizhufasad-current/server
+EnvironmentFile=/etc/vizhufasad/server.env
+Environment=XDG_CACHE_HOME=/var/cache/vizhufasad
+ExecStart=/usr/bin/node /opt/vizhufasad-current/server/worker.mjs
+Restart=on-failure
+RestartSec=5
+TimeoutStopSec=90
+KillSignal=SIGTERM
+UMask=0077
+NoNewPrivileges=true
+PrivateTmp=true
+PrivateDevices=true
+ProtectSystem=strict
+ProtectHome=true
+ProtectKernelTunables=true
+ProtectKernelModules=true
+ProtectControlGroups=true
+CacheDirectory=vizhufasad
+StateDirectory=vizhufasad
+ReadWritePaths=/var/lib/vizhufasad
+
+[Install]
+WantedBy=multi-user.target
