@@ -14,6 +14,9 @@ import { createAuthMailer } from "./src/auth/mailer.mjs";
 import { createAuthPagesRouter } from "./src/auth/pages.mjs";
 import { AuthRepository } from "./src/auth/repository.mjs";
 import { AuthService } from "./src/auth/service.mjs";
+import { createEconomicsMetricsRouter, createProductAnalyticsRouter } from "./src/analytics/http.mjs";
+import { ProductAnalyticsRepository } from "./src/analytics/repository.mjs";
+import { ProductAnalyticsService } from "./src/analytics/service.mjs";
 import { closeDatabase } from "./src/db/client.mjs";
 import { liveness, readiness } from "./src/health.mjs";
 import { ensurePrivateBucket } from "./src/infra/storage.mjs";
@@ -48,7 +51,7 @@ import { RobokassaPaymentProvider } from "./src/payments/providers/robokassa.mjs
 import { PaymentRepository } from "./src/payments/repository.mjs";
 import { PaymentService } from "./src/payments/service.mjs";
 import { loadWalletConfig } from "./src/wallet/config.mjs";
-import { createCatalogRouter, createWalletRouter } from "./src/wallet/http.mjs";
+import { createCatalogRouter, createPublicCatalogRouter, createWalletRouter } from "./src/wallet/http.mjs";
 import { createWalletPagesRouter } from "./src/wallet/pages.mjs";
 import { WalletRepository } from "./src/wallet/repository.mjs";
 import { WalletService } from "./src/wallet/service.mjs";
@@ -132,6 +135,11 @@ const authService = new AuthService({
   config: authConfig,
 });
 const projectConfig = loadProjectConfig();
+const productAnalyticsRepository = new ProductAnalyticsRepository();
+const productAnalyticsService = new ProductAnalyticsService({
+  repository: productAnalyticsRepository,
+  sessionSalt: authConfig.hashSecret,
+});
 const projectRepository = new ProjectRepository();
 const photoAssessmentConfig = loadPhotoAssessmentConfig();
 const photoAssessmentRepository = new PhotoAssessmentRepository();
@@ -185,6 +193,8 @@ app.use("/assets", express.static(path.resolve("./public"), {
   maxAge: process.env.NODE_ENV === "production" ? "1h" : 0,
 }));
 app.use("/api/auth", createAuthRouter({ service: authService, config: authConfig }));
+app.use("/api/analytics", rateLimit({ windowMs: 60_000, limit: 120, standardHeaders: true }), createProductAnalyticsRouter({ service: productAnalyticsService }));
+app.use("/api/public/catalog", rateLimit({ windowMs: 60_000, limit: 120, standardHeaders: true }), createPublicCatalogRouter({ walletService }));
 app.use("/api/projects", createProjectsRouter({ authService, projectService }));
 app.use("/api/projects", createGenerationRouter({ authService, generationService }));
 app.use("/api/projects", createUpscaleRouter({ authService, upscaleService }));
@@ -196,6 +206,13 @@ app.use(
 app.use(
   "/internal/generation/metrics",
   createGenerationMetricsRouter({ metrics: generationMetrics, config: generationConfig }),
+);
+app.use(
+  "/internal/economics/metrics",
+  createEconomicsMetricsRouter({
+    repository: productAnalyticsRepository,
+    token: generationConfig.metricsToken,
+  }),
 );
 app.use(
   "/internal/generation/quality",

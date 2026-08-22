@@ -120,6 +120,20 @@
       "when": 1787408552533,
       "tag": "0016_stage12_upscale_quality",
       "breakpoints": true
+    },
+    {
+      "idx": 17,
+      "version": "7",
+      "when": 1787415678600,
+      "tag": "0017_photo_processing_consent",
+      "breakpoints": true
+    },
+    {
+      "idx": 18,
+      "version": "7",
+      "when": 1787416534396,
+      "tag": "0018_product_analytics",
+      "breakpoints": true
     }
   ]
 }

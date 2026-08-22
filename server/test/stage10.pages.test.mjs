@@ -46,7 +46,26 @@ test("/app/new renders the complete Standard settings path from catalog data", a
   for (const text of ["Фото подходит", "современный", "тёмный хай-тек", "фиброцемент", "Не добавлять этажи", "Сбалансированный", "1 кредита", "700"]) {
     assert.match(html, new RegExp(text, "u"));
   }
+  for (const marker of ["style-card-grid", "facade-scandinavian-bright.webp", "facade-neoclassical-bright.webp", "material-swatch", "palette-chips", "settings-progress", "data-wizard-step=\"3\""]) {
+    assert.match(html, new RegExp(marker, "u"));
+  }
+  assert.match(html, /data-style="скандинавский"/u);
+  assert.match(html, /name="palettePreset" value="автоподбор" checked/u);
   assert.match(html, /app-new\.js/u);
+  assert.doesNotMatch(html, /телефон|специалист|отправить заявку/iu);
+});
+
+test("/app/new explains the private free photo check before upload", async () => {
+  const { status, html } = await render("/app/new");
+  assert.equal(status, 200);
+  for (const text of ["Загрузите фотографию дома", "бесплатно", "Дом целиком", "Минимум 640×420", "Как мы защищаем фотографии"]) {
+    assert.match(html, new RegExp(text, "u"));
+  }
+  assert.match(html, /id="preview-shell"/u);
+  assert.match(html, /id="photo-processing-consent"/u);
+  assert.match(html, /id="photo-usage-rights"/u);
+  assert.match(html, /\/legal\/photo-processing-consent/u);
+  assert.match(html, /id="remove-photo"/u);
   assert.doesNotMatch(html, /телефон|специалист|отправить заявку/iu);
 });
 

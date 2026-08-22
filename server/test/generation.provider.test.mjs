@@ -157,6 +157,30 @@ test("GenAPI resumes a persisted paid request without submitting another generat
   assert.deepEqual(calls.map((call) => call[1]), ["GET", "GET"]);
 });
 
+test("GenAPI exposes reported cost when a submitted generation fails", async () => {
+  let call = 0;
+  const provider = new GenApiGenerationProvider({
+    apiKey: "test-key",
+    model: "nano-banana-2",
+    pollIntervalMs: 1,
+    fetchImplementation: async () => {
+      call += 1;
+      return call === 1
+        ? new Response(JSON.stringify({ request_id: "paid-failed-1" }), { status: 200, headers: { "content-type": "application/json" } })
+        : new Response(JSON.stringify({ status: "error", error: "provider failed", cost: 12.5 }), { status: 200, headers: { "content-type": "application/json" } });
+    },
+  });
+  await assert.rejects(
+    provider.generate({
+      sourceImage: Buffer.from("image"), sourceMimeType: "image/jpeg", prompt: "facade",
+      seed: 7, width: 1024, height: 768,
+    }),
+    (error) => error.code === "GENAPI_GENERATION_FAILED"
+      && error.actualCostMinor === 1250
+      && error.costCurrency === "RUB",
+  );
+});
+
 test("GenAPI sends a custom mask only through the documented Bria mask fields", async () => {
   let body;
   const provider = new GenApiGenerationProvider({

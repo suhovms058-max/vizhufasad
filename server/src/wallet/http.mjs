@@ -60,3 +60,16 @@ export function createCatalogRouter({ authService, walletService }) {
   });
   return router;
 }
+
+export function createPublicCatalogRouter({ walletService }) {
+  const router = express.Router();
+  router.get("/", async (_request, response, next) => {
+    try {
+      const catalog = await walletService.catalog();
+      return response.json({ tariffs: catalog.tariffs, actions: catalog.actions });
+    } catch (error) {
+      try { return respondError(response, error); } catch (unexpected) { return next(unexpected); }
+    }
+  });
+  return router;
+}

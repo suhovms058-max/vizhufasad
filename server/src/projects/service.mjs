@@ -1,6 +1,9 @@
 import { randomUUID } from "node:crypto";
 import { normalizeGenerationInput } from "../generation/contract.mjs";
 import {
+  isCurrentPhotoConsent, PHOTO_PROCESSING_CONSENT_VERSION,
+} from "../legal/photo-consent.mjs";
+import {
   allowedUploadMimeTypes, hasReliableHeifDecoder, HEIF_MIME_TYPES, MAX_UPLOAD_BYTES,
 } from "./config.mjs";
 import { ImageValidationError, processSourceImage } from "./image-processing.mjs";
@@ -121,6 +124,9 @@ export class ProjectService {
 
   async createUploadIntent(userId, projectId, input) {
     await this.open(userId, projectId);
+    if (!isCurrentPhotoConsent(input.consent)) {
+      throw new ProjectError("PHOTO_PROCESSING_CONSENT_REQUIRED", 422);
+    }
     const declaredMimeType = String(input.mimeType || "").toLowerCase();
     if (!allowedUploadMimeTypes().includes(declaredMimeType)) {
       if (HEIF_MIME_TYPES.has(declaredMimeType) && !hasReliableHeifDecoder()) {
@@ -145,6 +151,8 @@ export class ProjectService {
       declaredMimeType,
       byteSize,
       uploadExpiresAt,
+      consentVersion: PHOTO_PROCESSING_CONSENT_VERSION,
+      consentedAt: this.clock(),
     });
     if (!image) throw new ProjectError("PROJECT_NOT_FOUND", 404);
     try {

@@ -3,13 +3,32 @@ import { expect, test } from "@playwright/test";
 
 test.beforeEach(async ({ request }) => { await request.post("/__reset"); });
 
+test("upload step is understandable, responsive and rejects a tiny image before network upload", async ({ page }) => {
+  await page.goto("/app/new");
+  await expect(page.getByRole("heading", { name: "Загрузите фотографию дома" })).toBeVisible();
+  await expect(page.getByText("Как снять фасад")).toBeVisible();
+  await expect(page.getByText("Кредит на этом шаге не списывается.")).toBeVisible();
+  await page.locator("#photo-input").setInputFiles({
+    name: "tiny.png",
+    mimeType: "image/png",
+    buffer: Buffer.from("iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAQAAAC1HAwCAAAAC0lEQVR42mNk+A8AAQUBAScY42YAAAAASUVORK5CYII=", "base64"),
+  });
+  await expect(page.getByText(/Разрешение фотографии меньше 640×420/u)).toBeVisible();
+  await expect(page.getByRole("button", { name: "Загрузить и проверить фото" })).toBeDisabled();
+  await expect.poll(() => page.evaluate(() => document.documentElement.scrollWidth <= document.documentElement.clientWidth)).toBe(true);
+  const accessibility = await new AxeBuilder({ page }).analyze();
+  expect(accessibility.violations.filter((item) => ["critical", "serious"].includes(item.impact))).toEqual([]);
+});
+
 test("photo settings to checked Standard result survives navigation and fits viewport", async ({ page }) => {
   await page.goto("/app/new?project=project-e2e");
   await expect(page.getByRole("heading", { name: "Настройте фасад" })).toBeVisible();
   await expect(page.getByText("Фото подходит")).toBeVisible();
-  await page.getByLabel("Архитектурное направление").selectOption("скандинавский");
+  await page.getByLabel("Все направления").selectOption("скандинавский");
+  await page.getByRole("button", { name: "Продолжить" }).click();
   await page.getByLabel("дерево").check();
   await page.getByLabel("Описание цветов").fill("молочный, графит");
+  await page.getByRole("button", { name: "Продолжить" }).click();
   await page.getByLabel("Что важно учесть").fill("Отделать карниз и существующие опоры");
   await page.getByLabel(/Подтверждаю списание 1 кредита/u).check();
   await expect.poll(() => page.evaluate(() => document.documentElement.scrollWidth <= document.documentElement.clientWidth)).toBe(true);

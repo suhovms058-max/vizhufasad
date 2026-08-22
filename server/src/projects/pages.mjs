@@ -1,5 +1,8 @@
 import express from "express";
 import { createRequireSession } from "../auth/http.mjs";
+import {
+  PHOTO_PROCESSING_CONSENT_PATH, PHOTO_PROCESSING_CONSENT_VERSION,
+} from "../legal/photo-consent.mjs";
 import { ProjectError } from "./service.mjs";
 
 const STYLES = [
@@ -7,11 +10,44 @@ const STYLES = [
   "классический", "неоклассический", "контемпорари", "лофт", "тёмный хай-тек",
   "автоподбор",
 ];
-const MATERIALS = [
-  "штукатурка", "кирпич", "клинкер", "дерево", "камень", "панели",
-  "фиброцемент", "металл", "комбинированная", "автоподбор",
+const FEATURED_STYLES = [
+  {
+    value: "автоподбор", title: "Автоподбор", description: "ИИ предложит подходящий образ",
+    image: "/facade-before-bright.webp", alt: "Исходный дом до выбора фасадного стиля",
+  },
+  {
+    value: "современный", title: "Современный", description: "Чистые линии и несколько материалов",
+    image: "/facade-after-bright.webp", alt: "Современная отделка фасада на примере дома",
+  },
+  {
+    value: "скандинавский", title: "Скандинавский", description: "Фиброцемент, дерево и природные тона",
+    image: "/facade-scandinavian-bright.webp", alt: "Скандинавская отделка фасада на примере дома",
+  },
+  {
+    value: "неоклассический", title: "Неоклассика", description: "Светлая штукатурка и сдержанный декор",
+    image: "/facade-neoclassical-bright.webp", alt: "Неоклассическая отделка фасада на примере дома",
+  },
 ];
-const PALETTES = ["тёплая светлая", "холодная светлая", "земляная", "графитовая", "контрастная", "автоподбор"];
+const MATERIALS = [
+  ["штукатурка", "Ровная матовая поверхность", "plaster"],
+  ["кирпич", "Тёплая кладка с заметным швом", "brick"],
+  ["клинкер", "Плотная выразительная кладка", "clinker"],
+  ["дерево", "Натуральные рейки или планкен", "wood"],
+  ["камень", "Фактурный природный акцент", "stone"],
+  ["панели", "Крупный современный формат", "panels"],
+  ["фиброцемент", "Практичная ровная облицовка", "fiber-cement"],
+  ["металл", "Фальц или вертикальный профиль", "metal"],
+  ["комбинированная", "Два-три материала в балансе", "combined"],
+  ["автоподбор", "ИИ подберёт сочетание", "auto"],
+];
+const PALETTES = [
+  ["автоподбор", "Автоподбор", ["#d8d0c2", "#8d5b42", "#303531"]],
+  ["тёплая светлая", "Тёплая светлая", ["#eee2cf", "#c8aa83", "#705646"]],
+  ["холодная светлая", "Холодная светлая", ["#edf0ed", "#c5ccc9", "#66716f"]],
+  ["земляная", "Земляная", ["#b59572", "#806044", "#4f5144"]],
+  ["графитовая", "Графитовая", ["#303532", "#59605c", "#b58b67"]],
+  ["контрастная", "Контрастная", ["#f1e9dc", "#282b29", "#a45f3d"]],
+];
 const PRESERVE = [
   ["geometry", "Геометрию дома"], ["windows", "Окна"], ["doors", "Двери"],
   ["roof", "Кровлю"], ["balconies", "Балконы"], ["terraces", "Террасы"],
@@ -38,7 +74,7 @@ function page(title, body, { scripts = [] } = {}) {
     <nav aria-label="Основная навигация"><a href="/app">Мои проекты</a><a href="/app/new">Новый проект</a>
     <a href="/app/balance">Баланс</a><a href="/app/settings">Настройки</a></nav></header>
   <main id="main" class="app-main">${body}</main>
-  ${scripts.map((src) => `<script src="${src}" defer></script>`).join("")}</body></html>`;
+  ${["/assets/product-analytics.js", ...scripts].map((src) => `<script src="${src}" defer></script>`).join("")}</body></html>`;
 }
 
 function statusLabel(status) {
@@ -95,18 +131,53 @@ function projectCard(project) {
 }
 
 function uploadStep(project) {
-  return `<section id="upload-app" class="flow" data-project-id="${escapeHtml(project?.id || "")}">
-    <div class="flow-heading"><p class="eyebrow">Шаг 1 из 3</p><h1>${project ? "Заменить фотографию" : "Создайте проект"}</h1>
-    <p>JPG, PNG или WEBP до 25 МБ. Минимум 640×420, рекомендуется от 1200×800.</p></div>
-    <div class="panel"><label for="project-title">Название проекта</label>
-    <input id="project-title" maxlength="120" required value="${escapeHtml(project?.title || "Мой дом")}">
-    <div id="drop-zone" class="drop-zone" tabindex="0" role="button" aria-describedby="upload-help">
-      <strong>Перетащите фото или выберите файл</strong><span id="upload-help">HEIC/HEIF потребует предварительной конвертации, если декодер недоступен.</span>
-      <input id="photo-input" class="visually-hidden" type="file" accept="image/jpeg,image/png,image/webp,image/heic,image/heif">
-    </div><img id="preview" class="upload-preview hidden" alt="Предпросмотр выбранной фотографии">
-    <p id="file-info" class="muted"></p><progress id="progress" class="hidden" max="100"></progress>
-    <p id="message" class="form-message" role="status" aria-live="polite"></p>
-    <button id="upload-button" type="button" disabled>${project ? "Заменить фото" : "Создать и загрузить"}</button></div></section>`;
+  return `<section id="upload-app" class="flow upload-flow" data-project-id="${escapeHtml(project?.id || "")}"
+    data-consent-version="${PHOTO_PROCESSING_CONSENT_VERSION}">
+    <div class="flow-heading"><p class="eyebrow">Шаг 1 из 3 · бесплатно</p><h1>${project ? "Замените фотографию дома" : "Загрузите фотографию дома"}</h1>
+    <p>Сначала автоматически проверим, подходит ли снимок для визуализации. Кредит на этом шаге не списывается.</p></div>
+    <div class="upload-layout">
+      <div class="panel upload-panel">
+        <label for="project-title">Название проекта</label>
+        <input id="project-title" maxlength="120" required value="${escapeHtml(project?.title || "Мой дом")}">
+        <div id="drop-zone" class="drop-zone" aria-describedby="upload-help upload-formats">
+          <button id="photo-picker" class="drop-zone-picker" type="button">
+            <span class="drop-zone-icon" aria-hidden="true">↥</span>
+            <strong>Перетащите фотографию сюда</strong>
+            <span class="drop-zone-action">или выберите из галереи</span>
+            <span id="upload-formats" class="muted">JPG, PNG или WEBP · до 25 МБ</span>
+          </button>
+          <input id="photo-input" class="visually-hidden" type="file" aria-label="Фотография дома" accept="image/jpeg,image/png,image/webp,image/heic,image/heif">
+        </div>
+        <div id="preview-shell" class="upload-preview-shell hidden">
+          <img id="preview" class="upload-preview" alt="Предпросмотр выбранной фотографии">
+          <div class="upload-preview-actions">
+            <button id="replace-photo" class="secondary" type="button">Выбрать другое фото</button>
+            <button id="remove-photo" class="text-button" type="button">Удалить</button>
+          </div>
+        </div>
+        <p id="file-info" class="file-info muted"></p><progress id="progress" class="hidden" max="100"></progress>
+        <p id="message" class="form-message" role="status" aria-live="polite"></p>
+        <div class="upload-consents" aria-labelledby="upload-consent-title">
+          <h2 id="upload-consent-title">Перед безопасной загрузкой</h2>
+          <label class="confirm consent-confirm"><input id="photo-processing-consent" type="checkbox">
+            <span>Я даю отдельное согласие на приватное хранение и автоматизированную обработку фотографии для проверки и создания новой визуализации, включая передачу настроенным AI-провайдерам. <a href="${PHOTO_PROCESSING_CONSENT_PATH}" target="_blank" rel="noopener">Текст согласия</a></span></label>
+          <label class="confirm consent-confirm"><input id="photo-usage-rights" type="checkbox">
+            <span>Подтверждаю, что вправе использовать фотографию и её обработка не нарушает права других лиц.</span></label>
+        </div>
+        <button id="upload-button" type="button" data-analytics-event="photo_upload_started" disabled>${project ? "Заменить и проверить фото" : "Загрузить и проверить фото"}</button>
+        <p class="privacy-note">Файл хранится приватно, а ссылки действуют ограниченное время. <a href="/legal/privacy">Как мы защищаем фотографии</a>. Согласие можно отозвать по email Исполнителя.</p>
+      </div>
+      <aside class="photo-guide" aria-labelledby="photo-guide-title">
+        <p class="eyebrow">Хороший исходник</p><h2 id="photo-guide-title">Как снять фасад</h2>
+        <ul class="photo-guide-list">
+          <li><strong>Дом целиком</strong><span>Крыша, стены и цоколь не обрезаны.</span></li>
+          <li><strong>Прямой понятный ракурс</strong><span>Без сильного наклона и панорамы.</span></li>
+          <li><strong>Дневной свет</strong><span>Фасад резкий, без ночной темноты.</span></li>
+          <li><strong>Минимум препятствий</strong><span>Деревья и машины не закрывают дом.</span></li>
+        </ul>
+        <div class="photo-requirements" id="upload-help"><strong>Минимум 640×420</strong><span>Для лучшей детализации рекомендуем от 1200×800. HEIC/HEIF может потребовать конвертацию в JPG.</span></div>
+      </aside>
+    </div></section>`;
 }
 
 function option(value, selected) {
@@ -117,32 +188,59 @@ function generationKindLabel(kind) {
   return ({ standard: "Standard", pro: "Pro", edit: "Доработка" })[kind] || "Standard";
 }
 
+function featuredStyleCard(style, selectedStyle) {
+  const active = style.value === selectedStyle;
+  return `<button class="style-card${active ? " active" : ""}" type="button" data-style="${escapeHtml(style.value)}" aria-pressed="${active}">
+    <img src="${escapeHtml(style.image)}" alt="${escapeHtml(style.alt)}">
+    <span class="style-card-copy"><strong>${escapeHtml(style.title)}</strong><small>${escapeHtml(style.description)}</small></span>
+    <span class="style-card-action">Выбрать</span></button>`;
+}
+
 function settingsStep(project, balance, costs, features) {
   const config = project.configuration || {};
   const selectedMaterials = new Set(config.materials || []);
   const preserve = config.preserve || {};
+  const selectedStyle = config.style || "автоподбор";
+  const selectedPalette = config.palette?.[0] || "автоподбор";
   return `<section id="generation-app" class="flow" data-project-id="${escapeHtml(project.id)}" data-image-id="${escapeHtml(project.image_id)}"
     data-standard-cost="${escapeHtml(costs.standard)}" data-pro-cost="${escapeHtml(costs.pro)}" data-pro-enabled="${features.pro}">
     <script id="initial-configuration" type="application/json">${jsonData(config)}</script>
     <div class="flow-heading"><p class="eyebrow">Шаг 3 из 3</p><h1>Настройте фасад</h1>
     <p>Баланс: <strong>${escapeHtml(balance)} кр.</strong></p></div>
-    <form id="generation-form" class="settings-form panel">
+    <form id="generation-form" class="settings-form panel" data-wizard-current="1">
+      <ol class="settings-progress" aria-label="Шаги настройки фасада">
+        <li aria-current="step"><span>1</span><strong>Задача и стиль</strong></li>
+        <li><span>2</span><strong>Отделка и цвета</strong></li>
+        <li><span>3</span><strong>Ограничения и запуск</strong></li>
+      </ol>
+      <div class="settings-step" data-wizard-step="1">
+      <div class="settings-step-heading"><p class="eyebrow">Настройка 1 из 3</p><h2>Как должен измениться фасад</h2><p>Выберите глубину изменений, качество результата и архитектурное направление.</p></div>
+      <fieldset><legend>Уровень изменений</legend><div class="mode-grid">${[["gentle", "Бережный", "Освежить отделку без изменения архитектуры"], ["balanced", "Сбалансированный", "Заметнее обновить сочетание материалов"], ["conceptual", "Концептуальный", "Создать выразительное решение в пределах ограничений"]].map(([value, label, description]) => `<label class="mode"><input type="radio" name="transformationLevel" value="${value}" ${(config.transformationLevel || "gentle") === value ? "checked" : ""}><span><strong>${label}</strong><small>${description}</small></span></label>`).join("")}</div></fieldset>
       <fieldset><legend>Качество результата</legend><div class="generation-tier-grid">
         <label class="generation-tier"><input type="radio" name="generationKind" value="standard" checked><span><strong>Standard · ${escapeHtml(costs.standard)} кредит</strong><small>Быстрый вариант для поиска отделки и цветового решения.</small></span></label>
         <label class="generation-tier ${features.pro ? "" : "is-disabled"}"><input type="radio" name="generationKind" value="pro" ${features.pro ? "" : "disabled"}><span><strong>Pro · ${escapeHtml(costs.pro)} кредита</strong><small>${features.pro ? "Модель более высокого качества, больше деталей и реалистичности." : "Появится после подтверждения качества модели на реальных фасадах."}</small></span></label>
       </div></fieldset>
-      <fieldset><legend>Стиль</legend><label for="style">Архитектурное направление</label>
-      <select id="style" name="style">${STYLES.map((item) => option(item, config.style || "автоподбор")).join("")}</select></fieldset>
-      <fieldset><legend>Отделка</legend><div class="choice-grid">${MATERIALS.map((item) => `<label class="choice"><input type="checkbox" name="materials" value="${escapeHtml(item)}" ${selectedMaterials.has(item) ? "checked" : ""}><span>${escapeHtml(item)}</span></label>`).join("")}</div></fieldset>
-      <fieldset><legend>Палитра</legend><label for="palette">Готовая палитра</label><select id="palette" name="palettePreset">${PALETTES.map((item) => option(item, config.palette?.[0] || "автоподбор")).join("")}</select>
+      <fieldset><legend>Стиль</legend><p class="hint">Сравните популярные направления на одном доме или откройте полный список.</p>
+      <div class="style-card-grid" aria-label="Популярные стили">${FEATURED_STYLES.map((item) => featuredStyleCard(item, selectedStyle)).join("")}</div>
+      <label for="style">Все направления</label><select id="style" name="style">${STYLES.map((item) => option(item, selectedStyle)).join("")}</select></fieldset>
+      </div>
+      <div class="settings-step hidden" data-wizard-step="2">
+      <div class="settings-step-heading"><p class="eyebrow">Настройка 2 из 3</p><h2>Отделка и цветовое решение</h2><p>Материалы, палитра и ваши уточнения автоматически попадут в задание генератору.</p></div>
+      <fieldset><legend>Отделка</legend><p class="hint">Можно сочетать несколько материалов. Финальная совместимость системы требует проверки основания.</p>
+      <div class="choice-grid material-grid">${MATERIALS.map(([value, description, visual]) => `<label class="choice material-choice" data-material="${escapeHtml(visual)}"><input type="checkbox" name="materials" value="${escapeHtml(value)}" ${selectedMaterials.has(value) ? "checked" : ""}><span><i class="material-swatch" aria-hidden="true"></i><b>${escapeHtml(value)}</b><small>${escapeHtml(description)}</small></span></label>`).join("")}</div></fieldset>
+      <fieldset><legend>Палитра</legend><p class="hint">Готовое сочетание задаёт настроение, а точные оттенки можно описать ниже.</p>
+      <div class="palette-grid">${PALETTES.map(([value, label, colors]) => `<label class="palette-choice"><input type="radio" name="palettePreset" value="${escapeHtml(value)}" ${selectedPalette === value ? "checked" : ""}><span><i class="palette-chips" aria-hidden="true">${colors.map((color) => `<b style="background:${escapeHtml(color)}"></b>`).join("")}</i><strong>${escapeHtml(label)}</strong></span></label>`).join("")}</div>
       <label for="palette-description">Описание цветов</label><input id="palette-description" name="paletteDescription" maxlength="120" value="${escapeHtml(config.palette?.slice(1).join(", ") || "")}" placeholder="Например: молочный, натуральное дерево, графит"></fieldset>
+      </div>
+      <div class="settings-step hidden" data-wizard-step="3">
+      <div class="settings-step-heading"><p class="eyebrow">Настройка 3 из 3</p><h2>Что обязательно сохранить</h2><p>Проверьте ограничения, добавьте пожелания и подтвердите стоимость перед запуском.</p></div>
       <fieldset><legend>Что сохранить</legend><p class="hint">Все ограничения включены по умолчанию.</p><div class="choice-grid preserve-grid">${PRESERVE.map(([name, label]) => `<label class="choice"><input type="checkbox" name="preserve.${name}" ${(preserve[name] ?? true) ? "checked" : ""}><span>${escapeHtml(label)}</span></label>`).join("")}</div></fieldset>
-      <fieldset><legend>Уровень изменений</legend><div class="mode-grid">${[["gentle", "Бережный"], ["balanced", "Сбалансированный"], ["conceptual", "Концептуальный"]].map(([value, label]) => `<label class="mode"><input type="radio" name="transformationLevel" value="${value}" ${(config.transformationLevel || "gentle") === value ? "checked" : ""}><span><strong>${label}</strong></span></label>`).join("")}</div></fieldset>
-      <fieldset><legend>Пожелания</legend><label for="wishes">Что важно учесть</label><textarea id="wishes" name="wishes" maxlength="700" rows="5" placeholder="Материалы, цвета, отделка карниза, цоколя, существующих опор…">${escapeHtml(config.wishes || "")}</textarea><p class="counter"><span id="wishes-count">0</span>/700</p></fieldset>
+      <fieldset><legend>Пожелания</legend><label for="wishes">Что важно учесть</label><textarea id="wishes" name="wishes" maxlength="700" rows="5" placeholder="Материалы, цвета, отделка карниза, цоколя, существующих опор…">${escapeHtml(config.wishes || "")}</textarea><p class="hint">Просьба передаётся генератору автоматически. Не просите менять этажность или геометрию, если соответствующие ограничения включены.</p><p class="counter"><span id="wishes-count">0</span>/700</p></fieldset>
       <label class="confirm"><input id="cost-confirm" type="checkbox" required><span id="cost-confirm-text">Подтверждаю списание ${escapeHtml(costs.standard)} кредита за Standard. Assessment и скачивание бесплатны.</span></label>
+      </div>
       <p id="draft-status" class="muted" role="status" aria-live="polite"></p>
       <p id="generation-message" class="form-message" role="status" aria-live="polite"></p>
-      <div class="actions"><button id="generation-start" type="submit">Запустить Standard</button><a class="button secondary" href="/app">Вернуться в проекты</a></div>
+      <div class="settings-wizard-actions"><button id="settings-back" class="secondary hidden" type="button">Назад</button><button id="settings-next" type="button">Продолжить</button><button id="generation-start" class="hidden" type="submit">Запустить Standard</button><a class="button secondary" href="/app">Вернуться в проекты</a></div>
     </form></section>`;
 }
 
@@ -193,15 +291,16 @@ function resultPage(project, generation, history, sourceUrl, resultUrl, balance,
       ${generation.requires_watermark ? '<span class="visual-watermark large">ВИЖУФАСАД · КОНЦЕПЦИЯ</span>' : ""}
       <label class="comparison-control"><span class="visually-hidden">Положение ползунка до и после</span><input id="compare-range" type="range" min="0" max="100" value="50"></label></div>
       <aside class="panel result-details"><p class="eyebrow">${escapeHtml(generationKindLabel(kind))} · вариант ${escapeHtml(generation.revision)}</p><h1>Фасад готов</h1>
+      <div class="result-verification"><strong>Автопроверка пройдена</strong><span>Результат допущен к показу автоматическим контролем качества.</span></div>
       <dl><div><dt>Стиль</dt><dd>${escapeHtml(config.style)}</dd></div><div><dt>Материалы</dt><dd>${escapeHtml((config.materials || []).join(", ") || "Автоподбор")}</dd></div>
       <div><dt>Палитра</dt><dd>${escapeHtml((config.palette || []).join(", ") || "Автоподбор")}</dd></div><div><dt>Режим</dt><dd>${escapeHtml(config.transformationLevel)}</dd></div></dl>
-      <p class="concept-note">Визуализация является концепцией, а не рабочим строительным проектом.</p>
+      <p class="concept-note">Визуализация является концепцией, а не рабочим строительным проектом.${generation.requires_watermark ? " Водяной знак означает, что использованы бесплатные кредиты." : ""}</p>
       <div class="actions stacked"><a class="button" href="${escapeHtml(resultUrl)}" download>Скачать</a>
       <button id="favorite-button" class="secondary" type="button" data-favorite="${generation.is_favorite}">${generation.is_favorite ? "Убрать из избранного" : "В избранное"}</button>
       <a class="button secondary" href="/app/new?project=${escapeHtml(project.id)}&repeat=${escapeHtml(generation.id)}">Повторить настройки</a>
-      <a class="button secondary" href="/app/new">Создать ещё</a></div><p>Баланс: <strong>${escapeHtml(balance)} кр.</strong></p></aside></section>`
+      <a class="button secondary" href="/app/new">Создать ещё</a></div><div class="result-balance"><span>Доступно</span><strong>${escapeHtml(balance)} кр.</strong><a href="/app/balance">Баланс и пакеты →</a></div></aside></section>`
     : `<section class="panel status-panel"><p class="eyebrow">${escapeHtml(generationKindLabel(kind))}</p><h1>${terminal ? "Генерация остановлена" : "Создаём фасад"}</h1>${statusSteps()}
-      <p id="generation-message" role="status" aria-live="polite"></p><button id="generation-cancel" class="danger hidden" type="button">Отменить</button>
+      <p id="generation-message" role="status" aria-live="polite"></p><button id="generation-cancel" class="danger hidden" type="button">Отменить до начала генерации</button>
       <p><a href="/app">Можно перейти в проекты — задача продолжит выполняться.</a></p></section>`;
   const items = history.map((item) => `<li><a href="/app/projects/${escapeHtml(project.id)}/generations/${escapeHtml(item.id)}">${escapeHtml(generationKindLabel(item.kind))} · вариант ${escapeHtml(item.revision)}</a>
     <span>${escapeHtml(statusLabel(item.status))} · ${escapeHtml(new Date(item.created_at).toLocaleString("ru-RU"))}${item.is_favorite ? " · ★" : ""}</span></li>`).join("");
