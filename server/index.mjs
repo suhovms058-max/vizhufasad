@@ -52,6 +52,11 @@ import { createCatalogRouter, createWalletRouter } from "./src/wallet/http.mjs";
 import { createWalletPagesRouter } from "./src/wallet/pages.mjs";
 import { WalletRepository } from "./src/wallet/repository.mjs";
 import { WalletService } from "./src/wallet/service.mjs";
+import { loadUpscaleConfig } from "./src/upscale/config.mjs";
+import { createUpscaleRouter } from "./src/upscale/http.mjs";
+import { createUpscaleQueue } from "./src/upscale/queue.mjs";
+import { UpscaleRepository } from "./src/upscale/repository.mjs";
+import { UpscaleService } from "./src/upscale/service.mjs";
 
 const required = [
   "SITE_ORIGIN", "DATABASE_URL", "REDIS_URL", "S3_ENDPOINT",
@@ -86,6 +91,7 @@ const paymentService = new PaymentService({
   config: paymentConfig,
 });
 const generationConfig = loadGenerationConfig();
+const upscaleConfig = loadUpscaleConfig();
 const generationQualityConfig = loadGenerationQualityConfig();
 const generationRepository = new GenerationRepository();
 const generationQualityRepository = new GenerationQualityRepository();
@@ -96,6 +102,15 @@ const generationService = new GenerationService({
   walletService,
   queue: generationQueue,
   config: generationConfig,
+});
+const upscaleRepository = new UpscaleRepository();
+const upscaleQueue = createUpscaleQueue(upscaleConfig);
+const upscaleService = new UpscaleService({
+  repository: upscaleRepository,
+  queue: upscaleQueue,
+  walletService,
+  storage,
+  config: upscaleConfig,
 });
 const generationMetrics = new GenerationMetrics({
   repository: generationRepository,
@@ -164,6 +179,7 @@ app.use("/assets", express.static(path.resolve("./public"), {
 app.use("/api/auth", createAuthRouter({ service: authService, config: authConfig }));
 app.use("/api/projects", createProjectsRouter({ authService, projectService }));
 app.use("/api/projects", createGenerationRouter({ authService, generationService }));
+app.use("/api/projects", createUpscaleRouter({ authService, upscaleService }));
 app.use(
   "/api/staging/generation",
   createGenerationStagingRouter({ generationService, config: generationConfig }),
@@ -453,6 +469,7 @@ async function shutdown(signal) {
   httpServer.close(async () => {
     await Promise.allSettled([
       generationQueue.close(),
+      upscaleQueue.close(),
       closeRedis(),
       closeDatabase(),
     ]);
