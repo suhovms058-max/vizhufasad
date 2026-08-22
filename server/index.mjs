@@ -52,6 +52,9 @@ import { createCatalogRouter, createWalletRouter } from "./src/wallet/http.mjs";
 import { createWalletPagesRouter } from "./src/wallet/pages.mjs";
 import { WalletRepository } from "./src/wallet/repository.mjs";
 import { WalletService } from "./src/wallet/service.mjs";
+import { createComparisonRouter } from "./src/comparison/http.mjs";
+import { ComparisonRepository } from "./src/comparison/repository.mjs";
+import { ComparisonService } from "./src/comparison/service.mjs";
 import { loadUpscaleConfig } from "./src/upscale/config.mjs";
 import { createUpscaleRouter } from "./src/upscale/http.mjs";
 import { createUpscaleQueue } from "./src/upscale/queue.mjs";
@@ -111,6 +114,11 @@ const upscaleService = new UpscaleService({
   walletService,
   storage,
   config: upscaleConfig,
+});
+const comparisonService = new ComparisonService({
+  repository: new ComparisonRepository(),
+  storage,
+  signedUrlTtlSeconds: generationConfig.resultSignedUrlTtlSeconds,
 });
 const generationMetrics = new GenerationMetrics({
   repository: generationRepository,
@@ -180,6 +188,7 @@ app.use("/api/auth", createAuthRouter({ service: authService, config: authConfig
 app.use("/api/projects", createProjectsRouter({ authService, projectService }));
 app.use("/api/projects", createGenerationRouter({ authService, generationService }));
 app.use("/api/projects", createUpscaleRouter({ authService, upscaleService }));
+app.use("/api/projects", createComparisonRouter({ authService, comparisonService }));
 app.use(
   "/api/staging/generation",
   createGenerationStagingRouter({ generationService, config: generationConfig }),
