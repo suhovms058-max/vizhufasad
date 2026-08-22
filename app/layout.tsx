@@ -1,8 +1,22 @@
 import type { ReactNode } from "react";
+import { Bodoni_Moda, Inter } from "next/font/google";
 import "./globals.css";
 import { JsonLd } from "./JsonLd";
 
 const siteOrigin = process.env.NEXT_PUBLIC_SITE_ORIGIN || "https://vizhufasad.ru";
+const inter = Inter({
+  subsets: ["cyrillic", "latin"],
+  weight: ["400", "500", "600"],
+  display: "swap",
+  variable: "--font-inter",
+});
+const bodoni = Bodoni_Moda({
+  subsets: ["latin"],
+  weight: ["500", "600"],
+  display: "swap",
+  variable: "--font-bodoni",
+  fallback: ["Georgia", "serif"],
+});
 
 export const metadata = {
   metadataBase: new URL(siteOrigin),
@@ -29,7 +43,7 @@ export const metadata = {
 
 export default function RootLayout({ children }: { children: ReactNode }) {
   return (
-    <html lang="ru">
+    <html lang="ru" className={`${inter.variable} ${bodoni.variable}`}>
       <body>{children}
         <JsonLd data={{
           "@context": "https://schema.org",

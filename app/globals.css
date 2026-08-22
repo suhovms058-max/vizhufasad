@@ -1,5 +1,3 @@
-@import url('https://fonts.googleapis.com/css2?family=Bodoni+Moda:opsz,wght@6..96,500;6..96,600&family=Inter:wght@400;500;600&display=swap');
-
 :root {
   --ink: #171714;
   --basalt: #202320;
@@ -19,7 +17,7 @@
 
 * { box-sizing: border-box; }
 html { scroll-behavior: smooth; }
-body { margin: 0; color: var(--cream); background: #111311; font-family: Inter, Arial, sans-serif; }
+body { margin: 0; color: var(--cream); background: #111311; font-family: var(--font-inter), Arial, sans-serif; }
 button, input, textarea { font: inherit; color: inherit; }
 button, a { -webkit-tap-highlight-color: transparent; }
 a { color: inherit; text-decoration: none; }
@@ -29,7 +27,7 @@ svg { width: 20px; fill: none; stroke: currentColor; stroke-width: 1.7; stroke-l
 
 .header { position: relative; z-index: 2; height: 96px; display: flex; align-items: center; justify-content: space-between; border-bottom: 1px solid rgba(245,234,220,.16); color: var(--cream); background: var(--basalt); box-shadow: 0 0 0 100vmax var(--basalt); clip-path: inset(0 -100vmax); }
 .logo { display: flex; align-items: center; gap: 12px; font-weight: 600; letter-spacing: .12em; font-size: 15px; }
-.logoMark { width: 40px; height: 40px; display: grid; place-items: center; background: var(--action); color: white; font-family: 'Bodoni Moda', serif; letter-spacing: -.06em; }
+.logoMark { width: 40px; height: 40px; display: grid; place-items: center; background: var(--action); color: white; font-family: var(--font-bodoni), Georgia, serif; letter-spacing: -.06em; }
 .logo small { display: block; font-size: 8px; color: #a9aaa4; letter-spacing: .16em; margin-top: 4px; }
 nav { display: flex; align-items: center; gap: 42px; font-size: 16px; }
 nav a { opacity: .78; transition: opacity .2s, color .2s; }
@@ -42,7 +40,7 @@ nav a:hover { opacity: 1; color: white; }
 .eyebrow { display: flex; align-items: center; gap: 11px; font-size: 10px; font-weight: 600; letter-spacing: .2em; color: #5b5d57; }
 .eyebrow > span { width: 28px; height: 1px; background: var(--copper); }
 .hero .eyebrow { color: #aaa9a2; }
-h1, h2 { font-family: 'Bodoni Moda', Georgia, serif; font-weight: 600; letter-spacing: -.045em; margin: 0; line-height: .98; }
+h1, h2 { font-family: var(--font-bodoni), Georgia, serif; font-weight: 600; letter-spacing: -.045em; margin: 0; line-height: .98; }
 h1 { max-width: 690px; font-size: clamp(48px, 4.45vw, 75px); margin: 26px 0 30px; line-height: .96; }
 h1 em, h2 em { color: var(--copper); font-weight: 500; }
 .heroCopy > p { max-width: 600px; font-size: 17px; line-height: 1.65; color: var(--text-light-muted); }
@@ -63,7 +61,7 @@ h1 em, h2 em { color: var(--copper); font-weight: 500; }
 
 .photoStart { background: #20231f; color: var(--cream); border-top: 1px solid rgba(245,234,220,.1); border-bottom: 1px solid rgba(245,234,220,.1); }
 .photoStartGrid { display: grid; grid-template-columns: minmax(0,.82fr) minmax(520px,1.18fr); gap: clamp(56px,8vw,128px); align-items: center; }
-.photoStartCopy h2 { max-width: 680px; margin: 25px 0 24px; font-family: 'Bodoni Moda', serif; font-size: clamp(46px,5vw,76px); font-weight: 500; line-height: .98; letter-spacing: -.035em; }
+.photoStartCopy h2 { max-width: 680px; margin: 25px 0 24px; font-family: var(--font-bodoni), Georgia, serif; font-size: clamp(46px,5vw,76px); font-weight: 500; line-height: .98; letter-spacing: -.035em; }
 .photoStartCopy h2 em { color: var(--copper-bright); font-weight: 400; }
 .photoStartCopy > p { max-width: 590px; color: #b5b6af; font-size: 16px; line-height: 1.7; }
 .photoStartCopy ul { display: grid; gap: 13px; margin: 28px 0; padding: 0; list-style: none; color: #deded7; font-size: 13px; }
@@ -78,7 +76,7 @@ h1 em, h2 em { color: var(--copper); font-weight: 500; }
 .landingDropzone img { width: 100%; height: 360px; object-fit: contain; }
 .landingDropzonePrompt { display: grid; justify-items: center; gap: 9px; padding: 32px; text-align: center; }
 .landingDropzonePrompt > span { display: grid; place-items: center; width: 54px; height: 54px; margin-bottom: 8px; border: 1px solid #a06a4f; border-radius: 50%; color: var(--copper); font-size: 28px; }
-.landingDropzonePrompt strong { font-family: 'Bodoni Moda', serif; font-size: 22px; font-weight: 500; }
+.landingDropzonePrompt strong { font-family: var(--font-bodoni), Georgia, serif; font-size: 22px; font-weight: 500; }
 .landingDropzonePrompt small { color: #555750; font-size: 12px; }
 .photoFileActions { display: flex; gap: 12px; align-items: center; margin-top: 18px; }
 .photoFileActions .button { min-height: 48px; }
@@ -109,7 +107,7 @@ button:focus-visible, a:focus-visible, input:focus-visible, textarea:focus-visib
 .carouselShade { position: absolute; inset: 0; background: linear-gradient(180deg, transparent 48%, rgba(10,12,10,.74) 100%); pointer-events: none; }
 .carouselMeta { position: absolute; left: 22px; bottom: 22px; z-index: 2; display: flex; flex-direction: column; align-items: flex-start; max-width: min(70%, 360px); color: white; text-shadow: 0 2px 14px rgba(0,0,0,.65); }
 .carouselMeta span { margin-bottom: 7px; color: #e6b08f; font-size: 8px; font-weight: 700; letter-spacing: .18em; }
-.carouselMeta strong { font-family: 'Bodoni Moda', serif; font-size: clamp(25px, 3vw, 38px); line-height: 1; }
+.carouselMeta strong { font-family: var(--font-bodoni), Georgia, serif; font-size: clamp(25px, 3vw, 38px); line-height: 1; }
 .carouselMeta small { margin-top: 8px; color: #e5e4df; font-size: 9px; letter-spacing: .04em; }
 .carouselControls { position: absolute; right: 18px; bottom: 18px; z-index: 3; display: flex; align-items: center; gap: 7px; }
 .carouselArrow, .carouselToggle, .carouselDot { border: 1px solid rgba(255,255,255,.38); background: rgba(18,20,18,.76); color: white; cursor: pointer; backdrop-filter: blur(9px); }
@@ -131,10 +129,10 @@ button:focus-visible, a:focus-visible, input:focus-visible, textarea:focus-visib
 .signalGrid > * { border-right: 1px solid #ffffff17; padding: 0 38px; }
 .signalGrid > *:first-child { padding-left: 0; }
 .signalGrid > *:last-child { border: 0; }
-.signalGrid p { font-family: 'Bodoni Moda', serif; font-size: 28px; line-height: 1.1; margin: 0; }
+.signalGrid p { font-family: var(--font-bodoni), Georgia, serif; font-size: 28px; line-height: 1.1; margin: 0; }
 .signalGrid p i { color: #c78262; }
 .signalGrid div { display: flex; flex-direction: column; gap: 7px; }
-.signalGrid strong { font-family: 'Bodoni Moda', serif; font-size: 23px; }
+.signalGrid strong { font-family: var(--font-bodoni), Georgia, serif; font-size: 23px; }
 .signalGrid span { font-size: 10px; color: #969993; }
 
 .processShowcase { background: var(--graphite); color: var(--cream); border-top: 1px solid rgba(245,234,220,.1); border-bottom: 1px solid rgba(245,234,220,.1); }
@@ -149,11 +147,11 @@ button:focus-visible, a:focus-visible, input:focus-visible, textarea:focus-visib
 .processMedia { position: relative; aspect-ratio: 1.15; overflow: hidden; background: #252925; }
 .processMedia::after { content: ""; position: absolute; inset: 0; background: linear-gradient(180deg, rgba(13,14,13,.08), rgba(13,14,13,.58)); pointer-events: none; }
 .processMedia img { width: 100%; height: 100%; object-fit: cover; }
-.processNumber { position: absolute; z-index: 2; top: 22px; left: 24px; color: #efba9f; font-family: 'Bodoni Moda', Georgia, serif; font-size: 47px; line-height: 1; }
+.processNumber { position: absolute; z-index: 2; top: 22px; left: 24px; color: #efba9f; font-family: var(--font-bodoni), Georgia, serif; font-size: 47px; line-height: 1; }
 .processReady { position: absolute; z-index: 2; right: 20px; bottom: 18px; display: inline-flex; align-items: center; gap: 7px; padding: 8px 10px; background: rgba(21,24,21,.84); color: #dbe8d4; font-size: 8px; letter-spacing: .14em; backdrop-filter: blur(8px); }
 .processReady svg { width: 13px; color: #a7c398; }
 .processBody { min-height: 190px; padding: 30px 28px 34px; }
-.processBody h3 { margin: 0 0 16px; color: var(--cream); font-family: 'Bodoni Moda', Georgia, serif; font-size: 28px; }
+.processBody h3 { margin: 0 0 16px; color: var(--cream); font-family: var(--font-bodoni), Georgia, serif; font-size: 28px; }
 .processBody p { margin: 0; color: #aeb1aa; font-size: 12px; line-height: 1.75; }
 .processChoice .processMedia { display: grid; place-items: center; background: radial-gradient(circle at 68% 30%, rgba(186,105,70,.18), transparent 36%), #1b1e1b; }
 .processPalette { position: relative; z-index: 2; display: grid; grid-template-columns: repeat(2, 64px); gap: 8px; transform: rotate(-5deg); }
@@ -173,7 +171,7 @@ h2 { font-size: clamp(48px, 5vw, 76px); margin-top: 24px; }
 .paletteIcon i { flex: 1; height: 28px; background: var(--copper); }
 .paletteIcon i:nth-child(2) { background: #d6c6ac; }
 .paletteIcon i:nth-child(3) { background: #40423f; }
-.steps h3, .priceCard h3 { font-family: 'Bodoni Moda', serif; font-size: 25px; margin: 0 0 16px; }
+.steps h3, .priceCard h3 { font-family: var(--font-bodoni), Georgia, serif; font-size: 25px; margin: 0 0 16px; }
 .steps p { font-size: 12px; color: #70716b; line-height: 1.7; margin: 0; }
 
 .deliver { background: #191b19; color: var(--cream); }
@@ -182,14 +180,14 @@ h2 { font-size: clamp(48px, 5vw, 76px); margin-top: 24px; }
 .deliverVisual > img { position: absolute; inset: 0; width: 100%; height: 100%; object-fit: cover; }
 .materialCard { position: absolute; right: -38px; bottom: -35px; width: 210px; padding: 23px; background: var(--basalt); color: white; display: flex; flex-direction: column; }
 .materialCard span, .materialCard small { font-size: 8px; letter-spacing: .15em; color: #9da098; }
-.materialCard strong { font-family: 'Bodoni Moda', serif; font-size: 21px; margin: 28px 0 8px; line-height: 1.1; }
+.materialCard strong { font-family: var(--font-bodoni), Georgia, serif; font-size: 21px; margin: 28px 0 8px; line-height: 1.1; }
 .deliverCopy h2 { margin-bottom: 30px; }
 .lead { color: #b0b1aa; line-height: 1.7; max-width: 570px; }
 .deliverCopy ul { list-style: none; padding: 0; margin: 42px 0; }
 .deliverCopy li { display: grid; grid-template-columns: 28px 1fr; gap: 15px; padding: 18px 0; border-top: 1px solid rgba(245,234,220,.14); }
 .deliverCopy li:last-child { border-bottom: 1px solid rgba(245,234,220,.14); }
 .deliverCopy li svg { color: var(--copper); width: 18px; }
-.deliverCopy li strong { display: block; font-family: 'Bodoni Moda', serif; font-size: 18px; margin-bottom: 5px; }
+.deliverCopy li strong { display: block; font-family: var(--font-bodoni), Georgia, serif; font-size: 18px; margin-bottom: 5px; }
 .deliverCopy li span { font-size: 11px; color: #a6a89f; line-height: 1.6; }
 
 .pricing { color: var(--cream); }
@@ -203,10 +201,10 @@ h2 { font-size: clamp(48px, 5vw, 76px); margin-top: 24px; }
 
 .pricingHead { display: flex; justify-content: space-between; align-items: flex-end; margin-bottom: 64px; }
 .freeStart { display: grid; grid-template-columns: minmax(0,1.4fr) minmax(180px,.55fr) auto; gap: 30px; align-items: center; margin-bottom: 46px; padding: 28px 30px; border: 1px solid rgba(245,234,220,.18); background: #222522; }
-.freeStart h3 { margin: 12px 0 8px; font-family: 'Bodoni Moda',Georgia,serif; font-size: clamp(25px,3vw,38px); }
+.freeStart h3 { margin: 12px 0 8px; font-family: var(--font-bodoni),Georgia,serif; font-size: clamp(25px,3vw,38px); }
 .freeStart p { max-width: 680px; margin: 0; color: #b9bbb4; font-size: 13px; line-height: 1.65; }
 .freeStartPrice { display: grid; gap: 4px; }
-.freeStartPrice strong { font-family: 'Bodoni Moda',Georgia,serif; font-size: 34px; }
+.freeStartPrice strong { font-family: var(--font-bodoni),Georgia,serif; font-size: 34px; }
 .freeStartPrice span { color: #b9bbb4; font-size: 10px; line-height: 1.45; }
 .priceGrid { display: grid; grid-template-columns: repeat(3, 1fr); border: 1px solid var(--line); }
 .priceCard { position: relative; min-height: 570px; padding: 32px 28px; border-right: 1px solid var(--line); display: flex; flex-direction: column; }
@@ -218,7 +216,7 @@ h2 { font-size: clamp(48px, 5vw, 76px); margin-top: 24px; }
 .priceCard h3 { font-size: 27px; margin: 28px 0 8px; }
 .priceCard > div > p { font-size: 11px; color: #767870; min-height: 40px; }
 .featured > div > p { color: #a1a49d; }
-.price { font-family: 'Bodoni Moda', serif; font-size: 34px; margin: 30px 0; }
+.price { font-family: var(--font-bodoni), Georgia, serif; font-size: 34px; margin: 30px 0; }
 .priceCard ul { list-style: none; padding: 0; margin: 0 0 36px; flex: 1; }
 .priceCard li { display: flex; gap: 10px; padding: 12px 0; font-size: 11px; border-top: 1px solid currentColor; border-color: rgba(128,128,128,.2); }
 .priceCard li svg { width: 14px; color: var(--copper); }
@@ -229,15 +227,15 @@ h2 { font-size: clamp(48px, 5vw, 76px); margin-top: 24px; }
 .audience { background: var(--basalt); color: white; }
 .audienceGrid { display: grid; grid-template-columns: 1fr 1fr; gap: 140px; align-items: center; }
 .quote { border-left: 1px solid #ffffff25; padding-left: 70px; }
-.quote > span { color: var(--copper); font-family: 'Bodoni Moda', serif; font-size: 72px; line-height: .6; }
-.quote p { font-family: 'Bodoni Moda', serif; font-size: 30px; line-height: 1.35; color: #e7e2d9; }
+.quote > span { color: var(--copper); font-family: var(--font-bodoni), Georgia, serif; font-size: 72px; line-height: .6; }
+.quote p { font-family: var(--font-bodoni), Georgia, serif; font-size: 30px; line-height: 1.35; color: #e7e2d9; }
 .quote small { font-size: 8px; letter-spacing: .18em; color: #8f928c; }
 
 .faq { display: grid; grid-template-columns: .8fr 1.2fr; gap: 110px; color: var(--cream); }
 .faqList { border-top: 1px solid var(--line); }
 .faqItem { width: 100%; color: var(--cream); text-align: left; border: 0; border-bottom: 1px solid rgba(245,234,220,.16); background: none; padding: 27px 0; cursor: pointer; display: grid; grid-template-columns: 1fr auto; }
-.faqItem > span { font-family: 'Bodoni Moda', serif; font-size: 20px; }
-.faqItem > span b { font-family: Inter, sans-serif; font-size: 8px; color: #92938c; margin-right: 28px; }
+.faqItem > span { font-family: var(--font-bodoni), Georgia, serif; font-size: 20px; }
+.faqItem > span b { font-family: var(--font-inter), Arial, sans-serif; font-size: 8px; color: #92938c; margin-right: 28px; }
 .faqItem > i { font-style: normal; color: var(--copper); font-size: 22px; }
 .faqItem p { grid-column: 1 / -1; margin: 0; max-height: 0; overflow: hidden; opacity: 0; transition: .3s; color: #a9aba4; font-size: 12px; line-height: 1.75; max-width: 620px; padding-left: 47px; }
 .faqItem.active p { max-height: 240px; opacity: 1; padding-top: 20px; }
@@ -261,12 +259,12 @@ h2 { font-size: clamp(48px, 5vw, 76px); margin-top: 24px; }
 .modal { position: relative; width: min(540px, 100%); max-height: calc(100vh - 40px); overflow-y: auto; background: var(--paper); padding: 46px; box-shadow: 0 24px 80px #0008; }
 .modalClose { position: absolute; right: 18px; top: 13px; border: 0; background: none; font-size: 28px; cursor: pointer; color: #777; }
 .modalEyebrow { color: var(--copper); font-size: 9px; letter-spacing: .17em; font-weight: 600; }
-.modal h3 { font-family: 'Bodoni Moda', serif; font-size: 40px; margin: 16px 0 10px; }
+.modal h3 { font-family: var(--font-bodoni), Georgia, serif; font-size: 40px; margin: 16px 0 10px; }
 .modal > p, .modal > div > p { color: #74766f; font-size: 12px; line-height: 1.6; }
 .dropzone { position: relative; min-height: 245px; margin: 28px 0 13px; border: 1px dashed #9b9b94; display: flex; flex-direction: column; align-items: center; justify-content: center; gap: 9px; cursor: pointer; overflow: hidden; }
 .dropzone input { position: absolute; inset: 0; opacity: 0; cursor: pointer; }
 .dropzone svg { width: 30px; color: var(--copper); margin-bottom: 7px; }
-.dropzone strong { font-family: 'Bodoni Moda', serif; font-size: 19px; }
+.dropzone strong { font-family: var(--font-bodoni), Georgia, serif; font-size: 19px; }
 .dropzone span { font-size: 10px; color: #85877f; }
 .dropzone.hasPreview img { width: 100%; height: 245px; object-fit: cover; }
 .fileName { font-size: 10px; display: flex; align-items: center; gap: 7px; color: #6b6d65; }
@@ -420,7 +418,7 @@ h2 { font-size: clamp(48px, 5vw, 76px); margin-top: 24px; }
 .homeStyleGrid article:last-child { border-right: 0; }
 .homeStyleGrid img { width: 100%; aspect-ratio: 4/3; object-fit: cover; }
 .homeStyleGrid article > div { padding: 26px; }
-.homeStyleGrid h3,.styleGalleryCard h3,.styleIndexGrid h3 { margin: 14px 0 12px; font-family: 'Bodoni Moda',Georgia,serif; font-size: 30px; }
+.homeStyleGrid h3,.styleGalleryCard h3,.styleIndexGrid h3 { margin: 14px 0 12px; font-family: var(--font-bodoni),Georgia,serif; font-size: 30px; }
 .homeStyleGrid article > div > p:not(.eyebrow) { min-height: 84px; color: var(--text-dark-muted); font-size: 13px; line-height: 1.65; }
 .homeStyleGrid small { color: #555750; font-size: 10px; line-height: 1.6; }
 .deliver .eyebrow,.pricing .eyebrow,.audience .eyebrow,.faq .eyebrow { color: var(--copper-bright); }
@@ -441,7 +439,7 @@ h2 { font-size: clamp(48px, 5vw, 76px); margin-top: 24px; }
 .casePair img { width: 100%; height: clamp(210px,28vw,380px); object-fit: cover; }
 .casePair figcaption { position: absolute; left: 12px; bottom: 12px; padding: 7px 10px; border-radius: 999px; background: #171714d9; color: #fff; font-size: 11px; font-weight: 850; letter-spacing: .06em; text-transform: uppercase; }
 .caseCardBody { padding: clamp(20px,3vw,34px); }
-.caseCardBody h3 { margin: 8px 0 10px; font-family: 'Bodoni Moda',Georgia,serif; font-size: clamp(28px,3vw,38px); }
+.caseCardBody h3 { margin: 8px 0 10px; font-family: var(--font-bodoni),Georgia,serif; font-size: clamp(28px,3vw,38px); }
 .caseActions { display: flex; align-items: center; gap: 18px; flex-wrap: wrap; margin-top: 20px; }
 .caseLightbox { position: fixed; inset: 0; z-index: 1000; display: grid; place-items: center; padding: 20px; background: #0b0c0be8; overscroll-behavior: contain; }
 .caseLightboxPanel { width: min(1180px,100%); max-height: calc(100vh - 40px); overflow: auto; border: 1px solid #ffffff24; border-radius: 16px; background: var(--surface); box-shadow: 0 28px 80px #0008; }
