@@ -30,6 +30,8 @@ function harness({
   attempts = 3,
   qualityDecisions = ["passed"],
   existingCandidate = false,
+  generationKind = "standard",
+  providerKinds,
 } = {}) {
   const events = [];
   let status = "queued";
@@ -44,6 +46,7 @@ function harness({
     source_width: 1600,
     source_height: 1000,
     config_snapshot: { style: "modern", promptVersion: "standard-facade-v3" },
+    kind: generationKind,
   };
   const repository = {
     async claimForWorker() {
@@ -106,6 +109,7 @@ function harness({
   const provider = {
     name: "mock",
     model: "mock-edit",
+    generationKinds: providerKinds,
     estimatedCostMinor: 100,
     currency: "RUB",
     async generate() {
@@ -146,6 +150,17 @@ test("a passing candidate is published only after quality assessment and commits
     events.filter((event) => ["quality-complete", "commit", "completed"].includes(event[0])),
     [["quality-complete", "passed"], ["commit"], ["completed"]],
   );
+});
+
+test("Pro generation uses a Pro-capable provider and stores a distinct result", async () => {
+  const { processor, job, events, getStatus } = harness({
+    generationKind: "pro",
+    providerKinds: ["pro"],
+  });
+  await processor.process(job);
+  assert.equal(getStatus(), "completed");
+  assert.equal(events.some((event) => event[0] === "provider"), true);
+  assert.equal(events.some((event) => event[0] === "stored" && event[1].endsWith("/pro.jpg")), true);
 });
 
 test("first quality rejection triggers one free stricter candidate and then passes", async () => {

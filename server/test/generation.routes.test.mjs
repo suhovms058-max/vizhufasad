@@ -60,6 +60,32 @@ test("generation routes require session and enforce ownership through service", 
   });
 });
 
+test("Pro route delegates to the Pro generation path", async () => {
+  const calls = [];
+  const authService = {
+    async sessionFromRequest() { return { user_id: "owner" }; },
+  };
+  const generationService = {
+    async createPro(...args) {
+      calls.push(args);
+      return { id: "pro-1", kind: "pro", status: "queued" };
+    },
+  };
+  const app = express();
+  app.use(express.json());
+  app.use("/api/projects", createGenerationRouter({ authService, generationService }));
+  await withServer(app, async (baseUrl) => {
+    const response = await fetch(`${baseUrl}/api/projects/project-1/generations/pro`, {
+      method: "POST",
+      headers: { "content-type": "application/json", "idempotency-key": "pro-request-12345" },
+      body: JSON.stringify({ sourceImageId: "image-1", input: { style: "modern" } }),
+    });
+    assert.equal(response.status, 202);
+    assert.equal((await response.json()).generation.kind, "pro");
+    assert.deepEqual(calls[0].slice(0, 3), ["owner", "project-1", "image-1"]);
+  });
+});
+
 test("generation metrics are disabled without a bearer token and never expose configuration", async () => {
   const app = express();
   app.use("/internal/generation/metrics", createGenerationMetricsRouter({

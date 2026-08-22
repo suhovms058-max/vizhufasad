@@ -155,6 +155,7 @@ export class GenApiGenerationProvider {
     currency = "RUB",
     pollIntervalMs = 1500,
     resultMaxBytes = 25 * 1024 * 1024,
+    generationKinds = ["standard"],
     fetchImplementation = fetch,
   }) {
     this.name = "genapi";
@@ -165,6 +166,7 @@ export class GenApiGenerationProvider {
     this.currency = currency;
     this.pollIntervalMs = pollIntervalMs;
     this.resultMaxBytes = resultMaxBytes;
+    this.generationKinds = generationKinds;
     this.fetchImplementation = fetchImplementation;
   }
 

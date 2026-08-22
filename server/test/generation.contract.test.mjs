@@ -6,6 +6,7 @@ import {
 } from "../src/generation/contract.mjs";
 import { loadGenerationConfig } from "../src/generation/config.mjs";
 import { composeGenerationPrompt } from "../src/generation/prompt.mjs";
+import { createGenerationProviders } from "../src/generation/providers-factory.mjs";
 
 test("generation input defaults to gentle and protects structure", () => {
   const input = normalizeGenerationInput({
@@ -88,12 +89,40 @@ test("generation input models all Stage 10 preservation choices conservatively",
 test("generation configuration is disabled by default and selects the measured candidate", () => {
   const config = loadGenerationConfig({});
   assert.equal(config.enabled, false);
+  assert.equal(config.proEnabled, false);
   assert.equal(config.model, "nano-banana-2");
   assert.equal(config.estimatedCostMinor, 2500);
   assert.throws(
     () => loadGenerationConfig({ FEATURE_STANDARD_GENERATION_ENABLED: "true" }),
     (error) => error.code === "GENAPI_API_KEY_REQUIRED",
   );
+  assert.throws(
+    () => loadGenerationConfig({
+      FEATURE_PRO_GENERATION_ENABLED: "true",
+      GENAPI_API_KEY: "secret",
+    }),
+    (error) => error.code === "GENAPI_PRO_MODEL_REQUIRED",
+  );
+  assert.throws(
+    () => loadGenerationConfig({
+      FEATURE_PRO_GENERATION_ENABLED: "true",
+      GENAPI_API_KEY: "secret",
+      GENAPI_PRO_MODEL: "nano-banana-2",
+    }),
+    (error) => error.code === "GENAPI_PRO_MODEL_MUST_DIFFER",
+  );
+  const pro = loadGenerationConfig({
+    FEATURE_PRO_GENERATION_ENABLED: "true",
+    GENAPI_API_KEY: "secret",
+    GENAPI_PRO_MODEL: "seedream-v5-pro",
+  });
+  assert.equal(pro.proEnabled, true);
+  assert.equal(pro.proModel, "seedream-v5-pro");
+  assert.equal(pro.proEstimatedCostMinor, 5000);
+  const providers = createGenerationProviders(pro);
+  assert.deepEqual(providers.map((provider) => [provider.model, provider.generationKinds]), [
+    ["seedream-v5-pro", ["pro"]],
+  ]);
   assert.throws(
     () => loadGenerationConfig({
       NODE_ENV: "production",

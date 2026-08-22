@@ -14,6 +14,7 @@ export class GenerationRepository {
     userId,
     projectId,
     sourceImageId,
+    kind,
     idempotencyKey,
     configSnapshot,
     geometryPolicySnapshot,
@@ -53,14 +54,15 @@ export class GenerationRepository {
       );
       const inserted = await client.query(
         `insert into generations (
-          project_id, source_image_id, revision, status, idempotency_key,
+          project_id, source_image_id, revision, kind, status, idempotency_key,
           config_snapshot, geometry_policy_snapshot
-        ) values ($1, $2, $3, 'created', $4, $5, $6)
+        ) values ($1, $2, $3, $4, 'created', $5, $6, $7)
         returning *`,
         [
           projectId,
           sourceImageId,
           Number(revision.rows[0].revision),
+          kind,
           idempotencyKey,
           configSnapshot,
           geometryPolicySnapshot,

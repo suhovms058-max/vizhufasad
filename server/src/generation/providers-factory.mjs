@@ -12,10 +12,25 @@ export function createGenerationProviders(config) {
       currency: config.currency,
       pollIntervalMs: config.pollIntervalMs,
       resultMaxBytes: config.resultMaxBytes,
+      generationKinds: ["standard"],
     }));
   }
-  if (config.enabled && config.fallbackProvider === "cloudru-self-hosted") {
-    providers.push(new UnavailableGenerationProvider());
+  if (config.proEnabled && config.provider === "genapi") {
+    providers.push(new GenApiGenerationProvider({
+      apiKey: config.apiKey,
+      model: config.proModel,
+      endpoint: config.endpoint,
+      estimatedCostMinor: config.proEstimatedCostMinor,
+      currency: config.currency,
+      pollIntervalMs: config.pollIntervalMs,
+      resultMaxBytes: config.resultMaxBytes,
+      generationKinds: ["pro"],
+    }));
+  }
+  if ((config.enabled || config.proEnabled) && config.fallbackProvider === "cloudru-self-hosted") {
+    const fallback = new UnavailableGenerationProvider();
+    fallback.generationKinds = config.proEnabled ? ["standard", "pro"] : ["standard"];
+    providers.push(fallback);
   }
   return providers;
 }

@@ -95,7 +95,11 @@ export class GenerationProcessor {
     if (!generating) throw new GenerationError("GENERATION_STATE_CONFLICT", 409);
     const prompt = composeGenerationPrompt(input, { qualityRetryReasons: retryReasons });
     let lastError;
-    for (const provider of this.providers) {
+    const kind = generation.kind || "standard";
+    const providers = this.providers.filter((provider) => (
+      provider.generationKinds == null || provider.generationKinds.includes(kind)
+    ));
+    for (const provider of providers) {
       const seed = this.seedFactory();
       const attemptNumber = await this.repository.nextAttemptNumber(generation.id);
       const attempt = await this.repository.startAttempt({
@@ -147,11 +151,11 @@ export class GenerationProcessor {
         if (!lastError.retryable) break;
       }
     }
-    throw lastError || new GenerationError("GENERATION_PROVIDER_FAILED", 502, { retryable: true });
+    throw lastError || new GenerationError("GENERATION_PROVIDER_UNAVAILABLE", 503, { retryable: true });
   }
 
   async finalizePassingCandidate({ generation, candidateImage, candidateKey, qualityAssessment }) {
-    const resultKey = `users/${generation.user_id}/projects/${generation.project_id}/generations/${generation.id}/standard.jpg`;
+    const resultKey = `users/${generation.user_id}/projects/${generation.project_id}/generations/${generation.id}/${generation.kind || "standard"}.jpg`;
     await this.storage.putPrivateObject({
       key: resultKey,
       body: candidateImage,

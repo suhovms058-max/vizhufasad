@@ -15,9 +15,14 @@ function boolean(environment, name, fallback = false) {
 }
 
 export function loadGenerationConfig(environment = process.env) {
-  const enabled = String(environment.FEATURE_STANDARD_GENERATION_ENABLED || "false") === "true";
+  const enabled = boolean(environment, "FEATURE_STANDARD_GENERATION_ENABLED", false);
+  const proEnabled = boolean(environment, "FEATURE_PRO_GENERATION_ENABLED", false);
   const apiKey = String(environment.GENAPI_API_KEY || "").trim();
-  if (enabled && !apiKey) throw new GenerationError("GENAPI_API_KEY_REQUIRED", 500);
+  if ((enabled || proEnabled) && !apiKey) throw new GenerationError("GENAPI_API_KEY_REQUIRED", 500);
+  const model = environment.GENAPI_STANDARD_MODEL || "nano-banana-2";
+  const proModel = String(environment.GENAPI_PRO_MODEL || "").trim();
+  if (proEnabled && !proModel) throw new GenerationError("GENAPI_PRO_MODEL_REQUIRED", 500);
+  if (proEnabled && proModel === model) throw new GenerationError("GENAPI_PRO_MODEL_MUST_DIFFER", 500);
   const stagingEnabled = String(environment.GENERATION_STAGING_ENABLED || "false") === "true";
   const stagingSecret = String(environment.GENERATION_STAGING_SECRET || "").trim();
   if (stagingEnabled && stagingSecret.length < 24) {
@@ -32,12 +37,15 @@ export function loadGenerationConfig(environment = process.env) {
   }
   return Object.freeze({
     enabled,
+    proEnabled,
     provider: environment.GENERATION_PRIMARY_PROVIDER || "genapi",
     fallbackProvider: environment.GENERATION_FALLBACK_PROVIDER || "none",
     apiKey,
     endpoint: environment.GENAPI_ENDPOINT || "https://api.gen-api.ru/api/v1",
-    model: environment.GENAPI_STANDARD_MODEL || "nano-banana-2",
+    model,
+    proModel,
     estimatedCostMinor: integer(environment, "GENAPI_STANDARD_ESTIMATED_COST_MINOR", 2500, 0, 100_000),
+    proEstimatedCostMinor: integer(environment, "GENAPI_PRO_ESTIMATED_COST_MINOR", 5000, 0, 200_000),
     currency: environment.GENAPI_COST_CURRENCY || "RUB",
     timeoutMs: integer(environment, "GENERATION_PROVIDER_TIMEOUT_MS", 180_000, 5_000, 600_000),
     pollIntervalMs: integer(environment, "GENERATION_POLL_INTERVAL_MS", 1_500, 250, 30_000),

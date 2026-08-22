@@ -1,14 +1,21 @@
-import { GenerationError, normalizeGenerationInput } from "./contract.mjs";
+import {
+  GenerationError, normalizeGenerationInput, normalizeGenerationKind,
+} from "./contract.mjs";
 import { composeGenerationPrompt } from "./prompt.mjs";
 import { createFreeWatermark } from "./watermark.mjs";
 
-function cleanIdempotencyKey(value, userId) {
+function cleanIdempotencyKey(value, userId, kind) {
   const key = String(value || "").trim();
   if (!/^[a-zA-Z0-9._:-]{8,120}$/u.test(key)) {
     throw new GenerationError("INVALID_IDEMPOTENCY_KEY");
   }
-  return `standard:${userId}:${key}`;
+  return `${kind}:${userId}:${key}`;
 }
+
+const actionCodeByKind = Object.freeze({
+  standard: "standard_generation",
+  pro: "pro_generation",
+});
 
 export class GenerationService {
   constructor({ repository, storage, walletService, queue, config }) {
@@ -19,21 +26,36 @@ export class GenerationService {
     this.config = config;
   }
 
-  assertEnabled() {
-    if (!this.config.enabled) throw new GenerationError("STANDARD_GENERATION_DISABLED", 404);
+  assertEnabled(kind) {
+    if (kind === "standard" && !this.config.enabled) {
+      throw new GenerationError("STANDARD_GENERATION_DISABLED", 404);
+    }
+    if (kind === "pro" && !this.config.proEnabled) {
+      throw new GenerationError("PRO_GENERATION_DISABLED", 404);
+    }
   }
 
   async create(userId, projectId, sourceImageId, value, requestedIdempotencyKey) {
-    this.assertEnabled();
+    return this.createKind("standard", userId, projectId, sourceImageId, value, requestedIdempotencyKey);
+  }
+
+  async createPro(userId, projectId, sourceImageId, value, requestedIdempotencyKey) {
+    return this.createKind("pro", userId, projectId, sourceImageId, value, requestedIdempotencyKey);
+  }
+
+  async createKind(requestedKind, userId, projectId, sourceImageId, value, requestedIdempotencyKey) {
+    const kind = normalizeGenerationKind(requestedKind);
+    this.assertEnabled(kind);
     const input = normalizeGenerationInput(value);
-    const idempotencyKey = cleanIdempotencyKey(requestedIdempotencyKey, userId);
+    const idempotencyKey = cleanIdempotencyKey(requestedIdempotencyKey, userId, kind);
     const prompt = composeGenerationPrompt(input);
     const created = await this.repository.createOwned({
       userId,
       projectId,
       sourceImageId,
+      kind,
       idempotencyKey,
-      configSnapshot: { ...input, promptVersion: prompt.version },
+      configSnapshot: { ...input, generationKind: kind, promptVersion: prompt.version },
       geometryPolicySnapshot: input.preserve,
     });
     if (!created) throw new GenerationError("GENERATION_SOURCE_NOT_ELIGIBLE", 409);
@@ -54,7 +76,7 @@ export class GenerationService {
     let reservation;
     try {
       reservation = await this.walletService.reserve(userId, {
-        actionCode: "standard_generation",
+        actionCode: actionCodeByKind[kind],
         idempotencyKey: `generation:${generation.id}:reserve`,
         referenceType: "generation",
         referenceId: generation.id,

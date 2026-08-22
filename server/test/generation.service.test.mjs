@@ -11,6 +11,7 @@ function harness({
   allowCancel = false,
 } = {}) {
   const events = [];
+  let createdInput;
   const generation = {
     id: "11111111-1111-4111-8111-111111111111",
     project_id: "22222222-2222-4222-8222-222222222222",
@@ -18,7 +19,8 @@ function harness({
     priority: 10,
   };
   const repository = {
-    async createOwned() {
+    async createOwned(input) {
+      createdInput = input;
       return duplicate
         ? { generation, created: false }
         : { generation, source: {}, created: true };
@@ -51,8 +53,8 @@ function harness({
     },
   };
   const walletService = {
-    async reserve() {
-      events.push(["reserve"]);
+    async reserve(_userId, input) {
+      events.push(["reserve", input.actionCode]);
       return { transaction: { id: "reservation-1" } };
     },
     async refund() { events.push(["refund"]); },
@@ -70,6 +72,7 @@ function harness({
   return {
     events,
     generation,
+    getCreatedInput: () => createdInput,
     service: new GenerationService({
       repository,
       storage: { async createDownloadUrl() { return "https://signed.example"; } },
@@ -77,6 +80,7 @@ function harness({
       queue,
       config: {
         enabled: true,
+        proEnabled: true,
         queuePaidPriority: 1,
         queueFreePriority: 10,
         resultSignedUrlTtlSeconds: 300,
@@ -98,6 +102,15 @@ test("HTTP generation creation only reserves and enqueues without provider wait"
   const result = await service.create("user-1", "project-1", "image-1", input, "request-12345");
   assert.equal(result.status, "queued");
   assert.deepEqual(events.map((event) => event[0]), ["reserve", "queued-db", "enqueue"]);
+});
+
+test("Pro generation persists its kind and reserves the two-credit action", async () => {
+  const { service, events, getCreatedInput } = harness();
+  const result = await service.createPro("user-1", "project-1", "image-1", input, "pro-request-12345");
+  assert.equal(result.status, "queued");
+  assert.equal(getCreatedInput().kind, "pro");
+  assert.equal(getCreatedInput().configSnapshot.generationKind, "pro");
+  assert.deepEqual(events.find((event) => event[0] === "reserve"), ["reserve", "pro_generation"]);
 });
 
 test("duplicate request returns existing generation without another charge", async () => {

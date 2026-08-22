@@ -35,6 +35,21 @@ export function createGenerationRouter({ authService, generationService }) {
       try { return respondError(response, error); } catch (unexpected) { return next(unexpected); }
     }
   });
+  router.post("/:projectId/generations/pro", limiter, async (request, response, next) => {
+    try {
+      const idempotencyKey = request.get("idempotency-key") || request.body?.idempotencyKey;
+      const generation = await generationService.createPro(
+        request.auth.user_id,
+        request.params.projectId,
+        request.body?.sourceImageId,
+        request.body?.input,
+        idempotencyKey,
+      );
+      return response.status(202).json({ generation });
+    } catch (error) {
+      try { return respondError(response, error); } catch (unexpected) { return next(unexpected); }
+    }
+  });
   router.get("/:projectId/generations", async (request, response, next) => {
     try {
       return response.json({

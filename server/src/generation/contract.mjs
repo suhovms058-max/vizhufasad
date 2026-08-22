@@ -1,4 +1,5 @@
 export const GENERATION_MODES = Object.freeze(["gentle", "balanced", "conceptual"]);
+export const GENERATION_KINDS = Object.freeze(["standard", "pro", "edit"]);
 export const GENERATION_PROMPT_VERSION = "standard-facade-v3";
 export const GENERATION_INPUT_VERSION = "1";
 export const GENERATION_STATUSES = Object.freeze([
@@ -25,6 +26,7 @@ export const CANCELLABLE_GENERATION_STATUSES = Object.freeze([
 const generationStatusSet = new Set(GENERATION_STATUSES);
 
 const modeSet = new Set(GENERATION_MODES);
+const kindSet = new Set(GENERATION_KINDS);
 
 export class GenerationError extends Error {
   constructor(code, status = 400, { retryable = false, details = null } = {}) {
@@ -131,12 +133,27 @@ export function normalizeGenerationInput(value = {}) {
   });
 }
 
+export function normalizeGenerationKind(value, { allowEdit = false } = {}) {
+  const kind = String(value || "standard").trim().toLowerCase();
+  if (!kindSet.has(kind) || kind === "edit" && !allowEdit) {
+    throw new GenerationError("INVALID_GENERATION_KIND");
+  }
+  return kind;
+}
+
 export function assertGenerationProvider(provider) {
   if (!provider || typeof provider.generate !== "function") {
     throw new TypeError("GenerationProvider.generate is required");
   }
   if (!provider.name || !provider.model) {
     throw new TypeError("GenerationProvider name and model are required");
+  }
+  if (provider.generationKinds != null && (
+    !Array.isArray(provider.generationKinds)
+    || provider.generationKinds.length === 0
+    || provider.generationKinds.some((kind) => !kindSet.has(kind))
+  )) {
+    throw new TypeError("GenerationProvider.generationKinds is invalid");
   }
   return provider;
 }
