@@ -92,6 +92,13 @@
       "when": 1786189391163,
       "tag": "0012_sloppy_mentor",
       "breakpoints": true
+    },
+    {
+      "idx": 13,
+      "version": "7",
+      "when": 1787407646359,
+      "tag": "0013_stage_12_pro_editor_4k",
+      "breakpoints": true
     }
   ]
 }

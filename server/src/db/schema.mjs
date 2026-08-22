@@ -29,6 +29,13 @@ export const generationStatus = pgEnum("generation_status", [
   "created", "queued", "preprocessing", "generating", "quality_check_pending",
   "completed", "retrying", "failed_refunded", "cancelled",
 ]);
+export const generationKind = pgEnum("generation_kind", ["standard", "pro", "edit"]);
+export const generationEditScope = pgEnum("generation_edit_scope", [
+  "full_facade", "walls", "plinth", "roof", "entrance", "custom_mask",
+]);
+export const upscaleStatus = pgEnum("upscale_status", [
+  "created", "queued", "processing", "completed", "failed_refunded", "cancelled",
+]);
 export const attemptStatus = pgEnum("attempt_status", ["started", "succeeded", "retryable_failed", "terminal_failed"]);
 export const generationQualityStatus = pgEnum("generation_quality_status", [
   "processing", "completed", "provider_unavailable",
@@ -188,6 +195,14 @@ export const generations = pgTable("generations", {
   projectId: uuid("project_id").notNull().references(() => projects.id, { onDelete: "cascade" }),
   sourceImageId: uuid("source_image_id").notNull().references(() => sourceImages.id, { onDelete: "restrict" }),
   revision: integer("revision").default(1).notNull(),
+  kind: generationKind("kind").default("standard").notNull(),
+  parentGenerationId: uuid("parent_generation_id")
+    .references(() => generations.id, { onDelete: "set null" }),
+  editScope: generationEditScope("edit_scope"),
+  editPrompt: text("edit_prompt"),
+  editMaskBucket: text("edit_mask_bucket"),
+  editMaskKey: text("edit_mask_key"),
+  editMaskMimeType: text("edit_mask_mime_type"),
   status: generationStatus("status").default("created").notNull(),
   idempotencyKey: text("idempotency_key"),
   queueJobId: text("queue_job_id"),
@@ -217,8 +232,20 @@ export const generations = pgTable("generations", {
   index("generations_status_created_idx").on(table.status, table.createdAt),
   index("generations_watchdog_idx").on(table.status, table.heartbeatAt),
   index("generations_project_favorite_idx").on(table.projectId, table.isFavorite, table.completedAt),
+  index("generations_parent_idx").on(table.parentGenerationId, table.createdAt),
+  index("generations_project_kind_idx").on(table.projectId, table.kind, table.createdAt),
   check("generations_revision_positive_chk", sql`${table.revision} > 0`),
   check("generations_priority_positive_chk", sql`${table.priority} > 0`),
+  check("generations_parent_not_self_chk", sql`${table.parentGenerationId} IS NULL OR ${table.parentGenerationId} <> ${table.id}`),
+  check("generations_edit_shape_chk", sql`
+    (${table.kind} <> 'edit' AND ${table.parentGenerationId} IS NULL AND ${table.editScope} IS NULL AND ${table.editPrompt} IS NULL)
+    OR (${table.kind} = 'edit' AND ${table.parentGenerationId} IS NOT NULL AND ${table.editScope} IS NOT NULL
+      AND length(btrim(${table.editPrompt})) BETWEEN 1 AND 700)
+  `),
+  check("generations_custom_mask_chk", sql`
+    ${table.editScope} <> 'custom_mask' OR (${table.editMaskBucket} IS NOT NULL AND ${table.editMaskKey} IS NOT NULL
+      AND ${table.editMaskMimeType} = 'image/png')
+  `),
 ]);
 
 export const generationAttempts = pgTable("generation_attempts", {
@@ -293,6 +320,75 @@ export const generationQualityAssessments = pgTable("generation_quality_assessme
     (${table.status} = 'completed' AND ${table.decision} IS NOT NULL AND ${table.finishedAt} IS NOT NULL)
     OR (${table.status} <> 'completed' AND ${table.decision} IS NULL)
   `),
+]);
+
+export const generationUpscales = pgTable("generation_upscales", {
+  id: uuid("id").defaultRandom().primaryKey(),
+  generationId: uuid("generation_id").notNull().references(() => generations.id, { onDelete: "cascade" }),
+  status: upscaleStatus("status").default("created").notNull(),
+  idempotencyKey: text("idempotency_key").notNull(),
+  queueJobId: text("queue_job_id"),
+  walletReservationId: uuid("wallet_reservation_id")
+    .references(() => walletTransactions.id, { onDelete: "set null" }),
+  provider: text("provider"),
+  model: text("model"),
+  providerRequestId: text("provider_request_id"),
+  sourceBucket: text("source_bucket").notNull(),
+  sourceKey: text("source_key").notNull(),
+  resultBucket: text("result_bucket"),
+  resultKey: text("result_key"),
+  resultMimeType: text("result_mime_type"),
+  outputWidth: integer("output_width"),
+  outputHeight: integer("output_height"),
+  estimatedCostMinor: integer("estimated_cost_minor"),
+  actualCostMinor: integer("actual_cost_minor"),
+  costCurrency: text("cost_currency"),
+  failureCode: text("failure_code"),
+  ...timestamps,
+  queuedAt: timestamp("queued_at", { withTimezone: true }),
+  startedAt: timestamp("started_at", { withTimezone: true }),
+  completedAt: timestamp("completed_at", { withTimezone: true }),
+}, (table) => [
+  uniqueIndex("generation_upscales_idempotency_uidx").on(table.idempotencyKey),
+  uniqueIndex("generation_upscales_queue_job_uidx").on(table.queueJobId),
+  index("generation_upscales_generation_idx").on(table.generationId, table.createdAt),
+  index("generation_upscales_status_idx").on(table.status, table.createdAt),
+  check("generation_upscales_dimensions_chk", sql`
+    (${table.status} <> 'completed') OR (
+      ${table.outputWidth} IS NOT NULL AND ${table.outputHeight} IS NOT NULL
+      AND ((${table.outputWidth} >= 3840 AND ${table.outputHeight} >= 2160)
+        OR (${table.outputWidth} >= 2160 AND ${table.outputHeight} >= 3840))
+    )
+  `),
+  check("generation_upscales_cost_chk", sql`
+    (${table.estimatedCostMinor} IS NULL OR ${table.estimatedCostMinor} >= 0)
+    AND (${table.actualCostMinor} IS NULL OR ${table.actualCostMinor} >= 0)
+  `),
+]);
+
+export const generationComparisons = pgTable("generation_comparisons", {
+  id: uuid("id").defaultRandom().primaryKey(),
+  projectId: uuid("project_id").notNull().references(() => projects.id, { onDelete: "cascade" }),
+  winnerGenerationId: uuid("winner_generation_id").references(() => generations.id, { onDelete: "set null" }),
+  collageBucket: text("collage_bucket"),
+  collageKey: text("collage_key"),
+  collageMimeType: text("collage_mime_type"),
+  ...timestamps,
+}, (table) => [
+  index("generation_comparisons_project_idx").on(table.projectId, table.updatedAt),
+]);
+
+export const generationComparisonItems = pgTable("generation_comparison_items", {
+  id: uuid("id").defaultRandom().primaryKey(),
+  comparisonId: uuid("comparison_id").notNull()
+    .references(() => generationComparisons.id, { onDelete: "cascade" }),
+  generationId: uuid("generation_id").notNull().references(() => generations.id, { onDelete: "cascade" }),
+  position: integer("position").notNull(),
+  createdAt: timestamp("created_at", { withTimezone: true }).defaultNow().notNull(),
+}, (table) => [
+  uniqueIndex("generation_comparison_items_generation_uidx").on(table.comparisonId, table.generationId),
+  uniqueIndex("generation_comparison_items_position_uidx").on(table.comparisonId, table.position),
+  check("generation_comparison_items_position_chk", sql`${table.position} BETWEEN 1 AND 4`),
 ]);
 
 export const wallets = pgTable("wallets", {

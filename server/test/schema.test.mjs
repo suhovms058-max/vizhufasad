@@ -14,6 +14,7 @@ const requiredTables = [
   "generation_attempts", "generation_quality_assessments", "wallets", "wallet_transactions", "tariff_plans",
   "payments", "subscriptions", "audit_logs", "photo_assessments", "photo_assessment_attempts",
   "action_costs",
+  "generation_upscales", "generation_comparisons", "generation_comparison_items",
 ];
 
 test("migrations create every required table", () => {
@@ -45,6 +46,11 @@ test("migrations include foreign keys, indexes, invariants and timestamp default
   assert.match(migration, /generations_watchdog_idx/);
   assert.match(migration, /generation_quality_assessments_number_chk/);
   assert.match(migration, /generation_quality_assessments_expiry_idx/);
+  assert.match(migration, /generation_kind.*standard.*pro.*edit/s);
+  assert.match(migration, /generations_parent_not_self_chk/);
+  assert.match(migration, /generations_edit_shape_chk/);
+  assert.match(migration, /generation_upscales_dimensions_chk/);
+  assert.match(migration, /generation_comparison_items_position_chk/);
   assert.match(migration, /'START'.*79000.*25/s);
   assert.match(migration, /'OPTIMUM'.*129000.*60/s);
   assert.match(migration, /'MAXIMUM'.*349000.*240/s);
