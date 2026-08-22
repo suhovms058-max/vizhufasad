@@ -176,5 +176,12 @@ export function assertGenerationProvider(provider) {
   )) {
     throw new TypeError("GenerationProvider.generationKinds is invalid");
   }
+  if (provider.editScopes != null && (
+    !Array.isArray(provider.editScopes)
+    || provider.editScopes.length === 0
+    || provider.editScopes.some((scope) => !editScopeSet.has(scope))
+  )) {
+    throw new TypeError("GenerationProvider.editScopes is invalid");
+  }
   return provider;
 }

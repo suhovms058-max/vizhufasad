@@ -82,14 +82,35 @@ function createGenerationBody({
   model, sourceImage, sourceMimeType, maskImage, maskMimeType, prompt, seed, width, height,
 }) {
   const body = new FormData();
-  if (maskImage && model === "restyle") {
+  if (maskImage && model !== "bria-genfill") {
     throw providerError("GENAPI_MODEL_MASK_UNSUPPORTED", 422, false);
+  }
+  if (model === "bria-genfill") {
+    if (!maskImage) throw providerError("GENAPI_MASK_REQUIRED", 422, false);
+    body.append("translate_input", "false");
+    body.append("prompt", prompt);
+    body.append("negative_prompt", "changes outside mask, changed building geometry, changed windows, changed doors, changed roof");
+    appendSource(body, "image", sourceImage, sourceMimeType);
+    appendSource(body, "mask", maskImage, maskMimeType, "mask");
+    body.append("seed", String(seed));
+    body.append("num_images", "1");
+    return body;
+  }
+  if (model === "nano-banana-pro") {
+    body.append("is_sync", "false");
+    body.append("translate_input", "false");
+    body.append("prompt", prompt);
+    appendSource(body, "image_urls[]", sourceImage, sourceMimeType);
+    body.append("aspect_ratio", closestAspectRatio(width, height));
+    body.append("resolution", "2K");
+    body.append("num_images", "1");
+    body.append("output_format", "png");
+    return body;
   }
   if (model === "nano-banana-2") {
     body.append("is_sync", "false");
     body.append("prompt", prompt);
     appendSource(body, "image_urls[]", sourceImage, sourceMimeType);
-    if (maskImage) appendSource(body, "image_urls[]", maskImage, maskMimeType, "mask");
     body.append("aspect_ratio", closestAspectRatio(width, height));
     body.append("resolution", "1K");
     body.append("num_images", "1");
@@ -98,12 +119,26 @@ function createGenerationBody({
     body.append("enable_web_search", "false");
     return body;
   }
+  if (model === "qwen-image-edit-plus" || model === "qwen-image-edit") {
+    body.append("translate_input", "false");
+    body.append("prompt", prompt);
+    appendSource(body, model === "qwen-image-edit" ? "image_url" : "image_urls[]", sourceImage, sourceMimeType);
+    body.append("negative_prompt", "changed house geometry, changed windows, changed doors, changed roof, artifacts");
+    body.append("width", String(width));
+    body.append("height", String(height));
+    body.append("num_images", "1");
+    body.append("seed", String(seed));
+    body.append("output_format", "png");
+    body.append("guidance_scale", "4");
+    body.append("num_inference_steps", model === "qwen-image-edit-plus" ? "50" : "30");
+    body.append("enable_safety_checker", "true");
+    return body;
+  }
   if (model === "seedream-v5-pro" || model === "seedream-v5-lite") {
     body.append("translate_input", "false");
     body.append("is_sync", "false");
     body.append("prompt", prompt);
     appendSource(body, "image_urls[]", sourceImage, sourceMimeType);
-    if (maskImage) appendSource(body, "image_urls[]", maskImage, maskMimeType, "mask");
     body.append("width", String(width));
     body.append("height", String(height));
     body.append("num_images", "1");
@@ -122,7 +157,6 @@ function createGenerationBody({
     body.append("safety_tolerance", "2");
     body.append("aspect_ratio", closestAspectRatio(width, height));
     appendSource(body, "images[]", sourceImage, sourceMimeType);
-    if (maskImage) appendSource(body, "images[]", maskImage, maskMimeType, "mask");
     return body;
   }
   if (model === "restyle") {
@@ -146,7 +180,6 @@ function createGenerationBody({
   body.append("translate_input", "false");
   body.append("prompt", prompt);
   appendSource(body, "image_urls[]", sourceImage, sourceMimeType);
-  if (maskImage) appendSource(body, "image_urls[]", maskImage, maskMimeType, "mask");
   body.append("width", String(width));
   body.append("height", String(height));
   body.append("enable_safety_checker", "true");
@@ -165,6 +198,7 @@ export class GenApiGenerationProvider {
     pollIntervalMs = 1500,
     resultMaxBytes = 25 * 1024 * 1024,
     generationKinds = ["standard"],
+    editScopes = null,
     fetchImplementation = fetch,
   }) {
     this.name = "genapi";
@@ -176,6 +210,7 @@ export class GenApiGenerationProvider {
     this.pollIntervalMs = pollIntervalMs;
     this.resultMaxBytes = resultMaxBytes;
     this.generationKinds = generationKinds;
+    this.editScopes = editScopes;
     this.fetchImplementation = fetchImplementation;
   }
 

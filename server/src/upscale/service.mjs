@@ -65,7 +65,7 @@ export class UpscaleService {
     return {
       ...safe,
       resultAvailable: upscale.status === "completed" && Boolean(resultKey),
-      cancellable: ["created", "queued"].includes(upscale.status),
+      cancellable: ["created", "queued"].includes(upscale.status) && !upscale.provider_request_id,
     };
   }
 

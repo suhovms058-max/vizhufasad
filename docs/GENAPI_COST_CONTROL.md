@@ -12,11 +12,11 @@ Official references:
 
 ## Implemented policy
 
-1. User cancellation is allowed only while a local task is `created`, `queued` or `retrying` and has not entered provider processing.
+1. User cancellation is allowed only while a local task is `created`, `queued` or `retrying` and no provider `request_id` has ever been accepted. This condition is enforced atomically in SQL, not only by the button state.
 2. Once GenAPI accepts a request, its `request_id` is persisted immediately.
 3. A local timeout, worker restart or temporary polling failure resumes that same `request_id`; it does not submit another paid request.
 4. A submitted request never falls through to a second provider during the same attempt.
-5. The UI receives a `cancellable` flag and must hide cancellation after processing begins.
+5. The UI receives a `cancellable` flag and hides cancellation after provider acceptance, including a later local `retrying` state caused by a polling/network failure.
 6. User credits may be refunded on a terminal technical failure, while the real provider cost is recorded separately for unit-economics monitoring.
 
 ## Remaining unavoidable edge case

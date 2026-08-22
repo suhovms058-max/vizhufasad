@@ -81,7 +81,9 @@ test("GenAPI provider marks transient errors retryable without leaking response 
 test("GenAPI provider uses each edit model's documented image field and controls", async () => {
   const cases = [
     ["nano-banana-2", "image_urls[]", ["resolution", "1K"]],
+    ["nano-banana-pro", "image_urls[]", ["resolution", "2K"]],
     ["seedream-v5-pro", "image_urls[]", ["output_format", "jpeg"]],
+    ["qwen-image-edit-plus", "image_urls[]", ["num_inference_steps", "50"]],
     ["flux-kontext", "images[]", ["model", "max"]],
     ["restyle", "image", ["image_size", "input"]],
   ];
@@ -129,11 +131,11 @@ test("GenAPI resumes a persisted paid request without submitting another generat
   assert.deepEqual(calls.map((call) => call[1]), ["GET", "GET"]);
 });
 
-test("GenAPI sends a custom mask as a second image and fails closed for one-image models", async () => {
+test("GenAPI sends a custom mask only through the documented Bria mask fields", async () => {
   let body;
   const provider = new GenApiGenerationProvider({
     apiKey: "secret",
-    model: "nano-banana-2",
+    model: "bria-genfill",
     fetchImplementation: async (_url, options) => {
       body = options.body;
       return Response.json({ error: true }, { status: 422 });
@@ -147,8 +149,9 @@ test("GenAPI sends a custom mask as a second image and fails closed for one-imag
     width: 1024,
     height: 768,
   }));
-  assert.equal(body.getAll("image_urls[]").length, 2);
-  const unsupported = new GenApiGenerationProvider({ apiKey: "secret", model: "restyle" });
+  assert.equal(body.get("image").type, "image/jpeg");
+  assert.equal(body.get("mask").type, "image/png");
+  const unsupported = new GenApiGenerationProvider({ apiKey: "secret", model: "nano-banana-2" });
   await assert.rejects(
     unsupported.generate({
       sourceImage: Buffer.from("source"), maskImage: Buffer.from("mask"),

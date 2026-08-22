@@ -222,7 +222,8 @@ export class GenerationService {
     return {
       ...safe,
       resultAvailable: generation.status === "completed" && Boolean(key),
-      cancellable: ["created", "queued", "retrying"].includes(generation.status),
+      cancellable: ["created", "queued", "retrying"].includes(generation.status)
+        && !(generation.attempts || []).some((attempt) => Boolean(attempt.jobId)),
     };
   }
 

@@ -270,6 +270,30 @@ UI `/app/projects/:projectId` использует polling. Redis настрое
 идемпотентно возвращает кредит. Полное описание:
 [`docs/STAGE_8_GENERATION_QUEUE.md`](docs/STAGE_8_GENERATION_QUEUE.md).
 
+## Stage 12: Pro, редактор, 4K и сравнение
+
+Stage 12 реализован за выключенными по умолчанию feature flags. Pro стоит 2 кредита, текстовая или
+масочная доработка — 1 кредит, 4K — 1 кредит. Все три действия используют отдельные идемпотентные
+резервы кошелька и автоматический refund при технической неудаче. Сравнение 2–4 результатов
+доступно только владельцу проекта после серверной проверки пакета «Оптимум»/«Максимум».
+
+```dotenv
+FEATURE_PRO_GENERATION_ENABLED=false
+GENAPI_PRO_MODEL=nano-banana-pro
+FEATURE_GENERATION_EDITOR_ENABLED=false
+GENAPI_EDIT_MODEL=qwen-image-edit-plus
+GENAPI_MASK_EDIT_MODEL=bria-genfill
+FEATURE_UPSCALE_4K_ENABLED=false
+GENAPI_UPSCALE_MODEL=drct-super-resolution
+```
+
+Текстовые области и пользовательская маска намеренно разведены по разным provider-capabilities:
+`bria-genfill` получает исходник через `image` и настоящую PNG-маску через `mask`; маска не
+выдаётся за второе reference image. До платных facade smoke-tests функции остаются выключенными.
+Выбор моделей и измерительный план: [`docs/STAGE_12_PROVIDER_DECISION.md`](docs/STAGE_12_PROVIDER_DECISION.md).
+Защита от повторной оплаты одной remote-задачи при перезапуске:
+[`docs/GENAPI_COST_CONTROL.md`](docs/GENAPI_COST_CONTROL.md).
+
 ## Автоматический контроль результата генерации
 
 Этап 9 добавляет обязательный автоматический gate между генерацией и выдачей результата. Проверка объединяет VLM-сравнение исходника и кандидата, контуры, пространственное распределение границ и similarity отдельных защищённых зон. Единая pixel similarity всей картинки не используется, поэтому новая отделка и цвет сами по себе не считаются изменением дома.

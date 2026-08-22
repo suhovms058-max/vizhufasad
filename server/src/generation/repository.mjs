@@ -413,6 +413,10 @@ export class GenerationRepository {
        where g.id = $1 and g.project_id = $2 and p.id = g.project_id
          and p.user_id = $3 and p.deleted_at is null
          and g.status in (${cancellableSql})
+         and not exists (
+           select 1 from generation_attempts a
+           where a.generation_id = g.id and a.provider_request_id is not null
+         )
        returning g.*`,
       [generationId, projectId, userId],
     );

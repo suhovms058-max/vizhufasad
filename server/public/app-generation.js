@@ -36,7 +36,7 @@
     message.textContent = text;
     message.className = generation.status === "failed_refunded" ? "form-message error"
       : generation.status === "completed" ? "form-message success" : "form-message";
-    cancel?.classList.toggle("hidden", !cancellable.has(generation.status));
+    cancel?.classList.toggle("hidden", generation.cancellable === false || !cancellable.has(generation.status));
     if (generation.status === "completed") { clearTimeout(timer); location.reload(); }
     else if (terminal.has(generation.status)) clearTimeout(timer);
   }

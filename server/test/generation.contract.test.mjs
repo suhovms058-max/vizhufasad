@@ -130,6 +130,16 @@ test("generation configuration is disabled by default and selects the measured c
     }),
     (error) => error.code === "GENAPI_EDIT_MODEL_REQUIRED",
   );
+  const editor = loadGenerationConfig({
+    FEATURE_GENERATION_EDITOR_ENABLED: "true",
+    GENAPI_API_KEY: "secret",
+    GENAPI_EDIT_MODEL: "qwen-image-edit-plus",
+  });
+  assert.equal(editor.maskEditModel, "bria-genfill");
+  assert.deepEqual(createGenerationProviders(editor).map((provider) => [provider.model, provider.editScopes]), [
+    ["qwen-image-edit-plus", ["full_facade", "walls", "plinth", "roof", "entrance"]],
+    ["bria-genfill", ["custom_mask"]],
+  ]);
   assert.throws(
     () => loadGenerationConfig({
       NODE_ENV: "production",

@@ -101,7 +101,8 @@ export class GenerationProcessor {
     const kind = generation.kind || "standard";
     const providers = this.providers.filter((provider) => (
       provider.generationKinds == null || provider.generationKinds.includes(kind)
-    ));
+    ) && (kind !== "edit" || provider.editScopes == null
+      || provider.editScopes.includes(generation.edit_scope)));
     for (const provider of providers) {
       let attempt = await this.repository.resumeProviderAttempt?.(
         generation.id, candidateNumber, provider.name, provider.model,

@@ -5,8 +5,8 @@
 - [x] Add the durable Stage 12 data model.
 - [ ] Implement and measure Pro generation for 2 credits.
 - [ ] Implement text and protected-area editing for 1 credit.
-- [ ] Implement version-tree navigation.
+- [x] Implement version-tree navigation.
 - [ ] Implement verified 4K upscale for 1 credit.
-- [ ] Implement Optimum/Maximum comparison for up to four results.
+- [x] Implement Optimum/Maximum comparison for up to four results.
 - [ ] Run approved live provider smokes and the final mandatory suite.
 - [ ] Update documentation, commit, push and prepare a draft PR without merging.

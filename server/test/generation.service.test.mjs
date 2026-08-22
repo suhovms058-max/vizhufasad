@@ -9,6 +9,7 @@ function harness({
   queueFails = false,
   paid = false,
   allowCancel = false,
+  remoteRequestId = null,
 } = {}) {
   const events = [];
   let createdInput;
@@ -38,7 +39,7 @@ function harness({
       return {
         ...generation,
         result_key: duplicate && duplicateStatus === "completed" ? "result.jpg" : null,
-        attempts: [],
+        attempts: remoteRequestId ? [{ jobId: remoteRequestId }] : [],
       };
     },
     async findLatestOwned() { return null; },
@@ -158,4 +159,11 @@ test("cancelling a waiting generation removes the job and refunds idempotently",
   const cancelled = await service.cancel("user-1", "project-1", generation.id);
   assert.equal(cancelled.status, "cancelled");
   assert.equal(events.some((event) => event[0] === "refund"), true);
+});
+
+test("a retrying generation with an accepted provider request cannot be cancelled in the UI", async () => {
+  const { service, generation } = harness({ remoteRequestId: "paid-request-42" });
+  generation.status = "retrying";
+  const viewed = await service.view("user-1", "project-1", generation.id);
+  assert.equal(viewed.cancellable, false);
 });

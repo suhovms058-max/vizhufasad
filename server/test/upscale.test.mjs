@@ -99,6 +99,17 @@ test("upscale service reserves one credit and enqueues idempotently", async () =
   assert.deepEqual(events, ["upscale_4k", "enqueue"]);
 });
 
+test("an accepted upscale request remains non-cancellable after a local retry state", async () => {
+  const service = new UpscaleService({
+    repository: { async findOwned() { return {
+      id: "upscale-1", status: "queued", provider_request_id: "paid-upscale-42", result_key: null,
+    }; } },
+    queue: {}, walletService: {}, storage: {}, config: { enabled: true },
+  });
+  const viewed = await service.view("owner", "project-1", "upscale-1");
+  assert.equal(viewed.cancellable, false);
+});
+
 test("upscale API starts an asynchronous owner-scoped task", async () => {
   const calls = [];
   const app = express();

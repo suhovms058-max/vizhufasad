@@ -135,7 +135,7 @@ export class UpscaleRepository {
        from generations g, projects p
        where u.id = $1 and u.generation_id = g.id and g.project_id = $2
          and p.id = g.project_id and p.user_id = $3 and p.deleted_at is null
-         and u.status in ('created', 'queued') returning u.*`,
+         and u.status in ('created', 'queued') and u.provider_request_id is null returning u.*`,
       [id, projectId, userId],
     );
     return result.rows[0] ?? null;

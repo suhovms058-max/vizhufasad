@@ -28,6 +28,7 @@
     "smoke:generation-quality": "node --test test/generation-quality.golden.test.mjs test/generation-quality.integration.test.mjs test/generation.processor.test.mjs",
     "smoke:generation": "node scripts/smoke-standard-generation.mjs",
     "smoke:generation:endpoint": "node scripts/smoke-standard-generation-endpoint.mjs",
+    "smoke:stage12:providers": "node scripts/smoke-stage12-providers.mjs",
     "test:e2e": "playwright test",
     "test:frontend": "playwright test e2e/stage10-standard-flow.spec.mjs"
   },

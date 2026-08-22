@@ -37,6 +37,18 @@ export function createGenerationProviders(config) {
       pollIntervalMs: config.pollIntervalMs,
       resultMaxBytes: config.resultMaxBytes,
       generationKinds: ["edit"],
+      editScopes: ["full_facade", "walls", "plinth", "roof", "entrance"],
+    }));
+    providers.push(new GenApiGenerationProvider({
+      apiKey: config.apiKey,
+      model: config.maskEditModel,
+      endpoint: config.endpoint,
+      estimatedCostMinor: config.maskEditEstimatedCostMinor,
+      currency: config.currency,
+      pollIntervalMs: config.pollIntervalMs,
+      resultMaxBytes: config.resultMaxBytes,
+      generationKinds: ["edit"],
+      editScopes: ["custom_mask"],
     }));
   }
   if ((config.enabled || config.proEnabled) && config.fallbackProvider === "cloudru-self-hosted") {

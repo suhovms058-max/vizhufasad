@@ -23,9 +23,11 @@ export function loadGenerationConfig(environment = process.env) {
   const model = environment.GENAPI_STANDARD_MODEL || "nano-banana-2";
   const proModel = String(environment.GENAPI_PRO_MODEL || "").trim();
   const editModel = String(environment.GENAPI_EDIT_MODEL || "").trim();
+  const maskEditModel = String(environment.GENAPI_MASK_EDIT_MODEL || "bria-genfill").trim();
   if (proEnabled && !proModel) throw new GenerationError("GENAPI_PRO_MODEL_REQUIRED", 500);
   if (proEnabled && proModel === model) throw new GenerationError("GENAPI_PRO_MODEL_MUST_DIFFER", 500);
   if (editorEnabled && !editModel) throw new GenerationError("GENAPI_EDIT_MODEL_REQUIRED", 500);
+  if (editorEnabled && !maskEditModel) throw new GenerationError("GENAPI_MASK_EDIT_MODEL_REQUIRED", 500);
   const stagingEnabled = String(environment.GENERATION_STAGING_ENABLED || "false") === "true";
   const stagingSecret = String(environment.GENERATION_STAGING_SECRET || "").trim();
   if (stagingEnabled && stagingSecret.length < 24) {
@@ -49,9 +51,11 @@ export function loadGenerationConfig(environment = process.env) {
     model,
     proModel,
     editModel,
+    maskEditModel,
     estimatedCostMinor: integer(environment, "GENAPI_STANDARD_ESTIMATED_COST_MINOR", 2500, 0, 100_000),
     proEstimatedCostMinor: integer(environment, "GENAPI_PRO_ESTIMATED_COST_MINOR", 5000, 0, 200_000),
     editEstimatedCostMinor: integer(environment, "GENAPI_EDIT_ESTIMATED_COST_MINOR", 2500, 0, 200_000),
+    maskEditEstimatedCostMinor: integer(environment, "GENAPI_MASK_EDIT_ESTIMATED_COST_MINOR", 1500, 0, 200_000),
     currency: environment.GENAPI_COST_CURRENCY || "RUB",
     timeoutMs: integer(environment, "GENERATION_PROVIDER_TIMEOUT_MS", 180_000, 5_000, 600_000),
     pollIntervalMs: integer(environment, "GENERATION_POLL_INTERVAL_MS", 1_500, 250, 30_000),
