@@ -1,6 +1,10 @@
 "use client";
 
 import { ChangeEvent, useEffect, useState } from "react";
+import { HeroFacadeCarousel } from "./HeroFacadeCarousel";
+import { LandingPhotoCheck } from "./LandingPhotoCheck";
+import { JsonLd } from "./JsonLd";
+import { facadeStyles } from "./facadeStyleCatalog";
 
 const LEADS_API =
   process.env.NEXT_PUBLIC_LEADS_API_URL ||
@@ -8,6 +12,11 @@ const LEADS_API =
 const APP_URL = process.env.NEXT_PUBLIC_APP_URL || "/app/new";
 const LEGACY_LEADS_ENABLED = process.env.NEXT_PUBLIC_LEGACY_LEADS_ENABLED === "true";
 const PAYMENTS_ENABLED = process.env.NEXT_PUBLIC_PAYMENTS_ENABLED === "true";
+const CATALOG_URL = process.env.NEXT_PUBLIC_CATALOG_URL || "/api/public/catalog";
+const SITE_ORIGIN = process.env.NEXT_PUBLIC_SITE_ORIGIN || "https://vizhufasad.ru";
+
+type PublicTariff = { code: string; priceMinor: number; credits: number };
+type PublicAction = { code: string; credits: number };
 
 const Arrow = () => (
   <svg viewBox="0 0 24 24" aria-hidden="true"><path d="M5 12h14M13 6l6 6-6 6" /></svg>
@@ -34,11 +43,15 @@ const faqs = [
   ["Нужно ли знать названия материалов?", "Нет. Можно выбрать автоподбор или отметить желаемые материалы и цвета самостоятельно."],
   ["Изменится ли форма дома?", "Наша задача — сохранить геометрию, окна, двери и кровлю. Визуализация показывает отделку, а не придумывает другое здание."],
   ["Какое фото подойдёт?", "Снимите дом днём, целиком, без деревьев и машин перед фасадом. Лучше всего — прямо или под небольшим углом."],
+  ["Где хранится загруженная фотография?", "После отдельного согласия исходник передаётся в приватное объектное хранилище. Файлы доступны владельцу проекта только по временным ссылкам и удаляются вместе с проектом или аккаунтом."],
+  ["Что произойдёт, если генерация исказит дом?", "Результат проходит автоматическую проверку. При грубом изменении выполняется одна бесплатная повторная попытка, а после второй неудачи кредит возвращается и брак не показывается."],
+  ["Что может отличаться от будущей отделки?", "Оттенок и фактура реального материала зависят от производителя, освещения и экрана. Мелкий декор и детали участка тоже могут отличаться: сервис помогает выбрать визуальное направление, а не фиксирует строительную спецификацию."],
+  ["Когда списывается кредит и что будет при технической ошибке?", "Перед запуском действия кредит резервируется один раз. После успешного результата списание подтверждается, а при технической неудаче или окончательном отклонении автоматической проверкой кредит возвращается автоматически. Повторный запрос не создаёт двойного списания или возврата."],
+  ["Можно ли описать свои пожелания?", "Да. В мастере проекта можно указать материалы, цвета, отделку карниза, цоколя и существующих опор. Пожелания автоматически входят в задание генератору."],
   ["Это строительный проект?", "Нет. Результат — концепция внешнего вида фасада, а не чертёж, смета или инструкция для строителей."],
 ];
 
 export default function App() {
-  const [compare, setCompare] = useState(54);
   const [modal, setModal] = useState(false);
   const [selectedPackage, setSelectedPackage] = useState<PackageId>("trial");
   const [preview, setPreview] = useState<string | null>(null);
@@ -55,11 +68,21 @@ export default function App() {
   const [orderId, setOrderId] = useState("");
   const [photoQuality, setPhotoQuality] = useState("");
   const [openFaq, setOpenFaq] = useState<number | null>(0);
+  const [publicCatalog, setPublicCatalog] = useState<{ tariffs: PublicTariff[]; actions: PublicAction[] } | null>(null);
 
   useEffect(() => {
     document.body.style.overflow = modal ? "hidden" : "";
     return () => { document.body.style.overflow = ""; };
   }, [modal]);
+
+  useEffect(() => {
+    const controller = new AbortController();
+    fetch(CATALOG_URL, { signal: controller.signal })
+      .then((response) => response.ok ? response.json() : Promise.reject(new Error("CATALOG_UNAVAILABLE")))
+      .then((value) => setPublicCatalog(value))
+      .catch(() => {});
+    return () => controller.abort();
+  }, []);
 
   const startOrder = (id: PackageId) => {
     if (!LEGACY_LEADS_ENABLED) {
@@ -118,6 +141,16 @@ export default function App() {
     }
   };
 
+  const tariff = (code: string, priceMinor: number, credits: number) =>
+    publicCatalog?.tariffs.find((item) => item.code === code) || { code, priceMinor, credits };
+  const standardCost = publicCatalog?.actions.find((item) => item.code === "standard_generation")?.credits || 1;
+  const freePlan = tariff("FREE", 0, 2);
+  const startPlan = tariff("START", 79_000, 25);
+  const optimumPlan = tariff("OPTIMUM", 129_000, 60);
+  const maximumPlan = tariff("MAXIMUM", 349_000, 240);
+  const rubles = (minor: number) => new Intl.NumberFormat("ru-RU", { maximumFractionDigits: 0 }).format(minor / 100) + " ₽";
+  const standardVariants = (plan: PublicTariff) => Math.floor(plan.credits / standardCost);
+
   return (
     <main>
       <header className="header shell">
@@ -131,47 +164,27 @@ export default function App() {
           <a href="#examples">Примеры</a>
           <a href="#faq">Вопросы</a>
         </nav>
-        <button className="headerCta" onClick={() => startOrder("trial")}>Попробовать бесплатно <Arrow /></button>
+        <a className="headerCta" href="#photo-check" data-analytics-event="hero_cta" data-analytics-placement="header">Попробовать бесплатно <Arrow /></a>
       </header>
 
       <section className="hero shell" id="top">
         <div className="heroCopy">
-          <div className="eyebrow"><span /> ВИЗУАЛИЗАЦИЯ ПО ВАШЕМУ ФОТО</div>
-          <h1>Посмотрите новый<br />фасад <em>до</em><br />начала работ</h1>
-          <p>Загрузите фото дома — получите реалистичный вариант отделки с сохранением его геометрии. Без сложных программ и долгих объяснений.</p>
+          <div className="eyebrow"><span /> ДИЗАЙН ФАСАДА ПО ФОТОГРАФИИ</div>
+          <h1>Создайте дизайн фасада своего дома <em>с помощью ИИ</em> по фотографии</h1>
+          <p>Выберите стиль, материалы и цвета — сервис покажет, как будет выглядеть ваш дом с новой отделкой.</p>
           <div className="heroActions">
-            <button className="button primary" onClick={() => startOrder("trial")}><UploadIcon /> Загрузить фото дома</button>
+            <a className="button primary" href="#photo-check" data-analytics-event="hero_cta" data-analytics-placement="hero"><UploadIcon /> Попробовать бесплатно</a>
             <a className="textLink" href="#examples">Посмотреть примеры <Arrow /></a>
           </div>
           <div className="microTrust">
-            <span><Check /> Первый пример бесплатно</span>
-            <span><Check /> Автоматическая проверка фото</span>
-            <span><Check /> Работаем по всей России</span>
+            <span><Check /> 2 бонусных кредита</span>
+            <span><Check /> Геометрия дома под защитой</span>
+            <span><Check /> Полностью автоматически</span>
           </div>
+          <p className="conceptNote">Визуальная концепция, а не строительный проект или расчёт материалов.</p>
         </div>
 
-        <div className="heroVisual" id="examples">
-          <div className="visualTop">
-            <span>ПРОЕКТ 01 / ЧАСТНЫЙ ДОМ</span>
-            <span className="status"><i /> ВИЗУАЛ ГОТОВ</span>
-          </div>
-          <div className="comparison">
-            <img src="./facade-after-bright.webp" alt="Дом после визуализации отделки фасада" />
-            <div className="beforeLayer" style={{ clipPath: `inset(0 ${100 - compare}% 0 0)` }}>
-              <img src="./facade-before-bright.webp" alt="Дом до отделки фасада" />
-            </div>
-            <div className="compareLine" style={{ left: `${compare}%` }}><span>↔</span></div>
-            <span className="tag beforeTag">ДО</span>
-            <span className="tag afterTag">ПОСЛЕ</span>
-            <input aria-label="Сравнить фасад до и после" type="range" min="8" max="92" value={compare} onChange={(e) => setCompare(Number(e.target.value))} />
-          </div>
-          <div className="visualBottom">
-            <span><b>3</b> решения на выбор</span>
-            <span>Геометрия по фотографии дома сохранена</span>
-            <span>Статус виден в кабинете</span>
-          </div>
-          <p className="visualFootnote">Результат показывается только после автоматической проверки</p>
-        </div>
+        <HeroFacadeCarousel />
       </section>
 
       <section className="signal">
@@ -183,12 +196,55 @@ export default function App() {
         </div>
       </section>
 
+      <LandingPhotoCheck appUrl={APP_URL} />
+
       <section className="processShowcase section" id="how">
-        <div className="shell processFrame">
-          <img src="./concepts/approved-process-section.webp" alt="Три шага: загрузите фото, выберите направление и получите варианты фасада" />
-          <div className="srOnly">
-            <h2>От фотографии до решения за 3 шага</h2>
-            <p>Загрузите фотографию дома, выберите направление отделки и получите варианты с пояснениями.</p>
+        <div className="shell processLayout">
+          <div className="processIntro">
+            <div>
+              <div className="eyebrow light"><span /> ПРОСТОЙ ПУТЬ К РЕЗУЛЬТАТУ</div>
+              <h2>От фотографии<br />до <em>варианта фасада</em></h2>
+            </div>
+            <p>Три самостоятельных шага без звонков, ожидания и ручной проверки.</p>
+          </div>
+          <div className="processSteps" aria-label="Как работает ВИЖУФАСАД">
+            <article className="processStep">
+              <div className="processMedia">
+                <img src="./facade-before-bright.webp" alt="Исходная фотография дома до отделки" />
+                <span className="processNumber">01</span>
+              </div>
+              <div className="processBody">
+                <h3>Загрузите фото</h3>
+                <p>Дом целиком, при дневном свете и без крупных препятствий перед фасадом.</p>
+              </div>
+            </article>
+            <article className="processStep processChoice">
+              <div className="processMedia" aria-hidden="true">
+                <div className="processPalette">
+                  <span style={{ background: "#d8d0c2" }} />
+                  <span style={{ background: "#8d5b42" }} />
+                  <span style={{ background: "#2f3331" }} />
+                  <span style={{ background: "#aa9b81" }} />
+                </div>
+                <div className="processLines" />
+                <span className="processNumber">02</span>
+              </div>
+              <div className="processBody">
+                <h3>Выберите отделку</h3>
+                <p>Отдельно настройте стиль, материалы, палитру и допустимый уровень изменений.</p>
+              </div>
+            </article>
+            <article className="processStep">
+              <div className="processMedia">
+                <img src="./facade-after-bright.webp" alt="Тот же дом с готовым вариантом отделки фасада" />
+                <span className="processNumber">03</span>
+                <span className="processReady"><Check /> ПРОВЕРЕНО</span>
+              </div>
+              <div className="processBody">
+                <h3>Сравните результат</h3>
+                <p>Получите проверенный вариант того же дома и сравните его с исходной фотографией.</p>
+              </div>
+            </article>
           </div>
         </div>
       </section>
@@ -208,8 +264,24 @@ export default function App() {
               <li><Check /><span><strong>Настройки пользователя</strong>Стиль, отделка, палитра и ограничения входят в задание генератору.</span></li>
               <li><Check /><span><strong>Только проверенный результат</strong>При грубом изменении дома выполняется автоматический повтор или возврат кредита.</span></li>
             </ul>
-            <button className="textLink" onClick={() => startOrder("trial")}>Создать свой проект <Arrow /></button>
+            <a className="textLink" href="#photo-check">Создать свой проект <Arrow /></a>
           </div>
+        </div>
+      </section>
+
+      <section className="stylePreview section" id="examples">
+        <div className="shell">
+          <div className="stylePreviewHead">
+            <div><div className="eyebrow"><span /> ОДИН ДОМ — РАЗНЫЕ РЕШЕНИЯ</div><h2>Сравните <em>характер фасада</em>,<br />не меняя сам дом</h2></div>
+            <p>Три подтверждённых демонстрационных варианта помогают увидеть разницу в материалах, палитре и деталях. Без случайных домов и вымышленных примеров.</p>
+          </div>
+          <div className="homeStyleGrid">
+            {facadeStyles.map((style) => <article key={style.slug}>
+              <a href={`/styles/${style.slug}`} aria-label={`Подробнее о стиле «${style.title}»`}><img src={style.image} alt={style.imageAlt} width="1200" height="900" loading="lazy" /></a>
+              <div><p className="eyebrow">ДЕМОНСТРАЦИОННЫЙ ПРИМЕР</p><h3>{style.title}</h3><p>{style.summary}</p><small>{style.materials.join(" · ")}</small></div>
+            </article>)}
+          </div>
+          <div className="stylePreviewActions"><a className="button primary" href="/gallery">Посмотреть все примеры <Arrow /></a><a className="textLink" href="/styles">Разобраться в стилях и материалах <Arrow /></a></div>
         </div>
       </section>
 
@@ -218,36 +290,35 @@ export default function App() {
           <div><div className="eyebrow"><span /> ЕДИНЫЕ КРЕДИТЫ</div><h2>Начните бесплатно.<br /><em>Выбирайте пакет</em>, когда нужно.</h2></div>
           <p>Standard стоит 1 кредит. Assessment и скачивание результата бесплатны.</p>
         </div>
-        <div className="priceGrid">
-          <article className="priceCard free">
-            <div><span className="planNum">01</span><h3>Бесплатный</h3><p>Для первого знакомства с сервисом</p></div>
-            <div className="price">0 ₽</div>
-            <ul><li><Check /> 2 бонусных кредита</li><li><Check /> Standard-генерация</li><li><Check /> Водяной знак</li></ul>
-            <button className="button ghost" onClick={() => startOrder("trial")}>Попробовать бесплатно <Arrow /></button>
-          </article>
+        <div className="freeStart">
+          <div><div className="eyebrow"><span /> БЕСПЛАТНЫЙ СТАРТ</div><h3>Standard-варианты после первого входа: {standardVariants(freePlan)}</h3><p>Проверьте свой дом и механику сервиса до покупки пакета. На бесплатном результате остаётся водяной знак.</p></div>
+          <div className="freeStartPrice"><strong>{rubles(freePlan.priceMinor)}</strong><span>автопроверка и скачивание включены</span></div>
+          <a className="button primary" href="#photo-check" data-analytics-event="pricing_cta" data-analytics-plan="FREE">Попробовать бесплатно <Arrow /></a>
+        </div>
+        <div className="priceGrid paidPriceGrid">
           <article className="priceCard featured">
             <div className="popular">ПОПУЛЯРНЫЙ СТАРТ</div>
-            <div><span className="planNum">02</span><h3>Старт</h3><p>Для нескольких вариантов одного дома</p></div>
-            <div className="price">790 ₽</div>
-            <ul><li><Check /> 25 кредитов</li><li><Check /> Единый баланс</li><li><Check /> История результатов</li></ul>
-            <button className="button primary" onClick={() => startOrder("visual")}>Открыть кабинет <Arrow /></button>
+            <div><span className="planNum">01</span><h3>Старт</h3><p>Для нескольких вариантов одного дома</p></div>
+            <div className="price">{rubles(startPlan.priceMinor)}</div>
+            <ul><li><Check /> До {standardVariants(startPlan)} Standard-вариантов</li><li><Check /> Кредиты для Pro и доработок</li><li><Check /> История результатов</li></ul>
+            <button className="button primary" data-analytics-event="pricing_cta" data-analytics-plan="START" onClick={() => startOrder("visual")}>Открыть кабинет <Arrow /></button>
           </article>
           <article className="priceCard">
-            <div><span className="planNum">03</span><h3>Оптимум</h3><p>Для исследования нескольких стилей</p></div>
-            <div className="price">1 290 ₽</div>
-            <ul><li><Check /> 60 кредитов</li><li><Check /> Единый баланс</li><li><Check /> История результатов</li></ul>
-            <button className="button ghost" onClick={() => startOrder("selection")}>Открыть кабинет <Arrow /></button>
+            <div><span className="planNum">02</span><h3>Оптимум</h3><p>Для исследования нескольких стилей</p></div>
+            <div className="price">{rubles(optimumPlan.priceMinor)}</div>
+            <ul><li><Check /> До {standardVariants(optimumPlan)} Standard-вариантов</li><li><Check /> Сравнение до четырёх решений</li><li><Check /> Кредиты для Pro и доработок</li></ul>
+            <button className="button ghost" data-analytics-event="pricing_cta" data-analytics-plan="OPTIMUM" onClick={() => startOrder("selection")}>Открыть кабинет <Arrow /></button>
           </article>
           <article className="priceCard premium">
-            <div><span className="planNum">04</span><h3>Максимум</h3><p>Для большого числа концепций</p></div>
-            <div className="price">3 490 ₽</div>
-            <ul><li><Check /> 240 кредитов</li><li><Check /> Единый баланс</li><li><Check /> История результатов</li></ul>
-            <button className="button copper" onClick={() => startOrder("realization")}>Открыть кабинет <Arrow /></button>
+            <div><span className="planNum">03</span><h3>Максимум</h3><p>Для большого числа концепций</p></div>
+            <div className="price">{rubles(maximumPlan.priceMinor)}</div>
+            <ul><li><Check /> До {standardVariants(maximumPlan)} Standard-вариантов</li><li><Check /> Сравнение до четырёх решений</li><li><Check /> Для нескольких домов и серий вариантов</li></ul>
+            <button className="button copper" data-analytics-event="pricing_cta" data-analytics-plan="MAXIMUM" onClick={() => startOrder("realization")}>Открыть кабинет <Arrow /></button>
           </article>
         </div>
         <p className="pricingNote">{PAYMENTS_ENABLED
           ? "Разовая покупка кредитов доступна в кабинете. Подписки и автопродление выключены."
-          : "Оплата временно выключена и не показывается в кабинете."} Цены берутся из единого тарифного справочника.</p>
+          : "Оплата временно выключена и не показывается в кабинете."} Актуальные цены и количество кредитов загружаются из единого серверного справочника.</p>
       </section>
 
       <section className="audience section">
@@ -272,8 +343,8 @@ export default function App() {
       <section className="finalCta">
         <div className="shell finalInner">
           <div className="eyebrow light"><span /> НАЧНИТЕ С ОДНОЙ ФОТОГРАФИИ</div>
-          <h2>Ваш дом уже построен.<br /><em>Пора увидеть его завершённым.</em></h2>
-          <button className="button lightButton" onClick={() => startOrder("trial")}><UploadIcon /> Загрузить фото бесплатно</button>
+          <h2>Посмотрите варианты отделки<br /><em>для своего дома.</em></h2>
+          <a className="button lightButton" href="#photo-check" data-analytics-event="hero_cta" data-analytics-placement="footer"><UploadIcon /> Загрузить фото бесплатно</a>
           <p>Без оплаты · Первый пример с водяным знаком</p>
         </div>
       </section>
@@ -281,7 +352,7 @@ export default function App() {
       <footer className="footer shell">
         <div className="logo"><span className="logoMark">ВФ</span><span>ВИЖУФАСАД<small>AI-ВИЗУАЛИЗАЦИЯ ФАСАДОВ</small></span></div>
         <p>Визуализация отделки домов и строений по всей России.</p>
-        <div><a href="#pricing">Тарифы</a><a href="#faq">Вопросы</a><a href="/legal/offer">Условия оплаты</a><a href="/legal/privacy">Конфиденциальность</a><a href="/legal/refunds">Возвраты</a><a href="mailto:vizhufasad0058@bk.ru">vizhufasad0058@bk.ru</a></div>
+        <div><a href="#pricing">Тарифы</a><a href="#faq">Вопросы</a><a href="/gallery">Примеры</a><a href="/styles">Каталог стилей</a><a href="/visualizaciya-fasada-po-foto">Фасад по фото</a><a href="/stili-i-materialy-fasada">Стили и материалы</a><a href="/partners">Партнёрам</a><a href="/legal/offer">Условия оплаты</a><a href="/legal/privacy">Конфиденциальность</a><a href="/legal/refunds">Возвраты</a><a href="mailto:vizhufasad0058@bk.ru">vizhufasad0058@bk.ru</a></div>
         <small>© 2026 ВИЖУФАСАД · Условия цифровой услуги опубликованы в публичной оферте</small>
       </footer>
 
@@ -321,6 +392,26 @@ export default function App() {
           </div>
         </div>
       )}
+      <JsonLd data={{
+        "@context": "https://schema.org",
+        "@type": "SoftwareApplication",
+        "@id": `${SITE_ORIGIN}/#webapp`,
+        name: "ВИЖУФАСАД",
+        url: SITE_ORIGIN,
+        applicationCategory: "DesignApplication",
+        operatingSystem: "Web",
+        description: "Автоматическая визуализация вариантов фасада дома по фотографии с выбором стиля, материалов и цвета.",
+        offers: { "@type": "Offer", price: "0", priceCurrency: "RUB", description: "Два бонусных кредита при первом входе" },
+        provider: { "@id": `${SITE_ORIGIN}/#organization` },
+      }} />
+      <JsonLd data={{
+        "@context": "https://schema.org",
+        "@type": "FAQPage",
+        mainEntity: faqs.map(([question, answer]) => ({
+          "@type": "Question", name: question,
+          acceptedAnswer: { "@type": "Answer", text: answer },
+        })),
+      }} />
     </main>
   );
 }
