@@ -78,6 +78,60 @@ function appendSource(body, field, sourceImage, sourceMimeType, basename = "sour
   body.append(field, new Blob([sourceImage], { type: sourceMimeType }), `${basename}.${extension}`);
 }
 
+function truncateUtf8(value, maxBytes) {
+  let result = "";
+  let bytes = 0;
+  for (const character of value) {
+    const size = Buffer.byteLength(character, "utf8");
+    if (bytes + size > maxBytes) break;
+    result += character;
+    bytes += size;
+  }
+  return result.trimEnd();
+}
+
+function compactEditPrompt(prompt, maxBytes = 1900) {
+  const value = String(prompt || "").trim();
+  if (Buffer.byteLength(value, "utf8") <= maxBytes) return value;
+  const lines = value.split("\n").map((line) => line.trim()).filter(Boolean);
+  const priorities = [
+    /^TASK:/u,
+    /^EDIT BOUNDARY:/u,
+    /^Required client wishes:/u,
+    /^Required facade style:/u,
+    /^Required finish materials:/u,
+    /^Required color palette:/u,
+    /^STRICTLY PRESERVE:/u,
+    /^Never add a new storey/u,
+    /^Do not change any protected/u,
+    /^AUTOMATIC QUALITY RETRY:/u,
+    /^Additional forbidden changes:/u,
+    /^COMPLETION STANDARD:/u,
+  ];
+  const selected = [];
+  for (const pattern of priorities) {
+    for (const line of lines) {
+      if (pattern.test(line) && !selected.includes(line)) selected.push(line);
+    }
+  }
+  for (const line of lines) {
+    if (!selected.includes(line)) selected.push(line);
+  }
+  return truncateUtf8(selected.join("\n"), maxBytes);
+}
+
+function compactMaskPrompt(prompt) {
+  const value = String(prompt || "");
+  const command = value.match(/Client command:\s*(.+?)(?:\.\s*Everything outside|$)/su)?.[1]?.trim();
+  if (command) {
+    return truncateUtf8(
+      `${command}. Фотореалистичная фасадная отделка внутри маски, с естественной текстурой, масштабом и освещением.`,
+      800,
+    );
+  }
+  return compactEditPrompt(value, 800);
+}
+
 function createGenerationBody({
   model, sourceImage, sourceMimeType, maskImage, maskMimeType, prompt, seed, width, height,
 }) {
@@ -87,8 +141,8 @@ function createGenerationBody({
   }
   if (model === "bria-genfill") {
     if (!maskImage) throw providerError("GENAPI_MASK_REQUIRED", 422, false);
-    body.append("translate_input", "false");
-    body.append("prompt", prompt);
+    body.append("translate_input", "true");
+    body.append("prompt", compactMaskPrompt(prompt));
     body.append("negative_prompt", "changes outside mask, changed building geometry, changed windows, changed doors, changed roof");
     appendSource(body, "image", sourceImage, sourceMimeType);
     appendSource(body, "mask", maskImage, maskMimeType, "mask");
@@ -121,7 +175,7 @@ function createGenerationBody({
   }
   if (model === "qwen-image-edit-plus" || model === "qwen-image-edit") {
     body.append("translate_input", "false");
-    body.append("prompt", prompt);
+    body.append("prompt", compactEditPrompt(prompt));
     appendSource(body, model === "qwen-image-edit" ? "image_url" : "image_urls[]", sourceImage, sourceMimeType);
     body.append("negative_prompt", "changed house geometry, changed windows, changed doors, changed roof, artifacts");
     body.append("width", String(width));

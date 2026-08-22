@@ -20,6 +20,8 @@ const statePath = path.join(outputDir, "metrics.json");
 const budgetMinor = Math.min(30_000, Math.max(1, Number(process.env.STAGE12_SMOKE_BUDGET_MINOR || 1)));
 const actions = String(process.env.STAGE12_SMOKE_ACTIONS || "")
   .split(",").map((value) => value.trim()).filter(Boolean);
+const qualityRetryReasons = String(process.env.STAGE12_SMOKE_QUALITY_RETRY_REASONS || "")
+  .split("|").map((value) => value.trim()).filter(Boolean);
 const allowed = new Set(["pro", "edit", "mask", "upscale"]);
 if (!actions.length || actions.some((action) => !allowed.has(action))) {
   throw new Error("STAGE12_SMOKE_ACTIONS must contain pro,edit,mask and/or upscale");
@@ -63,7 +65,7 @@ async function runGeneration(action, { model, source, mask = null, edit = null }
     apiKey: process.env.GENAPI_API_KEY, endpoint: process.env.GENAPI_ENDPOINT,
     model, estimatedCostMinor: estimates[action], pollIntervalMs: Number(process.env.GENERATION_POLL_INTERVAL_MS || 1500),
   });
-  const prompt = composeGenerationPrompt(facadeInput, { edit }).prompt;
+  const prompt = composeGenerationPrompt(facadeInput, { edit, qualityRetryReasons }).prompt;
   const started = Date.now();
   const result = await provider.generate({
     sourceImage: source.buffer, sourceMimeType: source.mimeType,

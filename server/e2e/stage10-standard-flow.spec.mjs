@@ -14,7 +14,7 @@ test("photo settings to checked Standard result survives navigation and fits vie
   await page.getByLabel(/Подтверждаю списание 1 кредита/u).check();
   await expect.poll(() => page.evaluate(() => document.documentElement.scrollWidth <= document.documentElement.clientWidth)).toBe(true);
   await page.getByRole("button", { name: "Запустить Standard" }).click();
-  await expect(page).toHaveURL(/\/generations\/generation-e2e/u);
+  await expect(page).toHaveURL(/\/app\/projects\/project-e2e\/generations\/[0-9a-f-]{36}$/u);
   await expect(page.getByRole("heading", { name: "Фасад готов" })).toBeVisible({ timeout: 15_000 });
   await expect(page.getByText("скандинавский")).toBeVisible();
   await expect(page.getByText("ВИЖУФАСАД · КОНЦЕПЦИЯ", { exact: true })).toBeVisible();

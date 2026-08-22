@@ -19,6 +19,14 @@ Official references:
 5. The UI receives a `cancellable` flag and hides cancellation after provider acceptance, including a later local `retrying` state caused by a polling/network failure.
 6. User credits may be refunded on a terminal technical failure, while the real provider cost is recorded separately for unit-economics monitoring.
 
+## Product behaviour for frequent cancellation
+
+- The cancel button is shown only before GenAPI accepts the task. After `request_id` appears, the UI says that generation is already running and the page may be closed safely.
+- Leaving the page, reloading it or losing the browser connection never cancels the provider task. The worker continues polling and the user can return to the project later.
+- A transient API/worker failure resumes polling the same `request_id`; it never submits a replacement request merely because the browser disconnected.
+- A user credit is refunded only for a terminal technical failure according to the wallet policy. Provider spend remains in internal cost metrics and is never hidden.
+- Operationally track accepted requests without a terminal result, provider error cost and repeated cancel clicks. These metrics distinguish user impatience from real provider failure.
+
 ## Remaining unavoidable edge case
 
 If GenAPI accepts a request during the exact interval in which PostgreSQL becomes unavailable before `request_id` can be persisted, the remote task cannot be recovered reliably because the documented create endpoint has no client idempotency key. Keep database health fail-closed before dequeueing jobs and alert on request-id persistence failures.
