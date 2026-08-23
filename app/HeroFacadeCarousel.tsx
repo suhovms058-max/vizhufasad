@@ -92,7 +92,7 @@ export function HeroFacadeCarousel() {
   return (
     <div
       className="heroVisual"
-      id="examples"
+      id="hero-examples"
       role="region"
       aria-roledescription="карусель"
       aria-label="Исходный дом и три варианта отделки фасада"
