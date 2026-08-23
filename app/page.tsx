@@ -302,7 +302,7 @@ export default function App() {
         </div>
         <div className="priceGrid paidPriceGrid">
           <article className="priceCard freePlanCard">
-            <div><span className="planNum">00</span><h3>Бесплатно</h3><p>Попробуйте сервис на фотографии своего дома</p></div>
+            <div><span className="planNum">00</span><h3>Бесплатно</h3><p>Посмотрите свой дом с новой отделкой</p></div>
             <div className="price">{rubles(freePlan.priceMinor)}</div>
             <ul><li><Check /> {standardVariants(freePlan)} бесплатная визуализация</li><li><Check /> Автоматическая проверка результата</li><li><Check /> Водяной знак на изображении</li></ul>
             <a className="button ghost" href="#photo-check" data-analytics-event="pricing_cta" data-analytics-plan="FREE">Попробовать бесплатно <Arrow /></a>
