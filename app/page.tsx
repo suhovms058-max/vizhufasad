@@ -192,7 +192,7 @@ export default function App() {
           <p>Не выбирайте отделку<br /><i>вслепую.</i></p>
           <div><strong>1 фото</strong><span>достаточно для старта</span></div>
           <div><strong>1 кредит</strong><span>за Standard-вариант</span></div>
-          <div><strong>0 программ</strong><span>вам не нужно осваивать</span></div>
+          <div><strong>3 шага</strong><span>от фото до результата</span></div>
         </div>
       </section>
 
@@ -203,46 +203,65 @@ export default function App() {
           <div className="processIntro">
             <div>
               <div className="eyebrow light"><span /> ПРОСТОЙ ПУТЬ К РЕЗУЛЬТАТУ</div>
-              <h2>От фотографии<br />до <em>варианта фасада</em></h2>
+              <h2>От фотографии<br />до решения<br /><em>за 3 шага</em></h2>
             </div>
-            <p>Три самостоятельных шага без звонков, ожидания и ручной проверки.</p>
+            <p>Покажите дом и выберите направление. Сервис сам проверит фото, создаст варианты и сохранит защищённую геометрию.</p>
           </div>
           <div className="processSteps" aria-label="Как работает ВИЖУФАСАД">
-            <article className="processStep">
+            <article className="processStep processCapture">
               <div className="processMedia">
-                <img src="./facade-before-bright.webp" alt="Исходная фотография дома до отделки" />
+                <picture className="processPicture">
+                  <source media="(max-width: 1100px)" srcSet="/facade-before-bright-960.webp" />
+                  <img src="/facade-before-bright.webp" alt="Исходная фотография одного и того же дома до отделки фасада" width="1568" height="1003" loading="lazy" decoding="async" />
+                </picture>
+                <div className="processPhone" aria-hidden="true">
+                  <span />
+                  <img src="/facade-before-bright-960.webp" alt="" width="960" height="614" loading="lazy" decoding="async" />
+                  <i />
+                </div>
                 <span className="processNumber">01</span>
               </div>
               <div className="processBody">
                 <h3>Загрузите фото</h3>
-                <p>Дом целиком, при дневном свете и без крупных препятствий перед фасадом.</p>
+                <p>Снимок дома целиком, при дневном свете и без крупных препятствий перед фасадом.</p>
               </div>
             </article>
             <article className="processStep processChoice">
               <div className="processMedia" aria-hidden="true">
-                <div className="processPalette">
-                  <span style={{ background: "#d8d0c2" }} />
-                  <span style={{ background: "#8d5b42" }} />
-                  <span style={{ background: "#2f3331" }} />
-                  <span style={{ background: "#aa9b81" }} />
+                <div className="processMaterialBoard">
+                  <div className="processPalette">
+                    <span style={{ background: "#ded7c9" }} />
+                    <span style={{ background: "#9b664b" }} />
+                    <span style={{ background: "#303532" }} />
+                    <span style={{ background: "#b3a58b" }} />
+                  </div>
+                  <div className="processMaterialPreview">
+                    <img src="/facade-after-bright-960.webp" alt="" width="960" height="614" loading="lazy" decoding="async" />
+                  </div>
                 </div>
                 <div className="processLines" />
                 <span className="processNumber">02</span>
               </div>
               <div className="processBody">
-                <h3>Выберите отделку</h3>
-                <p>Отдельно настройте стиль, материалы, палитру и допустимый уровень изменений.</p>
+                <h3>Выберите направление</h3>
+                <p>Настройте стиль, материалы, палитру и допустимый уровень изменений дома.</p>
               </div>
             </article>
-            <article className="processStep">
+            <article className="processStep processResult">
               <div className="processMedia">
-                <img src="./facade-after-bright.webp" alt="Тот же дом с готовым вариантом отделки фасада" />
+                <picture className="processPicture">
+                  <source media="(max-width: 1100px)" srcSet="/facade-after-bright-960.webp" />
+                  <img src="/facade-after-bright.webp" alt="Тот же дом с готовым вариантом отделки и сохранённой геометрией" width="1568" height="1003" loading="lazy" decoding="async" />
+                </picture>
+                <div className="processBeforeInset" aria-hidden="true">
+                  <img src="/facade-before-bright-960.webp" alt="" width="960" height="614" loading="lazy" decoding="async" />
+                </div>
                 <span className="processNumber">03</span>
                 <span className="processReady"><Check /> ПРОВЕРЕНО</span>
               </div>
               <div className="processBody">
-                <h3>Сравните результат</h3>
-                <p>Получите проверенный вариант того же дома и сравните его с исходной фотографией.</p>
+                <h3>Получите варианты</h3>
+                <p>Сравните проверенный результат с исходником и выберите фасад для дальнейшей проработки.</p>
               </div>
             </article>
           </div>

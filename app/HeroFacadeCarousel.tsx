@@ -1,36 +1,39 @@
 "use client";
 
-import Image from "next/image";
 import { PointerEvent, useEffect, useRef, useState } from "react";
 
 const slides = [
   {
     src: "/facade-before-bright.webp",
+    mobileSrc: "/facade-before-bright-960.webp",
     title: "Исходное фото",
     details: "Дом до выбора отделки",
     alt: "Исходная фотография дома без фасадной отделки",
-    duration: 4000,
+    duration: 2500,
   },
   {
     src: "/facade-after-bright.webp",
+    mobileSrc: "/facade-after-bright-960.webp",
     title: "Современный",
     details: "Штукатурка · дерево · камень",
     alt: "Современный вариант отделки фасада этого же дома",
-    duration: 3000,
+    duration: 1800,
   },
   {
     src: "/facade-scandinavian-bright.webp",
+    mobileSrc: "/facade-scandinavian-bright-960.webp",
     title: "Скандинавский",
     details: "Фиброцемент · термодерево · камень",
     alt: "Скандинавский вариант отделки фасада этого же дома",
-    duration: 3000,
+    duration: 1800,
   },
   {
     src: "/facade-neoclassical-bright.webp",
+    mobileSrc: "/facade-neoclassical-bright-960.webp",
     title: "Неоклассика",
     details: "Штукатурка · фасадный декор · камень",
     alt: "Неоклассический вариант отделки фасада этого же дома",
-    duration: 3000,
+    duration: 1800,
   },
 ] as const;
 
@@ -119,13 +122,20 @@ export function HeroFacadeCarousel() {
               key={slide.src}
               aria-hidden={!isActive}
             >
-              <Image
-                src={slide.src}
-                alt={isActive ? slide.alt : ""}
-                fill
-                priority={index === 0}
-                sizes="(max-width: 720px) calc(100vw - 32px), (max-width: 1100px) calc(100vw - 48px), 58vw"
-              />
+              {isActive && (
+                <picture>
+                  <source media="(max-width: 1100px)" srcSet={slide.mobileSrc} />
+                  <img
+                    src={slide.src}
+                    alt={slide.alt}
+                    width="1568"
+                    height="1003"
+                    decoding="async"
+                    loading={index === 0 ? "eager" : "lazy"}
+                    fetchPriority={index === 0 ? "high" : "auto"}
+                  />
+                </picture>
+              )}
             </div>
           );
         })}
