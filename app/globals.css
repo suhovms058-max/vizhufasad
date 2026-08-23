@@ -83,8 +83,8 @@ h1 em, h2 em { color: var(--copper); font-weight: 500; }
 .photoCamera { display: none; background: transparent; color: var(--cream); border: 1px solid rgba(245,234,220,.3); }
 .photoRemove { min-height: 44px; border: 0; border-bottom: 1px solid rgba(245,234,220,.3); background: transparent; color: #d0d1ca; cursor: pointer; }
 .photoFileDetails { margin: 14px 0 0; overflow-wrap: anywhere; color: #b7b9b1; font-size: 11px; }
-.photoCheckResult { display: grid; gap: 5px; margin-top: 18px; padding: 16px 18px; border-left: 3px solid #8b8c85; background: #e6e0d8; }
-.photoCheckResult strong { font-size: 13px; }
+.photoCheckResult { display: grid; gap: 5px; margin-top: 18px; padding: 16px 18px; border-left: 3px solid #8b8c85; background: #e6e0d8; color: #171917; }
+.photoCheckResult strong { color: #171917; font-size: 13px; }
 .photoCheckResult span { color: #555750; font-size: 11px; line-height: 1.5; }
 .photoCheckResult.success { border-color: #54735d; background: #e1e9e1; }
 .photoCheckResult.warning { border-color: #b27a23; background: #f2e7d3; }
@@ -145,7 +145,7 @@ button:focus-visible, a:focus-visible, input:focus-visible, textarea:focus-visib
 .processLayout { display: grid; grid-template-columns: minmax(335px,.92fr) minmax(0,2.55fr); align-items: stretch; gap: 30px; }
 .processIntro { display: flex; flex-direction: column; justify-content: center; gap: 36px; padding: 48px 20px 48px 0; }
 .processIntro > div { min-width: 0; }
-.processIntro h2 { max-width: 340px; font-size: clamp(48px,3.45vw,64px); line-height: .98; text-shadow: 0 5px 24px rgba(0,0,0,.42); }
+.processIntro h2 { max-width: 315px; font-size: clamp(46px,3vw,56px); line-height: .98; text-shadow: 0 5px 24px rgba(0,0,0,.42); }
 .processIntro > p { max-width: 390px; margin: 0; color: #c9c5bd; font-size: 13px; line-height: 1.72; }
 .processSteps { display: grid; grid-template-columns: repeat(3, minmax(0,1fr)); gap: 14px; }
 .processStep { min-width: 0; overflow: hidden; background: linear-gradient(180deg,#121413,#0d0f0e); border: 1px solid rgba(208,118,75,.58); box-shadow: 0 30px 70px rgba(0,0,0,.42), inset 0 0 0 1px rgba(255,255,255,.025); }
