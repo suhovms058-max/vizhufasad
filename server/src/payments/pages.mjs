@@ -24,7 +24,7 @@ function legalPage(title, body, config) {
        <strong>Email:</strong> ${escapeHtml(cleanLegalValue(config.merchantEmail))}</p>`
     : "<p><strong>Оплата отключена.</strong> Реквизиты исполнителя будут опубликованы до включения приёма платежей.</p>";
   return `<!doctype html><html lang="ru"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1">
-    <meta name="color-scheme" content="light"><title>${escapeHtml(title)} — ВИЖУФАСАД</title><link rel="stylesheet" href="/assets/app-ui.css"></head>
+    <meta name="color-scheme" content="dark"><title>${escapeHtml(title)} — ВИЖУФАСАД</title><link rel="stylesheet" href="/assets/app-ui.css"></head>
     <body><a class="skip-link" href="#main">К содержанию</a><header class="app-header"><a class="brand" href="/">ВИЖУФАСАД</a>
     <nav aria-label="Основная навигация"><a href="/">На главную</a><a href="/auth/login">Войти</a></nav></header>
     <main id="main" class="app-main app-main-legal"><article class="panel legal-content"><p class="eyebrow">Правовая информация</p>

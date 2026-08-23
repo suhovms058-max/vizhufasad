@@ -56,17 +56,43 @@
   };
 
   async function request(url, options = {}) {
-    const response = await fetch(url, {
-      ...options,
-      headers: { "Content-Type": "application/json", ...(options.headers || {}) },
-    });
+    let response;
+    try {
+      response = await fetch(url, {
+        ...options,
+        headers: { "Content-Type": "application/json", ...(options.headers || {}) },
+      });
+    } catch {
+      const error = new Error("NETWORK_ERROR");
+      error.code = "NETWORK_ERROR";
+      throw error;
+    }
     const body = response.status === 204 ? {} : await response.json().catch(() => ({}));
     if (!response.ok) {
       const error = new Error(body.error || "REQUEST_FAILED");
       error.code = body.error || "REQUEST_FAILED";
+      error.status = response.status;
       throw error;
     }
     return body;
+  }
+
+  const wait = (milliseconds) => new Promise((resolve) => setTimeout(resolve, milliseconds));
+
+  async function waitForAssessment(projectId, imageId, timeoutMs = 90_000) {
+    const deadline = Date.now() + timeoutMs;
+    while (Date.now() < deadline) {
+      try {
+        const body = await request(`/api/projects/${encodeURIComponent(projectId)}/images/${encodeURIComponent(imageId)}/assessment`);
+        if (["completed", "provider_unavailable"].includes(body.assessment?.status)) return body.assessment;
+      } catch (error) {
+        if (![404, 409, 502, 503, 504].includes(error.status) && error.code !== "NETWORK_ERROR") throw error;
+      }
+      await wait(1_500);
+    }
+    const error = new Error("PHOTO_ASSESSMENT_STATUS_TIMEOUT");
+    error.code = "PHOTO_ASSESSMENT_STATUS_TIMEOUT";
+    throw error;
   }
 
   function setupUpload() {
@@ -183,7 +209,13 @@
         await directUpload(intent.upload, selectedFile);
         progress.removeAttribute("value");
         show("Файл загружен. Декодируем, очищаем метаданные и проверяем фото…");
-        await request(`/api/projects/${encodeURIComponent(projectId)}/images/${encodeURIComponent(intent.image.id)}/complete`, { method: "POST", body: "{}" });
+        try {
+          await request(`/api/projects/${encodeURIComponent(projectId)}/images/${encodeURIComponent(intent.image.id)}/complete`, { method: "POST", body: "{}" });
+        } catch (error) {
+          if (![502, 504].includes(error.status) && error.code !== "NETWORK_ERROR") throw error;
+          show("Соединение прервалось, но фото уже загружено. Получаем результат автоматической проверки…");
+          await waitForAssessment(projectId, intent.image.id);
+        }
         window.vizhufasadTrack?.("photo_upload_completed", { outcome: "processed" });
         await deleteLandingDraft().catch(() => {});
         progress.classList.add("hidden");

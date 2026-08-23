@@ -36,7 +36,7 @@ const statusLabels = {
 function page(body) {
   return `<!doctype html><html lang="ru"><head><meta charset="utf-8">
   <meta name="viewport" content="width=device-width,initial-scale=1">
-  <meta name="color-scheme" content="light"><title>Баланс и тарифы — ВИЖУФАСАД</title>
+  <meta name="color-scheme" content="dark"><title>Баланс и тарифы — ВИЖУФАСАД</title>
   <link rel="stylesheet" href="/assets/app-ui.css"></head><body><a class="skip-link" href="#main">К содержанию</a>
   <header class="app-header"><a class="brand" href="/app">ВИЖУФАСАД</a><nav aria-label="Основная навигация">
   <a href="/app">Мои проекты</a><a href="/app/new">Новый проект</a><a href="/app/balance" aria-current="page">Баланс</a><a href="/app/settings">Настройки</a></nav></header>

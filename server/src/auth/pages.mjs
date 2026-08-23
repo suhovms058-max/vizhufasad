@@ -19,7 +19,7 @@ function page(title, body, { cabinet = false, narrow = false } = {}) {
        <a href="/app/balance">Баланс</a><a href="/app/settings">Настройки</a></nav>`
     : `<nav aria-label="Основная навигация"><a href="/">На главную</a></nav>`;
   return `<!doctype html><html lang="ru"><head><meta charset="utf-8">
-    <meta name="viewport" content="width=device-width,initial-scale=1"><meta name="color-scheme" content="light">
+    <meta name="viewport" content="width=device-width,initial-scale=1"><meta name="color-scheme" content="dark">
     <title>${escapeHtml(title)} — ВИЖУФАСАД</title><link rel="stylesheet" href="/assets/app-ui.css"></head><body>
     <a class="skip-link" href="#main">К содержанию</a><header class="app-header"><a class="brand" href="/">ВИЖУФАСАД</a>${navigation}</header>
     <main id="main" class="app-main${narrow ? " app-main-narrow" : ""}">${body}</main>

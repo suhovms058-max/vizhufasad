@@ -67,7 +67,7 @@ function jsonData(value) {
 function page(title, body, { scripts = [] } = {}) {
   return `<!doctype html><html lang="ru"><head><meta charset="utf-8">
   <meta name="viewport" content="width=device-width,initial-scale=1">
-  <meta name="color-scheme" content="light"><title>${escapeHtml(title)} — ВИЖУФАСАД</title>
+  <meta name="color-scheme" content="dark"><title>${escapeHtml(title)} — ВИЖУФАСАД</title>
   <link rel="stylesheet" href="/assets/app-ui.css"></head><body>
   <a class="skip-link" href="#main">К содержанию</a>
   <header class="app-header"><a class="brand" href="/app">ВИЖУФАСАД</a>
@@ -188,6 +188,10 @@ function generationKindLabel(kind) {
   return ({ standard: "Standard", pro: "Pro", edit: "Доработка" })[kind] || "Standard";
 }
 
+function transformationLevelLabel(level) {
+  return ({ gentle: "Бережный", balanced: "Сбалансированный", conceptual: "Концептуальный" })[level] || "Бережный";
+}
+
 function featuredStyleCard(style, selectedStyle) {
   const active = style.value === selectedStyle;
   return `<button class="style-card${active ? " active" : ""}" type="button" data-style="${escapeHtml(style.value)}" aria-pressed="${active}">
@@ -293,15 +297,18 @@ function resultPage(project, generation, history, sourceUrl, resultUrl, balance,
       <aside class="panel result-details"><p class="eyebrow">${escapeHtml(generationKindLabel(kind))} · вариант ${escapeHtml(generation.revision)}</p><h1>Фасад готов</h1>
       <div class="result-verification"><strong>Автопроверка пройдена</strong><span>Результат допущен к показу автоматическим контролем качества.</span></div>
       <dl><div><dt>Стиль</dt><dd>${escapeHtml(config.style)}</dd></div><div><dt>Материалы</dt><dd>${escapeHtml((config.materials || []).join(", ") || "Автоподбор")}</dd></div>
-      <div><dt>Палитра</dt><dd>${escapeHtml((config.palette || []).join(", ") || "Автоподбор")}</dd></div><div><dt>Режим</dt><dd>${escapeHtml(config.transformationLevel)}</dd></div></dl>
+      <div><dt>Палитра</dt><dd>${escapeHtml((config.palette || []).join(", ") || "Автоподбор")}</dd></div><div><dt>Режим</dt><dd>${escapeHtml(transformationLevelLabel(config.transformationLevel))}</dd></div></dl>
       <p class="concept-note">Визуализация является концепцией, а не рабочим строительным проектом.${generation.requires_watermark ? " Водяной знак означает, что использованы бесплатные кредиты." : ""}</p>
       <div class="actions stacked"><a class="button" href="${escapeHtml(resultUrl)}" download>Скачать</a>
       <button id="favorite-button" class="secondary" type="button" data-favorite="${generation.is_favorite}">${generation.is_favorite ? "Убрать из избранного" : "В избранное"}</button>
       <a class="button secondary" href="/app/new?project=${escapeHtml(project.id)}&repeat=${escapeHtml(generation.id)}">Повторить настройки</a>
       <a class="button secondary" href="/app/new">Создать ещё</a></div><div class="result-balance"><span>Доступно</span><strong>${escapeHtml(balance)} кр.</strong><a href="/app/balance">Баланс и пакеты →</a></div></aside></section>`
-    : `<section class="panel status-panel"><p class="eyebrow">${escapeHtml(generationKindLabel(kind))}</p><h1>${terminal ? "Генерация остановлена" : "Создаём фасад"}</h1>${statusSteps()}
-      <p id="generation-message" role="status" aria-live="polite"></p><button id="generation-cancel" class="danger hidden" type="button">Отменить до начала генерации</button>
-      <p><a href="/app">Можно перейти в проекты — задача продолжит выполняться.</a></p></section>`;
+    : `<section class="generation-wait-layout" aria-label="Состояние создания фасада">
+      <figure class="generation-source-preview"><img src="${escapeHtml(sourceUrl)}" alt="Исходная фотография проекта ${escapeHtml(project.title)}"><figcaption>Исходное фото · геометрия под защитой</figcaption></figure>
+      <div class="panel status-panel"><p class="eyebrow">${escapeHtml(generationKindLabel(kind))} · вариант ${escapeHtml(generation.revision)}</p><h1>${terminal ? "Генерация остановлена" : "Создаём фасад"}</h1>
+      <dl class="generation-brief"><div><dt>Стиль</dt><dd>${escapeHtml(config.style || "Автоподбор")}</dd></div><div><dt>Материалы</dt><dd>${escapeHtml((config.materials || []).join(", ") || "Автоподбор")}</dd></div><div><dt>Режим</dt><dd>${escapeHtml(transformationLevelLabel(config.transformationLevel))}</dd></div></dl>
+      ${statusSteps()}<p id="generation-message" role="status" aria-live="polite"></p><button id="generation-cancel" class="danger hidden" type="button">Отменить до начала генерации</button>
+      <p class="generation-leave-note"><a href="/app">Можно перейти в проекты</a> — задача продолжит выполняться, а актуальный этап сохранится после обновления страницы.</p></div></section>`;
   const items = history.map((item) => `<li><a href="/app/projects/${escapeHtml(project.id)}/generations/${escapeHtml(item.id)}">${escapeHtml(generationKindLabel(item.kind))} · вариант ${escapeHtml(item.revision)}</a>
     <span>${escapeHtml(statusLabel(item.status))} · ${escapeHtml(new Date(item.created_at).toLocaleString("ru-RU"))}${item.is_favorite ? " · ★" : ""}</span></li>`).join("");
   return `<div id="result-app" data-project-id="${escapeHtml(project.id)}" data-generation-id="${escapeHtml(generation.id)}" data-status="${escapeHtml(generation.status)}"
