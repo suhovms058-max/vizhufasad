@@ -298,16 +298,17 @@ export default function App() {
       <section className="pricing section shell" id="pricing">
         <div className="pricingHead">
           <div><div className="eyebrow"><span /> ЕДИНЫЕ КРЕДИТЫ</div><h2>Начните бесплатно.<br /><em>Выбирайте пакет</em>, когда нужно.</h2></div>
-          <p>Standard стоит 1 кредит. Assessment и скачивание результата бесплатны.</p>
-        </div>
-        <div className="freeStart">
-          <div><div className="eyebrow"><span /> БЕСПЛАТНЫЙ СТАРТ</div><h3>Standard-варианты после первого входа: {standardVariants(freePlan)}</h3><p>Проверьте свой дом и механику сервиса до покупки пакета. На бесплатном результате остаётся водяной знак.</p></div>
-          <div className="freeStartPrice"><strong>{rubles(freePlan.priceMinor)}</strong><span>автопроверка и скачивание включены</span></div>
-          <a className="button primary" href="#photo-check" data-analytics-event="pricing_cta" data-analytics-plan="FREE">Попробовать бесплатно <Arrow /></a>
+          <p>Один готовый вариант фасада стоит 1 кредит. Проверка фото и скачивание бесплатны.</p>
         </div>
         <div className="priceGrid paidPriceGrid">
+          <article className="priceCard freePlanCard">
+            <div><span className="planNum">00</span><h3>Бесплатно</h3><p>Попробуйте сервис на фотографии своего дома</p></div>
+            <div className="price">{rubles(freePlan.priceMinor)}</div>
+            <ul><li><Check /> {standardVariants(freePlan)} бесплатная визуализация</li><li><Check /> Автоматическая проверка результата</li><li><Check /> Водяной знак на изображении</li></ul>
+            <a className="button ghost" href="#photo-check" data-analytics-event="pricing_cta" data-analytics-plan="FREE">Попробовать бесплатно <Arrow /></a>
+          </article>
           <article className="priceCard featured">
-            <div className="popular">ПОПУЛЯРНЫЙ СТАРТ</div>
+            <div className="popular">ПОПУЛЯРНЫЙ ТАРИФ</div>
             <div><span className="planNum">01</span><h3>Старт</h3><p>Для нескольких вариантов одного дома</p></div>
             <div className="price">{rubles(startPlan.priceMinor)}</div>
             <ul><li><Check /> До {standardVariants(startPlan)} Standard-вариантов</li><li><Check /> Кредиты для Pro и доработок</li><li><Check /> История результатов</li></ul>
