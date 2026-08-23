@@ -61,6 +61,10 @@ test("migrations include foreign keys, indexes, invariants and timestamp default
   assert.match(migration, /'START'.*79000.*25/s);
   assert.match(migration, /'OPTIMUM'.*129000.*60/s);
   assert.match(migration, /'MAXIMUM'.*349000.*240/s);
+  assert.match(migration, /'FREE'.*Одна пробная визуализация.*0.*1/s);
+  assert.match(migration, /'START'.*4 визуализации.*79000.*4/s);
+  assert.match(migration, /'OPTIMUM'.*8 визуализаций.*129000.*8/s);
+  assert.match(migration, /'MAXIMUM'.*25 визуализаций.*349000.*25/s);
   assert.match(migration, /'photo_assessment'.*0/s);
   assert.match(migration, /lower\("email"\)/);
   assert.doesNotMatch(migration, /code_hash.*DEFAULT/);

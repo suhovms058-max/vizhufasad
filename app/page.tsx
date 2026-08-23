@@ -144,10 +144,10 @@ export default function App() {
   const tariff = (code: string, priceMinor: number, credits: number) =>
     publicCatalog?.tariffs.find((item) => item.code === code) || { code, priceMinor, credits };
   const standardCost = publicCatalog?.actions.find((item) => item.code === "standard_generation")?.credits || 1;
-  const freePlan = tariff("FREE", 0, 2);
-  const startPlan = tariff("START", 79_000, 25);
-  const optimumPlan = tariff("OPTIMUM", 129_000, 60);
-  const maximumPlan = tariff("MAXIMUM", 349_000, 240);
+  const freePlan = tariff("FREE", 0, 1);
+  const startPlan = tariff("START", 79_000, 4);
+  const optimumPlan = tariff("OPTIMUM", 129_000, 8);
+  const maximumPlan = tariff("MAXIMUM", 349_000, 25);
   const rubles = (minor: number) => new Intl.NumberFormat("ru-RU", { maximumFractionDigits: 0 }).format(minor / 100) + " ₽";
   const standardVariants = (plan: PublicTariff) => Math.floor(plan.credits / standardCost);
 
@@ -177,7 +177,7 @@ export default function App() {
             <a className="textLink" href="#examples">Посмотреть примеры <Arrow /></a>
           </div>
           <div className="microTrust">
-            <span><Check /> 2 бонусных кредита</span>
+            <span><Check /> 1 пробная визуализация</span>
             <span><Check /> Геометрия дома под защитой</span>
             <span><Check /> Полностью автоматически</span>
           </div>
@@ -198,70 +198,61 @@ export default function App() {
 
       <LandingPhotoCheck appUrl={APP_URL} />
 
-      <section className="processShowcase section" id="how">
+      <section className="processShowcase section" id="how" aria-labelledby="process-title">
+        <div className="processGlow" aria-hidden="true" />
         <div className="shell processLayout">
           <div className="processIntro">
             <div>
               <div className="eyebrow light"><span /> ПРОСТОЙ ПУТЬ К РЕЗУЛЬТАТУ</div>
-              <h2>От фотографии<br />до решения<br /><em>за 3 шага</em></h2>
+              <h2 id="process-title">От фотографии<br />до решения<br /><em>за 3 шага</em></h2>
             </div>
-            <p>Покажите дом и выберите направление. Сервис сам проверит фото, создаст варианты и сохранит защищённую геометрию.</p>
+            <p>Мы убрали из процесса всё сложное. Вы показываете дом и выбираете направление отделки. Остальное делает сервис.</p>
           </div>
-          <div className="processSteps" aria-label="Как работает ВИЖУФАСАД">
+          <div className="processSteps" aria-label="Три шага визуализации фасада дома по фотографии">
             <article className="processStep processCapture">
               <div className="processMedia">
                 <picture className="processPicture">
-                  <source media="(max-width: 1100px)" srcSet="/facade-before-bright-960.webp" />
-                  <img src="/facade-before-bright.webp" alt="Исходная фотография одного и того же дома до отделки фасада" width="1568" height="1003" loading="lazy" decoding="async" />
+                  <source media="(max-width: 1100px)" srcSet="/process-house-before-960.webp" />
+                  <img src="/process-house-before.webp" alt="Современный двухэтажный дом до отделки фасада — исходная фотография для визуализации" width="1536" height="1024" loading="lazy" decoding="async" />
                 </picture>
                 <div className="processPhone" aria-hidden="true">
                   <span />
-                  <img src="/facade-before-bright-960.webp" alt="" width="960" height="614" loading="lazy" decoding="async" />
+                  <img src="/process-house-before-960.webp" alt="" width="960" height="640" loading="lazy" decoding="async" />
                   <i />
                 </div>
                 <span className="processNumber">01</span>
+                <span className="processArrow" aria-hidden="true">→</span>
               </div>
               <div className="processBody">
                 <h3>Загрузите фото</h3>
-                <p>Снимок дома целиком, при дневном свете и без крупных препятствий перед фасадом.</p>
+                <p>Снимок дома с телефона — целиком, при дневном свете и без крупных препятствий перед фасадом.</p>
               </div>
             </article>
             <article className="processStep processChoice">
-              <div className="processMedia" aria-hidden="true">
-                <div className="processMaterialBoard">
-                  <div className="processPalette">
-                    <span style={{ background: "#ded7c9" }} />
-                    <span style={{ background: "#9b664b" }} />
-                    <span style={{ background: "#303532" }} />
-                    <span style={{ background: "#b3a58b" }} />
-                  </div>
-                  <div className="processMaterialPreview">
-                    <img src="/facade-after-bright-960.webp" alt="" width="960" height="614" loading="lazy" decoding="async" />
-                  </div>
-                </div>
-                <div className="processLines" />
-                <span className="processNumber">02</span>
+              <div className="processMedia processReferenceMedia">
+                <img src="/process-step-materials.webp" alt="Коллаж выбора отделки фасада: дерево, штукатурка, камень, палитра цветов и архитектурный эскиз" width="366" height="620" loading="lazy" decoding="async" />
               </div>
               <div className="processBody">
                 <h3>Выберите направление</h3>
-                <p>Настройте стиль, материалы, палитру и допустимый уровень изменений дома.</p>
+                <p>Современный, классический, скандинавский стиль или своё сочетание материалов и цветов.</p>
               </div>
             </article>
             <article className="processStep processResult">
               <div className="processMedia">
                 <picture className="processPicture">
-                  <source media="(max-width: 1100px)" srcSet="/facade-after-bright-960.webp" />
-                  <img src="/facade-after-bright.webp" alt="Тот же дом с готовым вариантом отделки и сохранённой геометрией" width="1568" height="1003" loading="lazy" decoding="async" />
+                  <source media="(max-width: 1100px)" srcSet="/process-house-after-960.webp" />
+                  <img src="/process-house-after.webp" alt="Тот же современный дом с готовой отделкой из камня и дерева и сохранённой геометрией" width="1536" height="1024" loading="lazy" decoding="async" />
                 </picture>
                 <div className="processBeforeInset" aria-hidden="true">
-                  <img src="/facade-before-bright-960.webp" alt="" width="960" height="614" loading="lazy" decoding="async" />
+                  <img src="/process-house-before-960.webp" alt="" width="960" height="640" loading="lazy" decoding="async" />
                 </div>
                 <span className="processNumber">03</span>
+                <span className="processArrow" aria-hidden="true">→</span>
                 <span className="processReady"><Check /> ПРОВЕРЕНО</span>
               </div>
               <div className="processBody">
                 <h3>Получите варианты</h3>
-                <p>Сравните проверенный результат с исходником и выберите фасад для дальнейшей проработки.</p>
+                <p>Сравните решения с исходной фотографией и выберите фасад, который хочется реализовать.</p>
               </div>
             </article>
           </div>
@@ -420,7 +411,7 @@ export default function App() {
         applicationCategory: "DesignApplication",
         operatingSystem: "Web",
         description: "Автоматическая визуализация вариантов фасада дома по фотографии с выбором стиля, материалов и цвета.",
-        offers: { "@type": "Offer", price: "0", priceCurrency: "RUB", description: "Два бонусных кредита при первом входе" },
+        offers: { "@type": "Offer", price: "0", priceCurrency: "RUB", description: "Одна пробная визуализация фасада с водяным знаком" },
         provider: { "@id": `${SITE_ORIGIN}/#organization` },
       }} />
       <JsonLd data={{

@@ -134,6 +134,13 @@
       "when": 1787416534396,
       "tag": "0018_product_analytics",
       "breakpoints": true
+    },
+    {
+      "idx": 19,
+      "version": "7",
+      "when": 1787490000000,
+      "tag": "0019_revenue_safe_tariffs",
+      "breakpoints": true
     }
   ]
 }
