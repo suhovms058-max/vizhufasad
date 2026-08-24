@@ -2,7 +2,7 @@
 
 ## Назначение
 
-Этот порядок подготавливает короткое production-переключение `vizhufasad.ru` без удаления предыдущей версии. До отдельного разрешения владельца команды на VPS не выполняются.
+Этот порядок подготавливает короткое production-переключение `vizhufasad.ru` без удаления предыдущей версии. Сборка release-кандидата и read-only проверки допустимы заранее; атомарное переключение выполняется только после отдельного разрешения владельца.
 
 Production использует:
 
@@ -10,8 +10,9 @@ Production использует:
 - Express API и generation worker как отдельные systemd-сервисы;
 - PostgreSQL, Redis и MinIO из существующего Docker Compose;
 - неизменяемые каталоги релизов `/opt/vizhufasad-releases/<release-id>`;
-- атомарную ссылку `/opt/vizhufasad-current` на активный релиз;
-- секреты только в `/etc/vizhufasad/server.env` с правами `600`.
+- атомарную ссылку `/opt/vizhufasad-stage` на активный релиз;
+- systemd-службы `vizhufasad-stage-api` и `vizhufasad-stage-worker`;
+- production env в `server/.env` активного релиза с правами `600`. Файл копируется из предыдущего релиза и не входит в Git.
 
 ## Ворота перед выпуском
 
@@ -20,35 +21,37 @@ Production использует:
 1. Ветка этапа 13 одобрена владельцем, закоммичена и отправлена в GitHub.
 2. Целевые тесты, typecheck, static production build и визуальная проверка изменённых экранов прошли.
 3. На VPS достаточно места минимум для двух релизов и дампа PostgreSQL.
-4. `DATA_DIR=/var/lib/vizhufasad` задан в production env; секреты не находятся в каталоге релиза.
+4. `server/.env` нового релиза скопирован из активного релиза, принадлежит `www-data` и имеет режим `600`; `server/data` перенесён без удаления исходника и имеет режим `700`.
 5. Текущий commit, active release и состояние сервисов записаны до переключения.
 6. Миграции совместимы с предыдущей версией приложения. Автоматический rollback базы не выполняется.
 
-## Однократная подготовка production
+## Фактическая production-топология
 
-Эти действия выполняются только при первом переходе на release-каталоги:
+На 24 августа 2026 года production уже использует release-каталоги:
 
-```bash
-sudo install -d -m 0755 /opt/vizhufasad-releases
-sudo install -d -m 0755 -o www-data -g www-data /var/lib/vizhufasad
-sudo install -d -m 0750 -o root -g www-data /etc/vizhufasad
-sudo chmod 600 /etc/vizhufasad/server.env
-```
+- `/opt/vizhufasad-stage` → `/opt/vizhufasad-releases/prod-7225639`;
+- nginx отдаёт `/opt/vizhufasad-stage/out` и проксирует API на `127.0.0.1:8081`;
+- PostgreSQL, Redis и MinIO запускаются через `/opt/vizhufasad-stage/docker-compose.yml`;
+- подготовленный release-кандидат: `/opt/vizhufasad-releases/prod-d911e65`.
 
-Установить production-шаблоны из `deploy/systemd/` и `deploy/nginx/`, затем выполнить `systemctl daemon-reload` и `nginx -t`. Конфигурация storage-домена остаётся отдельной и этим шаблоном не заменяется.
+Не заменять действующие systemd/nginx-шаблоны во время UI-релиза. Их фактические пути уже проверены, `nginx -t` проходит.
 
 ## Подготовка релиза без остановки сайта
 
 В командах ниже `<commit>` — одобренный commit ветки этапа 13, а `<release-id>` — UTC-время и короткий SHA, например `20260822-1630-a1b2c3d`.
 
 ```bash
-cd /opt/vizhufasad-stage
+cd /opt/vizhufasad
 git fetch --prune origin
 git cat-file -e <commit>^{commit}
 
 sudo install -d -m 0755 /opt/vizhufasad-releases/<release-id>
 git archive <commit> | sudo tar -x -C /opt/vizhufasad-releases/<release-id>
+sudo cp -a /opt/vizhufasad-stage/server/.env /opt/vizhufasad-releases/<release-id>/server/.env
+sudo cp -a /opt/vizhufasad-stage/server/data /opt/vizhufasad-releases/<release-id>/server/data
 sudo chown -R www-data:www-data /opt/vizhufasad-releases/<release-id>
+sudo chmod 600 /opt/vizhufasad-releases/<release-id>/server/.env
+sudo chmod 700 /opt/vizhufasad-releases/<release-id>/server/data
 
 cd /opt/vizhufasad-releases/<release-id>
 sudo -u www-data npm ci
@@ -62,21 +65,20 @@ sudo -u www-data env NEXT_OUTPUT=export \
 
 cd server
 sudo -u www-data npm ci --omit=dev
-sudo bash -lc 'set -a; source /etc/vizhufasad/server.env; set +a; cd /opt/vizhufasad-releases/<release-id>/server; npm run db:migrate'
 ```
 
-Перед переключением проверить, что существуют `out/index.html`, `server/index.mjs` и `server/worker.mjs`. Сборка нового релиза не затрагивает действующий сайт.
+Перед переключением проверить, что существуют `out/index.html`, `server/index.mjs`, `server/worker.mjs`, `server/.env` и `server/data`. Миграции для UI-релиза `d911e65` не требуются. Если будущий релиз содержит миграцию, её совместимость и отдельный порядок применения проверяются до переключения.
 
 ## Резервная точка
 
 ```bash
 export RELEASE_BACKUP=/var/backups/vizhufasad/<release-id>
 sudo install -d -m 0700 "$RELEASE_BACKUP"
-readlink -f /opt/vizhufasad-current | sudo tee "$RELEASE_BACKUP/previous-release.txt"
-sudo systemctl status vizhufasad-api vizhufasad-worker --no-pager > "$RELEASE_BACKUP/services-before.txt"
+readlink -f /opt/vizhufasad-stage | sudo tee "$RELEASE_BACKUP/previous-release.txt"
+sudo systemctl status vizhufasad-stage-api vizhufasad-stage-worker --no-pager > "$RELEASE_BACKUP/services-before.txt"
 
-cd /opt/vizhufasad-stage
-sudo docker compose exec -T postgres sh -lc 'pg_dump -Fc -U "$POSTGRES_USER" -d "$POSTGRES_DB"' \
+sudo docker compose -f /opt/vizhufasad-stage/docker-compose.yml exec -T postgres \
+  sh -lc 'pg_dump -Fc -U "$POSTGRES_USER" -d "$POSTGRES_DB"' \
   | sudo tee "$RELEASE_BACKUP/postgres.dump" >/dev/null
 sudo test -s "$RELEASE_BACKUP/postgres.dump"
 ```
@@ -86,11 +88,11 @@ sudo test -s "$RELEASE_BACKUP/postgres.dump"
 ## Атомарное переключение
 
 ```bash
-sudo ln -sfn /opt/vizhufasad-releases/<release-id> /opt/vizhufasad-current.next
-sudo mv -Tf /opt/vizhufasad-current.next /opt/vizhufasad-current
-sudo systemctl restart vizhufasad-api vizhufasad-worker
-sudo systemctl is-active --quiet vizhufasad-api
-sudo systemctl is-active --quiet vizhufasad-worker
+sudo ln -sfn /opt/vizhufasad-releases/<release-id> /opt/vizhufasad-stage.next
+sudo mv -Tf /opt/vizhufasad-stage.next /opt/vizhufasad-stage
+sudo systemctl restart vizhufasad-stage-api vizhufasad-stage-worker
+sudo systemctl is-active --quiet vizhufasad-stage-api
+sudo systemctl is-active --quiet vizhufasad-stage-worker
 sudo nginx -t
 sudo systemctl reload nginx
 ```
@@ -101,7 +103,7 @@ sudo systemctl reload nginx
 
 Проверить ровно один сквозной сценарий с production backend:
 
-1. `curl -fsS https://vizhufasad.ru/health/live` возвращает HTTP 200 без секретов.
+1. `curl -fsS http://127.0.0.1:8081/health/live` возвращает HTTP 200 без секретов. Публичный `/health/*` закрыт nginx и не используется как внешний smoke.
 2. Главная, вход, `/app`, `/app/new`, каталог стилей, галерея и юридические страницы открываются без ошибок консоли.
 3. Новый пользователь получает код по production SMTP, входит и видит бонусный баланс один раз.
 4. Фото загружается только после явного согласия, проходит обработку и assessment.
@@ -119,10 +121,10 @@ Rich results проверяются по опубликованным URL гла
 export PREVIOUS_RELEASE="$(sudo cat /var/backups/vizhufasad/<release-id>/previous-release.txt)"
 sudo test -f "$PREVIOUS_RELEASE/out/index.html"
 sudo test -f "$PREVIOUS_RELEASE/server/index.mjs"
-sudo ln -sfn "$PREVIOUS_RELEASE" /opt/vizhufasad-current.next
-sudo mv -Tf /opt/vizhufasad-current.next /opt/vizhufasad-current
-sudo systemctl restart vizhufasad-api vizhufasad-worker
-curl -fsS https://vizhufasad.ru/health/live
+sudo ln -sfn "$PREVIOUS_RELEASE" /opt/vizhufasad-stage.next
+sudo mv -Tf /opt/vizhufasad-stage.next /opt/vizhufasad-stage
+sudo systemctl restart vizhufasad-stage-api vizhufasad-stage-worker
+curl -fsS http://127.0.0.1:8081/health/live
 ```
 
 Базу данных автоматически не восстанавливать: это может удалить новые оплаты, проекты и транзакции. Восстановление дампа допускается только после отдельного решения об инциденте и остановки записи.
