@@ -90,12 +90,14 @@ export class ProjectRepository {
       const image = await client.query(
         `insert into source_images (
           id, project_id, storage_bucket, storage_key, original_filename,
-          declared_mime_type, mime_type, byte_size, status, upload_expires_at
-        ) values ($1, $2, $3, $4, $5, $6, $6, $7, 'uploading', $8)
+          declared_mime_type, mime_type, byte_size, status, upload_expires_at,
+          consent_version, consented_at
+        ) values ($1, $2, $3, $4, $5, $6, $6, $7, 'uploading', $8, $9, $10)
         returning *`,
         [
           input.id, input.projectId, input.bucket, input.storageKey, input.originalFilename,
           input.declaredMimeType, input.byteSize, input.uploadExpiresAt,
+          input.consentVersion, input.consentedAt,
         ],
       );
       await client.query(

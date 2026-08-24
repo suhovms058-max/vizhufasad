@@ -3,7 +3,7 @@ import { grantFreeBonusWithClient } from "../wallet/repository.mjs";
 import { hashesEqual } from "./crypto.mjs";
 
 export class AuthRepository {
-  constructor(pool = getPool(), walletConfig = { freeBonusEnabled: true, freeBonusCredits: 2 }) {
+  constructor(pool = getPool(), walletConfig = { freeBonusEnabled: true, freeBonusCredits: 1 }) {
     this.pool = pool;
     this.walletConfig = walletConfig;
   }

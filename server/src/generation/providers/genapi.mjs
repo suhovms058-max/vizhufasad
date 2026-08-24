@@ -342,7 +342,12 @@ export class GenApiGenerationProvider {
       if (!payload) throw providerError("GENAPI_INVALID_POLL_RESPONSE", 502, true);
       if (payload.status === "success") break;
       if (payload.status === "error" || payload.status === "failed") {
-        throw providerError("GENAPI_GENERATION_FAILED", 502, true, payload.error || null);
+        const error = providerError("GENAPI_GENERATION_FAILED", 502, true, payload.error || null);
+        if (Number.isFinite(Number(payload.cost))) {
+          error.actualCostMinor = Math.max(0, Math.round(Number(payload.cost) * 100));
+          error.costCurrency = this.currency;
+        }
+        throw error;
       }
       if (!["processing", "starting", "pending", "queued"].includes(payload.status)) {
         throw providerError("GENAPI_UNKNOWN_STATUS", 502, true, payload.status);

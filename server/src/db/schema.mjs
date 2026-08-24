@@ -138,6 +138,8 @@ export const sourceImages = pgTable("source_images", {
   invalidReason: text("invalid_reason"),
   recommendedSize: boolean("recommended_size").default(false).notNull(),
   qualityAssessment: jsonb("quality_assessment"),
+  consentVersion: text("consent_version").notNull(),
+  consentedAt: timestamp("consented_at", { withTimezone: true }).notNull(),
   ...timestamps,
   uploadExpiresAt: timestamp("upload_expires_at", { withTimezone: true }),
   processedAt: timestamp("processed_at", { withTimezone: true }),
@@ -658,4 +660,17 @@ export const auditLogs = pgTable("audit_logs", {
   index("audit_logs_entity_created_idx").on(table.entityType, table.entityId, table.createdAt),
   index("audit_logs_actor_created_idx").on(table.actorUserId, table.createdAt),
   index("audit_logs_request_idx").on(table.requestId),
+]);
+
+export const productEvents = pgTable("product_events", {
+  id: uuid("id").defaultRandom().primaryKey(),
+  eventName: text("event_name").notNull(),
+  sessionHash: text("session_hash").notNull(),
+  path: text("path").notNull(),
+  properties: jsonb("properties").default({}).notNull(),
+  createdAt: timestamp("created_at", { withTimezone: true }).defaultNow().notNull(),
+}, (table) => [
+  index("product_events_name_created_idx").on(table.eventName, table.createdAt),
+  index("product_events_session_created_idx").on(table.sessionHash, table.createdAt),
+  check("product_events_path_length_chk", sql`length(${table.path}) BETWEEN 1 AND 240`),
 ]);

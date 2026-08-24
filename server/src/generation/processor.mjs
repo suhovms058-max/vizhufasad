@@ -141,9 +141,20 @@ export class GenerationProcessor {
           resumeRequestId: resumedRequestId,
           onSubmitted: async (requestId) => {
             submittedRequestId = requestId;
-            const stored = await this.repository.attachProviderRequest(attempt.id, requestId);
+            let stored = null;
+            for (const delayMs of [0, 100, 500]) {
+              if (delayMs) await new Promise((resolve) => setTimeout(resolve, delayMs));
+              try {
+                stored = await this.repository.attachProviderRequest(attempt.id, requestId);
+                if (stored === requestId) break;
+              } catch {
+                stored = null;
+              }
+            }
             if (stored !== requestId) {
-              throw new GenerationError("GENAPI_REQUEST_ID_PERSIST_FAILED", 500, { retryable: true });
+              // GenAPI may already have charged this request. Never create a second paid
+              // request when the recovery identifier could not be stored durably.
+              throw new GenerationError("GENAPI_REQUEST_ID_PERSIST_FAILED", 500, { retryable: false });
             }
           },
         });

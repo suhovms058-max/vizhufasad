@@ -7,6 +7,8 @@ test("Pro, edit, 4K and comparison remain usable without horizontal overflow", a
   await page.goto("/app/new?project=project-e2e");
   await expect(page.getByText("Pro · 2 кредита")).toBeVisible();
   await page.getByLabel(/Pro · 2 кредита/u).check();
+  await page.getByRole("button", { name: "Продолжить" }).click();
+  await page.getByRole("button", { name: "Продолжить" }).click();
   await expect(page.getByRole("button", { name: "Запустить Pro" })).toBeVisible();
 
   await page.goto("/app/projects/project-e2e/generations/22222222-2222-4222-8222-222222222222");

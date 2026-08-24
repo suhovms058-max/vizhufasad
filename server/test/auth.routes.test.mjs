@@ -76,7 +76,7 @@ test("protected API and cabinet reject missing sessions", async () => {
 
     const cabinet = await fetch(`${baseUrl}/app`, { redirect: "manual" });
     assert.equal(cabinet.status, 303);
-    assert.equal(cabinet.headers.get("location"), "/auth/login");
+    assert.equal(cabinet.headers.get("location"), "/auth/login?next=%2Fapp");
   });
 });
 
@@ -97,6 +97,34 @@ test("email login and verification pages use the responsive cabinet design", asy
     assert.match(verifyHtml, /class="code-input"/u);
   });
 });
+
+test("email login preserves a safe cabinet destination and rejects open redirects", async () => {
+  const { app } = fixture();
+  await withServer(app, async (baseUrl) => {
+    const login = await fetch(`${baseUrl}/auth/login?next=${encodeURIComponent("/app/new?from=landing")}`);
+    assert.match(await login.text(), /name="next" value="\/app\/new\?from=landing"/u);
+
+    const requested = await fetch(`${baseUrl}/auth/login`, {
+      method: "POST",
+      headers: { "content-type": "application/x-www-form-urlencoded" },
+      body: new URLSearchParams({ email: "user@example.com", next: "/app/new?from=landing" }),
+      redirect: "manual",
+    });
+    assert.equal(requested.headers.get("location"), "/auth/verify?challenge=challenge&next=%2Fapp%2Fnew%3Ffrom%3Dlanding");
+
+    const confirmed = await fetch(`${baseUrl}/auth/verify`, {
+      method: "POST",
+      headers: { "content-type": "application/x-www-form-urlencoded" },
+      body: new URLSearchParams({ challengeId: "challenge", code: "123456", next: "/app/new?from=landing" }),
+      redirect: "manual",
+    });
+    assert.equal(confirmed.headers.get("location"), "/app/new?from=landing");
+
+    const unsafe = await fetch(`${baseUrl}/auth/login?next=${encodeURIComponent("https://example.com")}`);
+    assert.match(await unsafe.text(), /name="next" value="\/app"/u);
+  });
+});
+
 test("confirmation sets hardened cookie and logout revokes the session", async () => {
   const { app, revoked } = fixture();
   await withServer(app, async (baseUrl) => {

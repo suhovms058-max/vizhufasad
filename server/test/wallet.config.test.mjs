@@ -8,7 +8,7 @@ test("wallet feature flags default to the safe stage 6 configuration", () => {
     tariffCatalogEnabled: true,
     freeBonusEnabled: true,
     paymentsEnabled: false,
-    freeBonusCredits: 2,
+    freeBonusCredits: 1,
   });
 });
 

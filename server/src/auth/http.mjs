@@ -15,7 +15,11 @@ export function createRequireSession(service, { html = false } = {}) {
     try {
       const session = await service.sessionFromRequest(request);
       if (!session) {
-        if (html) return response.redirect(303, "/auth/login");
+        if (html) {
+          const destination = String(request.originalUrl || "/app");
+          const nextPath = destination.startsWith("/app") && !destination.startsWith("//") ? destination : "/app";
+          return response.redirect(303, `/auth/login?next=${encodeURIComponent(nextPath)}`);
+        }
         return authError(response, 401, "AUTH_REQUIRED");
       }
       request.auth = session;

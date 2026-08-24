@@ -1,12 +1,12 @@
 import "dotenv/config";
 import { closeDatabase, getPool } from "../db/client.mjs";
 
-const effectiveAt = new Date("2026-07-28T21:00:00.000Z");
+const effectiveAt = new Date("2026-08-23T00:00:00.000Z");
 const tariffPlans = [
-  ["FREE", "Бесплатный", "Два бонусных кредита один раз", 0, 2, true, true],
-  ["START", "Старт", "25 кредитов", 79_000, 25, true, true],
-  ["OPTIMUM", "Оптимум", "60 кредитов", 129_000, 60, true, true],
-  ["MAXIMUM", "Максимум", "240 кредитов", 349_000, 240, true, true],
+  ["FREE", "Бесплатный", "Одна пробная визуализация с водяным знаком", 0, 1, true, true],
+  ["START", "Старт", "4 визуализации", 79_000, 4, true, true],
+  ["OPTIMUM", "Оптимум", "8 визуализаций", 129_000, 8, true, true],
+  ["MAXIMUM", "Максимум", "25 визуализаций", 349_000, 25, true, true],
   ["PLUS", "Plus", "Подготовлен, но не активирован", null, null, false, false],
 ];
 const actionCosts = [
