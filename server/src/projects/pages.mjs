@@ -56,6 +56,7 @@ const STYLE_OPTIONS = [
     image: "/facade-dark-high-tech-bright-960.webp", alt: "Фасад дома в стиле тёмный хай-тек",
   },
 ];
+const SELECTION_ASSET_VERSION = "20260824-1";
 const MATERIALS = [
   ["штукатурка", "Ровная матовая поверхность", "/material-plaster.webp"],
   ["кирпич", "Тёплая кладка с заметным швом", "/material-brick.webp"],
@@ -217,7 +218,7 @@ function transformationLevelLabel(level) {
 function featuredStyleCard(style, selectedStyle) {
   const active = style.value === selectedStyle;
   return `<button class="style-card${active ? " active" : ""}" type="button" data-style="${escapeHtml(style.value)}" aria-pressed="${active}">
-    <img src="${escapeHtml(style.image)}" alt="${escapeHtml(style.alt)}" width="480" height="320" loading="lazy" decoding="async">
+    <img src="${escapeHtml(style.image)}?v=${SELECTION_ASSET_VERSION}" alt="${escapeHtml(style.alt)}" width="480" height="320" loading="lazy" decoding="async">
     <span class="style-card-copy"><strong>${escapeHtml(style.title)}</strong><small>${escapeHtml(style.description)}</small></span>
     <span class="style-card-action">Выбрать</span></button>`;
 }
@@ -252,7 +253,7 @@ function settingsStep(project, balance, costs, features) {
       <div class="settings-step hidden" data-wizard-step="2">
       <div class="settings-step-heading"><p class="eyebrow">Настройка 2 из 3</p><h2>Отделка и цветовое решение</h2><p>Материалы, палитра и ваши уточнения автоматически попадут в задание генератору.</p></div>
       <fieldset><legend>Отделка</legend><p class="hint">Можно сочетать несколько материалов. Финальная совместимость системы требует проверки основания.</p>
-      <div class="choice-grid material-grid">${MATERIALS.map(([value, description, image]) => `<label class="choice material-choice"><input type="checkbox" name="materials" value="${escapeHtml(value)}" ${selectedMaterials.has(value) ? "checked" : ""}><span><img class="material-photo" src="${escapeHtml(image)}" alt="Фактура материала: ${escapeHtml(value)}" width="480" height="480" loading="lazy" decoding="async"><i class="material-shade" aria-hidden="true"></i><b>${escapeHtml(value)}</b><small>${escapeHtml(description)}</small></span></label>`).join("")}</div></fieldset>
+      <div class="choice-grid material-grid">${MATERIALS.map(([value, description, image]) => `<label class="choice material-choice"><input type="checkbox" name="materials" value="${escapeHtml(value)}" ${selectedMaterials.has(value) ? "checked" : ""}><span><img class="material-photo" src="${escapeHtml(image)}?v=${SELECTION_ASSET_VERSION}" alt="Фактура материала: ${escapeHtml(value)}" width="480" height="480" loading="lazy" decoding="async"><i class="material-shade" aria-hidden="true"></i><b>${escapeHtml(value)}</b><small>${escapeHtml(description)}</small></span></label>`).join("")}</div></fieldset>
       <fieldset><legend>Палитра</legend><p class="hint">Готовое сочетание задаёт настроение, а точные оттенки можно описать ниже.</p>
       <div class="palette-grid">${PALETTES.map(([value, label, colors]) => `<label class="palette-choice"><input type="radio" name="palettePreset" value="${escapeHtml(value)}" ${selectedPalette === value ? "checked" : ""}><span><i class="palette-chips" aria-hidden="true">${colors.map((color) => `<b style="background:${escapeHtml(color)}"></b>`).join("")}</i><strong>${escapeHtml(label)}</strong></span></label>`).join("")}</div>
       <label for="palette-description">Описание цветов</label><input id="palette-description" name="paletteDescription" maxlength="120" value="${escapeHtml(config.palette?.slice(1).join(", ") || "")}" placeholder="Например: молочный, натуральное дерево, графит"></fieldset>
