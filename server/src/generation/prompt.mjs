@@ -3,7 +3,7 @@ import { GENERATION_PROMPT_VERSION } from "./contract.mjs";
 const modeInstructions = {
   gentle: "Use a restrained design language and finish the existing envelope without changing its architecture.",
   balanced: "Use a noticeable but buildable facade composition while preserving every protected structural element.",
-  conceptual: "Use a more expressive facade composition, but still preserve every protected structural element.",
+  conceptual: "Use a more expressive composition of finish materials, colors, lighting and facade details on the existing wall surfaces. Keep the architecture and every protected structural element unchanged.",
 };
 
 const preserveLabels = {
@@ -29,7 +29,9 @@ const editScopeLabels = {
   custom_mask: "only the white editable pixels in the second supplied mask image",
 };
 
-export function composeGenerationPrompt(input, { qualityRetryReasons = [], edit = null } = {}) {
+export function composeGenerationPrompt(input, {
+  qualityRetryReasons = [], qualityRetryObservation = null, edit = null,
+} = {}) {
   const protectedItems = Object.entries(input.preserve)
     .filter(([, enabled]) => enabled)
     .map(([key]) => preserveLabels[key]);
@@ -37,6 +39,10 @@ export function composeGenerationPrompt(input, { qualityRetryReasons = [], edit 
     .filter(([, enabled]) => !enabled)
     .map(([key]) => preserveLabels[key]);
   const openingRetry = qualityRetryReasons.some((reason) => /windows|doors|opening/iu.test(reason));
+  const sourceWindowCount = Number.isInteger(qualityRetryObservation?.sourceWindowCount)
+    ? qualityRetryObservation.sourceWindowCount : null;
+  const sourceDoorCount = Number.isInteger(qualityRetryObservation?.sourceDoorCount)
+    ? qualityRetryObservation.sourceDoorCount : null;
   const prompt = [
     edit
       ? "TASK: Edit the supplied already-completed facade visualization of the exact same real house. Return a photorealistic corrected version of that same image, not a redesign of the entire house."
@@ -79,6 +85,9 @@ export function composeGenerationPrompt(input, { qualityRetryReasons = [], edit 
       : "",
     openingRetry
       ? "RETRY OPENING LOCK: Copy the source window and door inventory exactly. Any extra, missing, moved, resized or duplicated opening makes this result invalid. Keep every source blank wall free of new openings."
+      : "",
+    openingRetry && sourceWindowCount != null && sourceDoorCount != null
+      ? `MEASURED SOURCE INVENTORY: The source photograph contains exactly ${sourceWindowCount} visible windows and ${sourceDoorCount} visible doors. The corrected candidate must contain exactly the same visible counts in the same positions.`
       : "",
     input.negativeConstraints.length
       ? `Additional forbidden changes: ${input.negativeConstraints.join("; ")}.`

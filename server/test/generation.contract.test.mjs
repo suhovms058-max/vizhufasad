@@ -53,9 +53,16 @@ test("quality retry strengthens the protected opening lock", () => {
   const input = normalizeGenerationInput({ style: "современный" });
   const composed = composeGenerationPrompt(input, {
     qualityRetryReasons: ["windows_count_mismatch"],
+    qualityRetryObservation: {
+      sourceWindowCount: 4,
+      candidateWindowCount: 6,
+      sourceDoorCount: 1,
+      candidateDoorCount: 1,
+    },
   });
   assert.match(composed.prompt, /RETRY OPENING LOCK/u);
   assert.match(composed.prompt, /extra, missing, moved, resized or duplicated opening/u);
+  assert.match(composed.prompt, /exactly 4 visible windows and 1 visible doors/u);
 });
 
 test("generation state machine accepts only declared lifecycle transitions", () => {

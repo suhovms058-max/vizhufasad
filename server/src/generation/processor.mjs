@@ -85,7 +85,8 @@ export class GenerationProcessor {
   }
 
   async generateCandidate({
-    generation, sourceImage, maskImage, input, candidateNumber, retryReasons, dimensions, signal,
+    generation, sourceImage, maskImage, input, candidateNumber, retryReasons,
+    retryObservation, dimensions, signal,
   }) {
     const generating = await this.repository.transition(
       generation.id,
@@ -96,13 +97,18 @@ export class GenerationProcessor {
     const edit = generation.kind === "edit"
       ? { scope: generation.edit_scope, command: generation.edit_prompt }
       : null;
-    const prompt = composeGenerationPrompt(input, { qualityRetryReasons: retryReasons, edit });
+    const prompt = composeGenerationPrompt(input, {
+      qualityRetryReasons: retryReasons,
+      qualityRetryObservation: retryObservation,
+      edit,
+    });
     let lastError;
     const kind = generation.kind || "standard";
     const providers = this.providers.filter((provider) => (
       provider.generationKinds == null || provider.generationKinds.includes(kind)
     ) && (kind !== "edit" || provider.editScopes == null
-      || provider.editScopes.includes(generation.edit_scope)));
+      || provider.editScopes.includes(generation.edit_scope))
+      && (provider.candidateNumbers == null || provider.candidateNumbers.includes(candidateNumber)));
     for (const provider of providers) {
       let attempt = await this.repository.resumeProviderAttempt?.(
         generation.id, candidateNumber, provider.name, provider.model,
@@ -269,6 +275,8 @@ export class GenerationProcessor {
       let candidateNumber = previous.some((assessment) => assessment.decision === "retry_required") ? 2 : 1;
       let retryReasons = previous.find((assessment) => assessment.decision === "retry_required")
         ?.failure_reasons || [];
+      let retryObservation = previous.find((assessment) => assessment.decision === "retry_required")
+        ?.vlm_result || null;
       for (; candidateNumber <= 2; candidateNumber += 1) {
         await job.updateProgress({ stage: "generating", percent: candidateNumber === 1 ? 45 : 60 });
         let candidate = await this.repository.findCandidateForAssessment(generationId, candidateNumber);
@@ -283,6 +291,7 @@ export class GenerationProcessor {
           );
           prompt = composeGenerationPrompt(input, {
             qualityRetryReasons: retryReasons,
+            qualityRetryObservation: retryObservation,
             edit: generation.kind === "edit"
               ? { scope: generation.edit_scope, command: generation.edit_prompt }
               : null,
@@ -290,6 +299,7 @@ export class GenerationProcessor {
         } else {
           const generated = await this.generateCandidate({
             generation, sourceImage, maskImage, input, candidateNumber, retryReasons,
+            retryObservation,
             dimensions, signal: workerSignal,
           });
           candidate = generated.attempt;
@@ -346,6 +356,7 @@ export class GenerationProcessor {
         }
         if (quality.decision === "retry_required" && candidateNumber === 1) {
           retryReasons = quality.failureReasons;
+          retryObservation = quality.vlmResult;
           const retrying = await this.repository.transition(
             generationId, ["quality_check_pending"], "retrying",
             { failureCode: "QUALITY_RETRY_REQUIRED" },
