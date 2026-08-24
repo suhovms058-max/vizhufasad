@@ -43,7 +43,13 @@ function evaluate({ observation, structural, allowedChanges, thresholds, assessm
     if (vlm[name] < thresholds.protectedElement) failures.push(`${name}_below_threshold`);
   }
   if (structural.contours < thresholds.contours) failures.push("contours_below_threshold");
-  if (structural.spatialLayout < thresholds.spatialLayout) failures.push("spatial_layout_below_threshold");
+  // Material seams, timber slats and landscaping legitimately change local
+  // edge density. A low layout-density score is therefore blocking only when
+  // another structural signal independently confirms the change.
+  if (structural.spatialLayout < thresholds.spatialLayout && (
+    structural.contours < thresholds.contours
+    || structural.protectedZones < thresholds.protectedZones
+  )) failures.push("spatial_layout_below_threshold");
   if (structural.protectedZones < thresholds.protectedZones) failures.push("protected_zones_below_threshold");
   if (vlm.artifacts < thresholds.artifacts) failures.push("artifacts_below_threshold");
   if (vlm.style < thresholds.style) failures.push("style_below_threshold");

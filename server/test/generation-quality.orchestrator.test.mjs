@@ -65,6 +65,53 @@ test("explicitly allowed roof change does not reject an otherwise good result", 
   assert.equal(result.decision, "passed");
 });
 
+test("finish texture cannot make a low layout-density score fail by itself", async () => {
+  const quality = new GenerationQualityOrchestrator({
+    config,
+    providers: {
+      primary: { name: "primary", model: "mock", async compare() {
+        return { observation: observation(), requestId: "request" };
+      } },
+    },
+    structuralAnalyzer: async () => ({
+      version: "test", contours: 8300, spatialLayout: 3700,
+      protectedZones: 7700,
+      zones: {
+        floors: 8200, roof: 9400, windows: 6800, doors: 6100,
+        balconiesTerraces: 6000, position: 8200, perspective: 8200,
+      },
+      edgeDensityDelta: 300,
+    }),
+  });
+  const result = await quality.assess(request);
+  assert.equal(result.decision, "passed");
+  assert.equal(result.failureReasons.includes("spatial_layout_below_threshold"), false);
+});
+
+test("low layout-density remains blocking when protected-zone evidence confirms it", async () => {
+  const quality = new GenerationQualityOrchestrator({
+    config,
+    providers: {
+      primary: { name: "primary", model: "mock", async compare() {
+        return { observation: observation(), requestId: "request" };
+      } },
+    },
+    structuralAnalyzer: async () => ({
+      version: "test", contours: 7800, spatialLayout: 4400,
+      protectedZones: 5200,
+      zones: {
+        floors: 7600, roof: 9000, windows: 5300, doors: 5700,
+        balconiesTerraces: 4600, position: 7800, perspective: 7800,
+      },
+      edgeDensityDelta: 400,
+    }),
+  });
+  const result = await quality.assess(request);
+  assert.equal(result.decision, "retry_required");
+  assert.ok(result.failureReasons.includes("protected_zones_below_threshold"));
+  assert.ok(result.failureReasons.includes("spatial_layout_below_threshold"));
+});
+
 test("bounded primary failure falls back automatically without a manual decision", async () => {
   let primaryCalls = 0;
   let fallbackCalls = 0;
