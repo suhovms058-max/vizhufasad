@@ -101,7 +101,7 @@ button:focus-visible, a:focus-visible, input:focus-visible, textarea:focus-visib
 .status { display: flex; align-items: center; gap: 8px; color: #c4c8bc; }
 .status i { width: 5px; height: 5px; background: #8faf7d; border-radius: 50%; box-shadow: 0 0 0 4px rgba(143,175,125,.12); }
 .heroCarousel { position: relative; aspect-ratio: 1.34; overflow: hidden; background: #101210; touch-action: pan-y; }
-.carouselSlide { position: absolute; inset: 0; opacity: 0; transition: opacity .24s ease; }
+.carouselSlide { position: absolute; inset: 0; opacity: 0; transition: opacity .16s linear; }
 .carouselSlide.isActive { opacity: 1; }
 .carouselSlide picture, .carouselSlide img { position: absolute; inset: 0; width: 100%; height: 100%; }
 .carouselSlide img { object-fit: cover; }

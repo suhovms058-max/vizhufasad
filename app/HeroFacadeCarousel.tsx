@@ -9,7 +9,7 @@ const slides = [
     title: "Исходное фото",
     details: "Дом до выбора отделки",
     alt: "Исходная фотография дома без фасадной отделки",
-    duration: 1200,
+    duration: 900,
   },
   {
     src: "/facade-after-bright.webp",
@@ -17,7 +17,7 @@ const slides = [
     title: "Современный",
     details: "Штукатурка · дерево · камень",
     alt: "Современный вариант отделки фасада этого же дома",
-    duration: 600,
+    duration: 400,
   },
   {
     src: "/facade-minimalism-bright.webp",
@@ -25,7 +25,7 @@ const slides = [
     title: "Минимализм",
     details: "Штукатурка · панели · спокойная палитра",
     alt: "Минималистичный вариант отделки фасада этого же дома",
-    duration: 600,
+    duration: 400,
   },
   {
     src: "/facade-scandinavian-bright.webp",
@@ -33,7 +33,7 @@ const slides = [
     title: "Скандинавский",
     details: "Фиброцемент · термодерево · камень",
     alt: "Скандинавский вариант отделки фасада этого же дома",
-    duration: 600,
+    duration: 400,
   },
   {
     src: "/facade-barnhouse-bright.webp",
@@ -41,7 +41,7 @@ const slides = [
     title: "Барнхаус",
     details: "Фальц · дерево · тёмные плоскости",
     alt: "Вариант отделки фасада этого же дома в стиле барнхаус",
-    duration: 600,
+    duration: 400,
   },
   {
     src: "/facade-chalet-bright.webp",
@@ -49,7 +49,7 @@ const slides = [
     title: "Шале",
     details: "Камень · дерево · тёплая отделка",
     alt: "Вариант отделки фасада этого же дома в стиле шале",
-    duration: 600,
+    duration: 400,
   },
   {
     src: "/facade-classic-bright.webp",
@@ -57,7 +57,7 @@ const slides = [
     title: "Классический",
     details: "Светлая штукатурка · симметрия · декор",
     alt: "Классический вариант отделки фасада этого же дома",
-    duration: 600,
+    duration: 400,
   },
   {
     src: "/facade-neoclassical-bright.webp",
@@ -65,7 +65,7 @@ const slides = [
     title: "Неоклассика",
     details: "Штукатурка · фасадный декор · камень",
     alt: "Неоклассический вариант отделки фасада этого же дома",
-    duration: 600,
+    duration: 400,
   },
   {
     src: "/facade-contemporary-bright.webp",
@@ -73,7 +73,7 @@ const slides = [
     title: "Контемпорари",
     details: "Камень · панели · выразительные детали",
     alt: "Вариант отделки фасада этого же дома в стиле контемпорари",
-    duration: 600,
+    duration: 400,
   },
   {
     src: "/facade-loft-bright.webp",
@@ -81,7 +81,7 @@ const slides = [
     title: "Лофт",
     details: "Кирпич · металл · индустриальный характер",
     alt: "Вариант отделки фасада этого же дома в стиле лофт",
-    duration: 600,
+    duration: 400,
   },
   {
     src: "/facade-dark-high-tech-bright.webp",
@@ -89,7 +89,7 @@ const slides = [
     title: "Тёмный хай-тек",
     details: "Графитовые панели · стекло · точная подсветка",
     alt: "Вариант отделки фасада этого же дома в стиле тёмный хай-тек",
-    duration: 600,
+    duration: 400,
   },
 ] as const;
 
@@ -98,11 +98,10 @@ const finishedSlideCount = slides.length - 1;
 export function HeroFacadeCarousel() {
   const [activeIndex, setActiveIndex] = useState(0);
   const [userPaused, setUserPaused] = useState(false);
-  const [interactionPaused, setInteractionPaused] = useState(false);
   const [reducedMotion, setReducedMotion] = useState(false);
   const pointerStartX = useRef<number | null>(null);
 
-  const paused = userPaused || interactionPaused || reducedMotion;
+  const paused = userPaused || reducedMotion;
   const activeSlide = slides[activeIndex];
 
   useEffect(() => {
@@ -112,6 +111,18 @@ export function HeroFacadeCarousel() {
     syncPreference();
     media.addEventListener("change", syncPreference);
     return () => media.removeEventListener("change", syncPreference);
+  }, []);
+
+  useEffect(() => {
+    const useMobileImages = window.matchMedia("(max-width: 1100px)").matches;
+    const preloaders = slides.slice(1).map((slide) => {
+      const image = new Image();
+      image.decoding = "async";
+      image.src = useMobileImages ? slide.mobileSrc : slide.src;
+      return image;
+    });
+
+    return () => preloaders.forEach((image) => { image.src = ""; });
   }, []);
 
   useEffect(() => {
@@ -154,12 +165,6 @@ export function HeroFacadeCarousel() {
       role="region"
       aria-roledescription="карусель"
       aria-label={`Исходный дом и ${finishedSlideCount} вариантов отделки фасада`}
-      onMouseEnter={() => setInteractionPaused(true)}
-      onMouseLeave={() => setInteractionPaused(false)}
-      onFocusCapture={() => setInteractionPaused(true)}
-      onBlurCapture={(event) => {
-        if (!event.currentTarget.contains(event.relatedTarget)) setInteractionPaused(false);
-      }}
     >
       <div className="visualTop">
         <span>ПРОЕКТ 01 / ЧАСТНЫЙ ДОМ</span>
