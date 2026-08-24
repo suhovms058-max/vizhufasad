@@ -101,6 +101,7 @@ Staging: `https://46-149-67-190.sslip.io/`
 | Staging: блок трёх стилей на desktop | изображения уменьшены с 900 px до ~283 px, три дома видны целиком |
 | Подготовленный production-release: отдельный API smoke на `127.0.0.1:8083` | live и ready; database, Redis и storage `up` |
 | Действующий production во время подготовки | `/opt/vizhufasad-releases/prod-7225639`; API и worker `active` |
+| Резервная точка перед переключением | `/var/backups/vizhufasad/prod-d911e65-before-switch-20260824`; приватный PostgreSQL dump 136604 байта, режим `600` |
 | PageSpeed mobile до/после оптимизации | LCP 7,4 → 6,9 с; Accessibility/Best Practices/SEO 100 |
 | Google Rich Results Test | 2 валидных элемента без ошибок; 1 необязательное предупреждение без фиктивного рейтинга |
 | Production до/после развёртывания staging | неизменный SHA-256 `0fc9d1dd20cd6e58cac51c666a96b8603b0dce76f6982b74c64e7f35058ed716` |
