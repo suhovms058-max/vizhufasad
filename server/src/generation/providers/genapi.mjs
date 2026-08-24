@@ -190,7 +190,7 @@ function createGenerationBody({
   }
   if (model === "qwen-image-edit-2511") {
     body.append("translate_input", "false");
-    body.append("prompt", prompt);
+    body.append("prompt", compactEditPrompt(prompt));
     appendSource(body, "image_urls[]", sourceImage, sourceMimeType);
     body.append(
       "negative_prompt",

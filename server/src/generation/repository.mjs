@@ -344,7 +344,11 @@ export class GenerationRepository {
         attemptId,
         error.retryable ? "retryable_failed" : "terminal_failed",
         String(error.code || "GENERATION_PROVIDER_FAILED").slice(0, 120),
-        error.details == null ? {} : { provider: String(error.details).slice(0, 500) },
+        error.details == null ? {} : {
+          provider: (typeof error.details === "string"
+            ? error.details
+            : JSON.stringify(error.details)).slice(0, 2000),
+        },
         Number.isInteger(error.actualCostMinor) ? error.actualCostMinor : null,
         error.costCurrency || null,
       ],

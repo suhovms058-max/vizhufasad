@@ -111,16 +111,7 @@ test("GenAPI provider uses each edit model's documented image field and controls
   }
 });
 
-test("Qwen edit prompt stays within its API limit without dropping edit boundaries", async () => {
-  let body;
-  const provider = new GenApiGenerationProvider({
-    apiKey: "secret",
-    model: "qwen-image-edit-plus",
-    fetchImplementation: async (_url, options) => {
-      body = options.body;
-      return Response.json({ error: true }, { status: 422 });
-    },
-  });
+test("Qwen edit prompts stay within the API limit without dropping edit boundaries", async () => {
   const prompt = [
     "TASK: Edit the exact same house.",
     "EDIT BOUNDARY: Change walls only. Everything outside must remain identical.",
@@ -128,13 +119,24 @@ test("Qwen edit prompt stays within its API limit without dropping edit boundari
     "STRICTLY PRESERVE: windows; doors; roof; camera viewpoint.",
     "Required facade style: modern.",
   ].join("\n");
-  await assert.rejects(provider.generate({
-    sourceImage: Buffer.from("source"), prompt, seed: 1, width: 1024, height: 768,
-  }));
-  const compact = body.get("prompt");
-  assert.ok(Buffer.byteLength(compact, "utf8") <= 1900);
-  assert.match(compact, /EDIT BOUNDARY: Change walls only/u);
-  assert.match(compact, /STRICTLY PRESERVE: windows; doors; roof/u);
+  for (const model of ["qwen-image-edit-plus", "qwen-image-edit-2511"]) {
+    let body;
+    const provider = new GenApiGenerationProvider({
+      apiKey: "secret",
+      model,
+      fetchImplementation: async (_url, options) => {
+        body = options.body;
+        return Response.json({ error: true }, { status: 422 });
+      },
+    });
+    await assert.rejects(provider.generate({
+      sourceImage: Buffer.from("source"), prompt, seed: 1, width: 1024, height: 768,
+    }));
+    const compact = body.get("prompt");
+    assert.ok(Buffer.byteLength(compact, "utf8") <= 1900, model);
+    assert.match(compact, /EDIT BOUNDARY: Change walls only/u, model);
+    assert.match(compact, /STRICTLY PRESERVE: windows; doors; roof/u, model);
+  }
 });
 
 test("GenAPI resumes a persisted paid request without submitting another generation", async () => {
