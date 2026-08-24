@@ -101,7 +101,7 @@ button:focus-visible, a:focus-visible, input:focus-visible, textarea:focus-visib
 .status { display: flex; align-items: center; gap: 8px; color: #c4c8bc; }
 .status i { width: 5px; height: 5px; background: #8faf7d; border-radius: 50%; box-shadow: 0 0 0 4px rgba(143,175,125,.12); }
 .heroCarousel { position: relative; aspect-ratio: 1.34; overflow: hidden; background: #101210; touch-action: pan-y; }
-.carouselSlide { position: absolute; inset: 0; opacity: 0; transition: opacity .6s ease; }
+.carouselSlide { position: absolute; inset: 0; opacity: 0; transition: opacity .24s ease; }
 .carouselSlide.isActive { opacity: 1; }
 .carouselSlide picture, .carouselSlide img { position: absolute; inset: 0; width: 100%; height: 100%; }
 .carouselSlide img { object-fit: cover; }
@@ -115,7 +115,7 @@ button:focus-visible, a:focus-visible, input:focus-visible, textarea:focus-visib
 .carouselArrow, .carouselToggle { width: 34px; height: 34px; display: grid; place-items: center; font-size: 13px; }
 .carouselToggle { margin-left: 3px; font-size: 10px; }
 .carouselDots { display: flex; align-items: center; gap: 5px; padding: 6px 7px; background: rgba(18,20,18,.68); backdrop-filter: blur(9px); }
-.carouselDot { position: relative; width: 24px; height: 32px; padding: 0; border: 0; background: transparent; }
+.carouselDot { position: relative; width: 18px; height: 32px; padding: 0; border: 0; background: transparent; }
 .carouselDot::after { content: ""; position: absolute; top: 50%; left: 50%; width: 7px; height: 7px; border: 1px solid rgba(255,255,255,.38); border-radius: 50%; background: rgba(255,255,255,.28); transform: translate(-50%,-50%); }
 .carouselDot.isActive::after { background: #e6b08f; border-color: #e6b08f; transform: translate(-50%,-50%) scale(1.18); }
 .carouselArrow:hover, .carouselToggle:hover { border-color: #e6b08f; color: #e6b08f; }
@@ -357,7 +357,7 @@ h2 { font-size: clamp(48px, 5vw, 76px); margin-top: 24px; }
   .carouselControls { left: 12px; right: 12px; bottom: 12px; justify-content: space-between; }
   .carouselDots { margin-inline: auto; }
   .carouselArrow, .carouselToggle { width: 44px; height: 44px; }
-  .carouselDot { width: 28px; height: 44px; }
+  .carouselDot { width: 14px; height: 44px; }
   .signalGrid { grid-template-columns: 1fr 1fr; gap: 28px 0; }
   .signalGrid > * { padding: 0 18px; }
   .signalGrid > *:nth-child(2) { border: 0; }
