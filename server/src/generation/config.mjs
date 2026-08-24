@@ -21,11 +21,15 @@ export function loadGenerationConfig(environment = process.env) {
   const apiKey = String(environment.GENAPI_API_KEY || "").trim();
   if ((enabled || proEnabled || editorEnabled) && !apiKey) throw new GenerationError("GENAPI_API_KEY_REQUIRED", 500);
   const model = environment.GENAPI_STANDARD_MODEL || "nano-banana-2";
+  const retryModel = String(environment.GENAPI_STANDARD_RETRY_MODEL || "").trim();
   const proModel = String(environment.GENAPI_PRO_MODEL || "").trim();
   const editModel = String(environment.GENAPI_EDIT_MODEL || "").trim();
   const maskEditModel = String(environment.GENAPI_MASK_EDIT_MODEL || "bria-genfill").trim();
   if (proEnabled && !proModel) throw new GenerationError("GENAPI_PRO_MODEL_REQUIRED", 500);
   if (proEnabled && proModel === model) throw new GenerationError("GENAPI_PRO_MODEL_MUST_DIFFER", 500);
+  if (retryModel && retryModel === model) {
+    throw new GenerationError("GENAPI_STANDARD_RETRY_MODEL_MUST_DIFFER", 500);
+  }
   if (editorEnabled && !editModel) throw new GenerationError("GENAPI_EDIT_MODEL_REQUIRED", 500);
   if (editorEnabled && !maskEditModel) throw new GenerationError("GENAPI_MASK_EDIT_MODEL_REQUIRED", 500);
   const stagingEnabled = String(environment.GENERATION_STAGING_ENABLED || "false") === "true";
@@ -49,10 +53,18 @@ export function loadGenerationConfig(environment = process.env) {
     apiKey,
     endpoint: environment.GENAPI_ENDPOINT || "https://api.gen-api.ru/api/v1",
     model,
+    retryModel,
     proModel,
     editModel,
     maskEditModel,
     estimatedCostMinor: integer(environment, "GENAPI_STANDARD_ESTIMATED_COST_MINOR", 2500, 0, 100_000),
+    retryEstimatedCostMinor: integer(
+      environment,
+      "GENAPI_STANDARD_RETRY_ESTIMATED_COST_MINOR",
+      2500,
+      0,
+      100_000,
+    ),
     proEstimatedCostMinor: integer(environment, "GENAPI_PRO_ESTIMATED_COST_MINOR", 5000, 0, 200_000),
     editEstimatedCostMinor: integer(environment, "GENAPI_EDIT_ESTIMATED_COST_MINOR", 2500, 0, 200_000),
     maskEditEstimatedCostMinor: integer(environment, "GENAPI_MASK_EDIT_ESTIMATED_COST_MINOR", 1500, 0, 200_000),

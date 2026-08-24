@@ -13,7 +13,21 @@ export function createGenerationProviders(config) {
       pollIntervalMs: config.pollIntervalMs,
       resultMaxBytes: config.resultMaxBytes,
       generationKinds: ["standard"],
+      candidateNumbers: config.retryModel ? [1] : [1, 2],
     }));
+    if (config.retryModel) {
+      providers.push(new GenApiGenerationProvider({
+        apiKey: config.apiKey,
+        model: config.retryModel,
+        endpoint: config.endpoint,
+        estimatedCostMinor: config.retryEstimatedCostMinor,
+        currency: config.currency,
+        pollIntervalMs: config.pollIntervalMs,
+        resultMaxBytes: config.resultMaxBytes,
+        generationKinds: ["standard"],
+        candidateNumbers: [2],
+      }));
+    }
   }
   if (config.proEnabled && config.provider === "genapi") {
     providers.push(new GenApiGenerationProvider({

@@ -110,7 +110,32 @@ test("generation configuration is disabled by default and selects the measured c
   assert.equal(config.enabled, false);
   assert.equal(config.proEnabled, false);
   assert.equal(config.model, "nano-banana-2");
+  assert.equal(config.retryModel, "");
   assert.equal(config.estimatedCostMinor, 2500);
+  assert.throws(
+    () => loadGenerationConfig({
+      GENAPI_STANDARD_MODEL: "qwen-image-edit-2511",
+      GENAPI_STANDARD_RETRY_MODEL: "qwen-image-edit-2511",
+    }),
+    (error) => error.code === "GENAPI_STANDARD_RETRY_MODEL_MUST_DIFFER",
+  );
+  const standardWithRetry = loadGenerationConfig({
+    FEATURE_STANDARD_GENERATION_ENABLED: "true",
+    GENAPI_API_KEY: "secret",
+    GENAPI_STANDARD_MODEL: "qwen-image-edit-2511",
+    GENAPI_STANDARD_RETRY_MODEL: "nano-banana-2",
+    GENAPI_STANDARD_ESTIMATED_COST_MINOR: "1500",
+    GENAPI_STANDARD_RETRY_ESTIMATED_COST_MINOR: "2000",
+  });
+  assert.deepEqual(
+    createGenerationProviders(standardWithRetry).map((provider) => [
+      provider.model, provider.candidateNumbers, provider.estimatedCostMinor,
+    ]),
+    [
+      ["qwen-image-edit-2511", [1], 1500],
+      ["nano-banana-2", [2], 2000],
+    ],
+  );
   assert.throws(
     () => loadGenerationConfig({ FEATURE_STANDARD_GENERATION_ENABLED: "true" }),
     (error) => error.code === "GENAPI_API_KEY_REQUIRED",

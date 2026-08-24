@@ -84,6 +84,7 @@ test("GenAPI provider uses each edit model's documented image field and controls
     ["nano-banana-pro", "image_urls[]", ["resolution", "2K"]],
     ["seedream-v5-pro", "image_urls[]", ["output_format", "jpeg"]],
     ["qwen-image-edit-plus", "image_urls[]", ["num_inference_steps", "50"]],
+    ["qwen-image-edit-2511", "image_urls[]", ["num_inference_steps", "28"]],
     ["flux-kontext", "images[]", ["model", "max"]],
     ["restyle", "image", ["image_size", "input"]],
   ];

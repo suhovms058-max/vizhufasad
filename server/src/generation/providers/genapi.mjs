@@ -188,6 +188,26 @@ function createGenerationBody({
     body.append("enable_safety_checker", "true");
     return body;
   }
+  if (model === "qwen-image-edit-2511") {
+    body.append("translate_input", "false");
+    body.append("prompt", prompt);
+    appendSource(body, "image_urls[]", sourceImage, sourceMimeType);
+    body.append(
+      "negative_prompt",
+      "changed building geometry, changed floor count, changed roof, extra windows, missing windows, "
+        + "extra doors, missing doors, shifted openings, changed camera perspective, duplicate objects, artifacts",
+    );
+    body.append("width", String(width));
+    body.append("height", String(height));
+    body.append("num_images", "1");
+    body.append("seed", String(seed));
+    body.append("output_format", "png");
+    body.append("guidance_scale", "4.5");
+    body.append("num_inference_steps", "28");
+    body.append("enable_safety_checker", "true");
+    body.append("acceleration", "regular");
+    return body;
+  }
   if (model === "seedream-v5-pro" || model === "seedream-v5-lite") {
     body.append("translate_input", "false");
     body.append("is_sync", "false");
@@ -253,6 +273,7 @@ export class GenApiGenerationProvider {
     resultMaxBytes = 25 * 1024 * 1024,
     generationKinds = ["standard"],
     editScopes = null,
+    candidateNumbers = null,
     fetchImplementation = fetch,
   }) {
     this.name = "genapi";
@@ -265,6 +286,7 @@ export class GenApiGenerationProvider {
     this.resultMaxBytes = resultMaxBytes;
     this.generationKinds = generationKinds;
     this.editScopes = editScopes;
+    this.candidateNumbers = candidateNumbers;
     this.fetchImplementation = fetchImplementation;
   }
 

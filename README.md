@@ -235,6 +235,8 @@ npm run db:check
 FEATURE_STANDARD_GENERATION_ENABLED=true
 GENAPI_API_KEY=ваш_серверный_ключ
 GENAPI_STANDARD_MODEL=nano-banana-2
+# Optional: route the single automatic quality retry through another model.
+GENAPI_STANDARD_RETRY_MODEL=
 ```
 
 Платные smoke-команды требуют отдельного `GENERATION_LIVE_SMOKE_ENABLED=true` и описаны в
