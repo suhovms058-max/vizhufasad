@@ -24,6 +24,17 @@ function creditsLabel(value) {
   return `${amount} ${noun}`;
 }
 
+function actionLabel(action) {
+  return ({
+    standard_generation: "Обычная генерация",
+    pro_generation: "Pro-генерация",
+    text_revision: "Текстовая доработка",
+    upscale_4k: "Подготовка 4K",
+    photo_assessment: "Проверка фото",
+    download: "Скачивание",
+  })[action.code] || action.name;
+}
+
 const statusLabels = {
   created: "Создан",
   pending: "Ожидает оплаты",
@@ -88,7 +99,7 @@ export function createWalletPagesRouter({ authService, walletService, paymentSer
       const tariffs = catalog.tariffs.map((tariff) => `<article class="panel tariff-card">
         <h3>${escapeHtml(tariff.name)}</h3><p><strong>${escapeHtml(rubles(tariff.priceMinor))}</strong></p>
         <p>${escapeHtml(creditsLabel(tariff.credits))}</p>
-        <p class="tariff-outcome"><strong>До ${escapeHtml(Math.floor(tariff.credits / standardCost))} Standard-вариантов</strong><br>
+        <p class="tariff-outcome"><strong>До ${escapeHtml(Math.floor(tariff.credits / standardCost))} обычных генераций</strong><br>
         <span class="muted">или используйте кредиты для Pro, доработок и 4K по стоимости действий ниже</span></p>
         ${paymentConfig?.enabled && tariff.priceMinor > 0 ? `<form method="post" action="/app/payments/checkout">
           <input type="hidden" name="tariffPlanId" value="${escapeHtml(tariff.id)}">
@@ -97,7 +108,7 @@ export function createWalletPagesRouter({ authService, walletService, paymentSer
           <input id="promo-${escapeHtml(tariff.id)}" name="promoCode" maxlength="32" autocomplete="off">
           <p><button type="submit" data-analytics-event="payment_checkout_started" data-analytics-plan="${escapeHtml(tariff.code)}">Перейти к оплате</button></p></form>` : ""}
       </article>`).join("");
-      const actions = catalog.actions.map((action) => `<tr><td>${escapeHtml(action.name)}</td>
+      const actions = catalog.actions.map((action) => `<tr><td>${escapeHtml(actionLabel(action))}</td>
         <td>${action.credits === 0 ? "Бесплатно" : `${escapeHtml(action.credits)} кр.`}</td></tr>`).join("");
       const walletRows = history.map((item) => `<tr><td>${escapeHtml(new Date(item.created_at).toLocaleDateString("ru-RU"))}</td>
         <td>${escapeHtml(item.type)}</td><td>${Number(item.amount) > 0 ? "+" : ""}${escapeHtml(item.amount)}</td>
@@ -126,7 +137,7 @@ export function createWalletPagesRouter({ authService, walletService, paymentSer
         <section class="page-heading"><div><p class="eyebrow">Кошелёк</p><h1>Баланс и тарифы</h1></div></section>
         <section class="panel balance-card"><p class="muted">Доступно</p>
           <p class="balance-value">${escapeHtml(creditsLabel(wallet.balance))}</p></section>
-        <h2>Пакеты для ваших вариантов</h2><p class="muted">Один Standard-вариант стоит ${escapeHtml(standardCost)} кредит. Вы сами распределяете баланс между генерациями и доступными доработками.</p><div class="tariff-grid">${tariffs}</div>
+        <h2>Пакеты для генераций</h2><p class="muted">Обычная генерация стоит ${escapeHtml(standardCost)} кредит. Вы сами распределяете баланс между генерациями, Pro, доработками и 4K.</p><div class="tariff-grid">${tariffs}</div>
         <p class="muted">Цена и количество кредитов загружаются из единого серверного справочника.</p>
         ${paymentConfig?.enabled ? "" : '<p class="notice">Платежи временно выключены. Неработающая оплата пользователю не показывается.</p>'}
         <h2>Стоимость действий</h2><div class="table-wrap"><table><tbody>${actions}</tbody></table></div>

@@ -10,8 +10,8 @@ const tariffPlans = [
   ["PLUS", "Plus", "Подготовлен, но не активирован", null, null, false, false],
 ];
 const actionCosts = [
-  ["standard_generation", "Standard", 1],
-  ["pro_generation", "Pro", 2],
+  ["standard_generation", "Обычная генерация", 1],
+  ["pro_generation", "Pro-генерация", 2],
   ["text_revision", "Текстовая доработка", 1],
   ["upscale_4k", "4K", 1],
   ["photo_assessment", "Проверка фото", 0],

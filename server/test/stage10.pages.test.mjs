@@ -40,10 +40,10 @@ async function render(path, { status = "completed" } = {}) {
   } finally { await new Promise((resolve) => server.close(resolve)); }
 }
 
-test("/app/new renders the complete Standard settings path from catalog data", async () => {
+test("/app/new renders the complete ordinary-generation settings path from catalog data", async () => {
   const { status, html } = await render("/app/new?project=project-1");
   assert.equal(status, 200);
-  for (const text of ["Фото подходит", "современный", "тёмный хай-тек", "фиброцемент", "Архитектура дома защищена автоматически", "Сбалансированный", "1 кредита", "700"]) {
+  for (const text of ["Фото подходит", "современный", "тёмный хай-тек", "фиброцемент", "Архитектура дома защищена автоматически", "Сбалансированный", "Обычная генерация · 1 кредит", "700"]) {
     assert.match(html, new RegExp(text, "u"));
   }
   for (const marker of ["style-card-grid", "facade-scandinavian-bright-960.webp", "facade-neoclassical-bright-960.webp", "facade-barnhouse-bright-960.webp", "facade-chalet-bright-960.webp", "facade-loft-bright-960.webp", "facade-dark-high-tech-bright-960.webp", "material-photo", "material-brick.webp", "material-metal.webp", "material-auto.webp", "palette-chips", "settings-progress", "data-wizard-step=\"3\""]) {

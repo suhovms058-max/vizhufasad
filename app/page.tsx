@@ -149,7 +149,15 @@ export default function App() {
   const optimumPlan = tariff("OPTIMUM", 129_000, 8);
   const maximumPlan = tariff("MAXIMUM", 349_000, 25);
   const rubles = (minor: number) => new Intl.NumberFormat("ru-RU", { maximumFractionDigits: 0 }).format(minor / 100) + " ₽";
-  const standardVariants = (plan: PublicTariff) => Math.floor(plan.credits / standardCost);
+  const ordinaryGenerations = (plan: PublicTariff) => Math.floor(plan.credits / standardCost);
+  const creditsLabel = (amount: number) => {
+    const mod100 = amount % 100;
+    const mod10 = amount % 10;
+    const noun = mod100 >= 11 && mod100 <= 14
+      ? "кредитов"
+      : mod10 === 1 ? "кредит" : mod10 >= 2 && mod10 <= 4 ? "кредита" : "кредитов";
+    return `${amount} ${noun}`;
+  };
 
   return (
     <main>
@@ -191,7 +199,7 @@ export default function App() {
         <div className="shell signalGrid">
           <p>Не выбирайте отделку<br /><i>вслепую.</i></p>
           <div><strong>1 фото</strong><span>достаточно для старта</span></div>
-          <div><strong>1 кредит</strong><span>за Standard-вариант</span></div>
+          <div><strong>1 кредит</strong><span>за одну генерацию</span></div>
           <div><strong>3 шага</strong><span>от фото до результата</span></div>
         </div>
       </section>
@@ -298,32 +306,32 @@ export default function App() {
       <section className="pricing section shell" id="pricing">
         <div className="pricingHead">
           <div><div className="eyebrow"><span /> ЕДИНЫЕ КРЕДИТЫ</div><h2>Начните бесплатно.<br /><em>Выбирайте пакет</em>, когда нужно.</h2></div>
-          <p>Один готовый вариант фасада стоит 1 кредит. Проверка фото и скачивание бесплатны.</p>
+          <p>Обычная генерация фасада стоит 1 кредит. Проверка фото и скачивание бесплатны.</p>
         </div>
         <div className="priceGrid paidPriceGrid">
           <article className="priceCard freePlanCard">
             <div><span className="planNum">00</span><h3>Бесплатно</h3><p>Посмотрите свой дом с новой отделкой</p></div>
             <div className="price">{rubles(freePlan.priceMinor)}</div>
-            <ul><li><Check /> {standardVariants(freePlan)} бесплатная визуализация</li><li><Check /> Автоматическая проверка результата</li><li><Check /> Водяной знак на изображении</li></ul>
+            <ul><li><Check /> {creditsLabel(freePlan.credits)} на пробную генерацию</li><li><Check /> Автоматическая проверка результата</li><li><Check /> Водяной знак на изображении</li></ul>
             <a className="button ghost" href="#photo-check" data-analytics-event="pricing_cta" data-analytics-plan="FREE">Попробовать бесплатно <Arrow /></a>
           </article>
           <article className="priceCard featured">
             <div className="popular">ПОПУЛЯРНЫЙ ТАРИФ</div>
             <div><span className="planNum">01</span><h3>Старт</h3><p>Для нескольких вариантов одного дома</p></div>
             <div className="price">{rubles(startPlan.priceMinor)}</div>
-            <ul><li><Check /> До {standardVariants(startPlan)} Standard-вариантов</li><li><Check /> Кредиты для Pro и доработок</li><li><Check /> История результатов</li></ul>
+            <ul><li><Check /> {creditsLabel(startPlan.credits)} в пакете</li><li><Check /> До {ordinaryGenerations(startPlan)} обычных генераций</li><li><Check /> Можно использовать для Pro и доработок</li></ul>
             <button className="button primary" data-analytics-event="pricing_cta" data-analytics-plan="START" onClick={() => startOrder("visual")}>Открыть кабинет <Arrow /></button>
           </article>
           <article className="priceCard">
             <div><span className="planNum">02</span><h3>Оптимум</h3><p>Для исследования нескольких стилей</p></div>
             <div className="price">{rubles(optimumPlan.priceMinor)}</div>
-            <ul><li><Check /> До {standardVariants(optimumPlan)} Standard-вариантов</li><li><Check /> Сравнение до четырёх решений</li><li><Check /> Кредиты для Pro и доработок</li></ul>
+            <ul><li><Check /> {creditsLabel(optimumPlan.credits)} в пакете</li><li><Check /> До {ordinaryGenerations(optimumPlan)} обычных генераций</li><li><Check /> Сравнение до четырёх решений</li></ul>
             <button className="button ghost" data-analytics-event="pricing_cta" data-analytics-plan="OPTIMUM" onClick={() => startOrder("selection")}>Открыть кабинет <Arrow /></button>
           </article>
           <article className="priceCard premium">
             <div><span className="planNum">03</span><h3>Максимум</h3><p>Для большого числа концепций</p></div>
             <div className="price">{rubles(maximumPlan.priceMinor)}</div>
-            <ul><li><Check /> До {standardVariants(maximumPlan)} Standard-вариантов</li><li><Check /> Сравнение до четырёх решений</li><li><Check /> Для нескольких домов и серий вариантов</li></ul>
+            <ul><li><Check /> {creditsLabel(maximumPlan.credits)} в пакете</li><li><Check /> До {ordinaryGenerations(maximumPlan)} обычных генераций</li><li><Check /> Для нескольких домов и серий решений</li></ul>
             <button className="button copper" data-analytics-event="pricing_cta" data-analytics-plan="MAXIMUM" onClick={() => startOrder("realization")}>Открыть кабинет <Arrow /></button>
           </article>
         </div>

@@ -49,8 +49,8 @@
     PIXEL_LIMIT_EXCEEDED: "У изображения слишком большое число пикселей.",
     MIME_DECODER_MISMATCH: "Содержимое файла не соответствует его формату.",
     IMAGE_DECODE_FAILED: "Файл повреждён или не декодируется.",
-    INSUFFICIENT_BALANCE: "Недостаточно кредитов для Standard.",
-    STANDARD_GENERATION_DISABLED: "Standard-генерация пока не включена на этом сервере.",
+    INSUFFICIENT_BALANCE: "Недостаточно кредитов для генерации.",
+    STANDARD_GENERATION_DISABLED: "Обычная генерация пока не включена на этом сервере.",
     PRO_GENERATION_DISABLED: "Pro пока не включён: модель должна пройти реальную проверку качества.",
     PHOTO_PROCESSING_CONSENT_REQUIRED: "Подтвердите отдельное согласие на обработку фотографии.",
   };
@@ -355,10 +355,11 @@
     const updateCount = () => { count.textContent = String(wishes.value.length); };
     const updateGenerationKind = () => {
       const kind = new FormData(form).get("generationKind") === "pro" ? "pro" : "standard";
-      const label = kind === "pro" ? "Pro" : "Standard";
+      const buttonLabel = kind === "pro" ? "Запустить Pro-генерацию" : "Запустить генерацию";
+      const chargeLabel = kind === "pro" ? "Pro-генерацию" : "обычную генерацию";
       const cost = kind === "pro" ? root.dataset.proCost : root.dataset.standardCost;
-      start.textContent = `Запустить ${label}`;
-      costText.textContent = `Подтверждаю списание ${cost} ${Number(cost) === 1 ? "кредита" : "кредитов"} за ${label}. Assessment и скачивание бесплатны.`;
+      start.textContent = buttonLabel;
+      costText.textContent = `Подтверждаю списание ${cost} ${Number(cost) === 1 ? "кредита" : "кредитов"} за ${chargeLabel}. Проверка фото и скачивание бесплатны.`;
     };
     updateCount();
     updateGenerationKind();
