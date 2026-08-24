@@ -46,13 +46,15 @@ test("/app/new renders the complete Standard settings path from catalog data", a
   for (const text of ["Фото подходит", "современный", "тёмный хай-тек", "фиброцемент", "Архитектура дома защищена автоматически", "Сбалансированный", "1 кредита", "700"]) {
     assert.match(html, new RegExp(text, "u"));
   }
-  for (const marker of ["style-card-grid", "facade-scandinavian-bright.webp", "facade-neoclassical-bright.webp", "material-swatch", "palette-chips", "settings-progress", "data-wizard-step=\"3\""]) {
+  for (const marker of ["style-card-grid", "facade-scandinavian-bright-960.webp", "facade-neoclassical-bright-960.webp", "facade-barnhouse-bright-960.webp", "facade-chalet-bright-960.webp", "facade-loft-bright-960.webp", "facade-dark-high-tech-bright-960.webp", "material-photo", "material-brick.webp", "material-metal.webp", "material-auto.webp", "palette-chips", "settings-progress", "data-wizard-step=\"3\""]) {
     assert.match(html, new RegExp(marker, "u"));
   }
+  assert.equal((html.match(/class="style-card(?: active)?" type="button"/g) || []).length, 11);
   assert.match(html, /data-style="скандинавский"/u);
   assert.match(html, /name="palettePreset" value="автоподбор" checked/u);
   assert.match(html, /app-new\.js/u);
   assert.doesNotMatch(html, /name="preserve\./u);
+  assert.doesNotMatch(html, /material-swatch/u);
   assert.doesNotMatch(html, /телефон|специалист|отправить заявку/iu);
 });
 

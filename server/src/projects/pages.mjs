@@ -10,35 +10,63 @@ const STYLES = [
   "классический", "неоклассический", "контемпорари", "лофт", "тёмный хай-тек",
   "автоподбор",
 ];
-const FEATURED_STYLES = [
+const STYLE_OPTIONS = [
   {
     value: "автоподбор", title: "Автоподбор", description: "ИИ предложит подходящий образ",
-    image: "/facade-before-bright.webp", alt: "Исходный дом до выбора фасадного стиля",
+    image: "/facade-before-bright-960.webp", alt: "Исходный дом для автоматического подбора фасадного стиля",
   },
   {
     value: "современный", title: "Современный", description: "Чистые линии и несколько материалов",
-    image: "/facade-after-bright.webp", alt: "Современная отделка фасада на примере дома",
+    image: "/facade-after-bright-960.webp", alt: "Современная отделка фасада на примере дома",
+  },
+  {
+    value: "минимализм", title: "Минимализм", description: "Лаконичные плоскости и спокойные оттенки",
+    image: "/facade-minimalism-bright-960.webp", alt: "Фасад дома в стиле минимализм",
   },
   {
     value: "скандинавский", title: "Скандинавский", description: "Фиброцемент, дерево и природные тона",
-    image: "/facade-scandinavian-bright.webp", alt: "Скандинавская отделка фасада на примере дома",
+    image: "/facade-scandinavian-bright-960.webp", alt: "Скандинавская отделка фасада на примере дома",
+  },
+  {
+    value: "барнхаус", title: "Барнхаус", description: "Тёмные панели, дерево и строгий силуэт",
+    image: "/facade-barnhouse-bright-960.webp", alt: "Фасад дома в стиле барнхаус",
+  },
+  {
+    value: "шале", title: "Шале", description: "Камень, дерево и тёплая основательная отделка",
+    image: "/facade-chalet-bright-960.webp", alt: "Фасад дома в стиле шале",
+  },
+  {
+    value: "классический", title: "Классический", description: "Симметрия, светлая отделка и спокойный декор",
+    image: "/facade-classic-bright-960.webp", alt: "Классическая отделка фасада дома",
   },
   {
     value: "неоклассический", title: "Неоклассика", description: "Светлая штукатурка и сдержанный декор",
-    image: "/facade-neoclassical-bright.webp", alt: "Неоклассическая отделка фасада на примере дома",
+    image: "/facade-neoclassical-bright-960.webp", alt: "Неоклассическая отделка фасада на примере дома",
+  },
+  {
+    value: "контемпорари", title: "Контемпорари", description: "Актуальные материалы и выразительные детали",
+    image: "/facade-contemporary-bright-960.webp", alt: "Фасад дома в стиле контемпорари",
+  },
+  {
+    value: "лофт", title: "Лофт", description: "Кирпич, металл и индустриальный характер",
+    image: "/facade-loft-bright-960.webp", alt: "Фасад дома в стиле лофт",
+  },
+  {
+    value: "тёмный хай-тек", title: "Тёмный хай-тек", description: "Графитовые поверхности и точная подсветка",
+    image: "/facade-dark-high-tech-bright-960.webp", alt: "Фасад дома в стиле тёмный хай-тек",
   },
 ];
 const MATERIALS = [
-  ["штукатурка", "Ровная матовая поверхность", "plaster"],
-  ["кирпич", "Тёплая кладка с заметным швом", "brick"],
-  ["клинкер", "Плотная выразительная кладка", "clinker"],
-  ["дерево", "Натуральные рейки или планкен", "wood"],
-  ["камень", "Фактурный природный акцент", "stone"],
-  ["панели", "Крупный современный формат", "panels"],
-  ["фиброцемент", "Практичная ровная облицовка", "fiber-cement"],
-  ["металл", "Фальц или вертикальный профиль", "metal"],
-  ["комбинированная", "Два-три материала в балансе", "combined"],
-  ["автоподбор", "ИИ подберёт сочетание", "auto"],
+  ["штукатурка", "Ровная матовая поверхность", "/material-plaster.webp"],
+  ["кирпич", "Тёплая кладка с заметным швом", "/material-brick.webp"],
+  ["клинкер", "Плотная выразительная кладка", "/material-clinker.webp"],
+  ["дерево", "Натуральные рейки или планкен", "/material-wood.webp"],
+  ["камень", "Фактурный природный акцент", "/material-stone.webp"],
+  ["панели", "Крупный современный формат", "/material-panels.webp"],
+  ["фиброцемент", "Практичная ровная облицовка", "/material-fiber-cement.webp"],
+  ["металл", "Фальц или вертикальный профиль", "/material-metal.webp"],
+  ["комбинированная", "Два-три материала в балансе", "/material-combined.webp"],
+  ["автоподбор", "ИИ подберёт сочетание", "/material-auto.webp"],
 ];
 const PALETTES = [
   ["автоподбор", "Автоподбор", ["#d8d0c2", "#8d5b42", "#303531"]],
@@ -189,7 +217,7 @@ function transformationLevelLabel(level) {
 function featuredStyleCard(style, selectedStyle) {
   const active = style.value === selectedStyle;
   return `<button class="style-card${active ? " active" : ""}" type="button" data-style="${escapeHtml(style.value)}" aria-pressed="${active}">
-    <img src="${escapeHtml(style.image)}" alt="${escapeHtml(style.alt)}">
+    <img src="${escapeHtml(style.image)}" alt="${escapeHtml(style.alt)}" width="480" height="320" loading="lazy" decoding="async">
     <span class="style-card-copy"><strong>${escapeHtml(style.title)}</strong><small>${escapeHtml(style.description)}</small></span>
     <span class="style-card-action">Выбрать</span></button>`;
 }
@@ -217,14 +245,14 @@ function settingsStep(project, balance, costs, features) {
         <label class="generation-tier"><input type="radio" name="generationKind" value="standard" checked><span><strong>Standard · ${escapeHtml(costs.standard)} кредит</strong><small>Быстрый вариант для поиска отделки и цветового решения.</small></span></label>
         <label class="generation-tier ${features.pro ? "" : "is-disabled"}"><input type="radio" name="generationKind" value="pro" ${features.pro ? "" : "disabled"}><span><strong>Pro · ${escapeHtml(costs.pro)} кредита</strong><small>${features.pro ? "Модель более высокого качества, больше деталей и реалистичности." : "Появится после подтверждения качества модели на реальных фасадах."}</small></span></label>
       </div></fieldset>
-      <fieldset><legend>Стиль</legend><p class="hint">Сравните популярные направления на одном доме или откройте полный список.</p>
-      <div class="style-card-grid" aria-label="Популярные стили">${FEATURED_STYLES.map((item) => featuredStyleCard(item, selectedStyle)).join("")}</div>
-      <label for="style">Все направления</label><select id="style" name="style">${STYLES.map((item) => option(item, selectedStyle)).join("")}</select></fieldset>
+      <fieldset><legend>Стиль</legend><p class="hint">Сравните все направления на одном доме. Наведите курсор для акцента или нажмите карточку, чтобы выбрать стиль.</p>
+      <div class="style-card-grid" aria-label="Стили фасада">${STYLE_OPTIONS.map((item) => featuredStyleCard(item, selectedStyle)).join("")}</div>
+      <label class="visually-hidden" for="style">Выбранный стиль</label><select class="visually-hidden" id="style" name="style">${STYLES.map((item) => option(item, selectedStyle)).join("")}</select></fieldset>
       </div>
       <div class="settings-step hidden" data-wizard-step="2">
       <div class="settings-step-heading"><p class="eyebrow">Настройка 2 из 3</p><h2>Отделка и цветовое решение</h2><p>Материалы, палитра и ваши уточнения автоматически попадут в задание генератору.</p></div>
       <fieldset><legend>Отделка</legend><p class="hint">Можно сочетать несколько материалов. Финальная совместимость системы требует проверки основания.</p>
-      <div class="choice-grid material-grid">${MATERIALS.map(([value, description, visual]) => `<label class="choice material-choice" data-material="${escapeHtml(visual)}"><input type="checkbox" name="materials" value="${escapeHtml(value)}" ${selectedMaterials.has(value) ? "checked" : ""}><span><i class="material-swatch" aria-hidden="true"></i><b>${escapeHtml(value)}</b><small>${escapeHtml(description)}</small></span></label>`).join("")}</div></fieldset>
+      <div class="choice-grid material-grid">${MATERIALS.map(([value, description, image]) => `<label class="choice material-choice"><input type="checkbox" name="materials" value="${escapeHtml(value)}" ${selectedMaterials.has(value) ? "checked" : ""}><span><img class="material-photo" src="${escapeHtml(image)}" alt="Фактура материала: ${escapeHtml(value)}" width="480" height="480" loading="lazy" decoding="async"><i class="material-shade" aria-hidden="true"></i><b>${escapeHtml(value)}</b><small>${escapeHtml(description)}</small></span></label>`).join("")}</div></fieldset>
       <fieldset><legend>Палитра</legend><p class="hint">Готовое сочетание задаёт настроение, а точные оттенки можно описать ниже.</p>
       <div class="palette-grid">${PALETTES.map(([value, label, colors]) => `<label class="palette-choice"><input type="radio" name="palettePreset" value="${escapeHtml(value)}" ${selectedPalette === value ? "checked" : ""}><span><i class="palette-chips" aria-hidden="true">${colors.map((color) => `<b style="background:${escapeHtml(color)}"></b>`).join("")}</i><strong>${escapeHtml(label)}</strong></span></label>`).join("")}</div>
       <label for="palette-description">Описание цветов</label><input id="palette-description" name="paletteDescription" maxlength="120" value="${escapeHtml(config.palette?.slice(1).join(", ") || "")}" placeholder="Например: молочный, натуральное дерево, графит"></fieldset>
