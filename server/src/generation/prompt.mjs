@@ -36,6 +36,7 @@ export function composeGenerationPrompt(input, { qualityRetryReasons = [], edit 
   const allowedItems = Object.entries(input.preserve)
     .filter(([, enabled]) => !enabled)
     .map(([key]) => preserveLabels[key]);
+  const openingRetry = qualityRetryReasons.some((reason) => /windows|doors|opening/iu.test(reason));
   const prompt = [
     edit
       ? "TASK: Edit the supplied already-completed facade visualization of the exact same real house. Return a photorealistic corrected version of that same image, not a redesign of the entire house."
@@ -55,6 +56,7 @@ export function composeGenerationPrompt(input, { qualityRetryReasons = [], edit 
     input.wishes
       ? `Required client wishes: ${input.wishes}. Treat these wishes as part of the design brief unless they conflict with protected geometry.`
       : "",
+    "OPENING LOCK: Before applying any finish, inventory every visible original window and door from left to right. Keep the identical count, type, size and pixel position. Never add an opening to a blank wall, remove an opening or duplicate an opening.",
     "COMPLETION STANDARD: Resolve the whole visible facade as a coherent finished object. Complete wall finishes; external corners and material transitions; cornice/eaves, fascia and soffit lining; the plinth/base; window and door reveals, sills and flashings; and the finish of every already-existing column, post or support. Add realistic gutters and downpipes only where they normally attach to the existing roof, without changing roof geometry. Preserve existing porch, canopy and support positions while giving their visible surfaces a finished material treatment.",
     "SAFETY COMPLETION: Inspect the existing architecture and automatically add realistic guardrails or handrails only where an already-existing accessible elevated platform, balcony opening, porch edge, exterior stair or dangerous level change would normally require fall protection. Match the required facade style, materials and palette. Do not invent a new balcony, terrace, platform, stair, opening or support in order to place a railing.",
     "Use believable construction thickness, seams, junctions, shadow gaps, caps and drainage details. No raw blockwork, exposed unfinished concrete, primer-only surfaces, floating cladding or flat paint-only treatment when the client selected finish materials.",
@@ -74,6 +76,9 @@ export function composeGenerationPrompt(input, { qualityRetryReasons = [], edit 
     "Do not change any protected floor, window, door, roof, terrace, balcony, extension, structural post or canopy. Safety railings on already-existing geometry are the only permitted automatically inferred addition. Do not add people, vehicles, text, logos, watermarks or construction drawings.",
     qualityRetryReasons.length
       ? `AUTOMATIC QUALITY RETRY: The previous candidate was rejected for: ${qualityRetryReasons.join(", ")}. Correct those failures. Increase source-image fidelity and preserve all protected contours, openings, roof lines, storeys, viewpoint and house position. This is the single automatic retry; do not trade structural fidelity for style.`
+      : "",
+    openingRetry
+      ? "RETRY OPENING LOCK: Copy the source window and door inventory exactly. Any extra, missing, moved, resized or duplicated opening makes this result invalid. Keep every source blank wall free of new openings."
       : "",
     input.negativeConstraints.length
       ? `Additional forbidden changes: ${input.negativeConstraints.join("; ")}.`

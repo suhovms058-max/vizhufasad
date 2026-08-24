@@ -162,7 +162,7 @@ test("queued generation is processed asynchronously with atomic wallet lifecycle
     assert.equal(completed.resultAvailable, true);
     assert.equal(completed.attempts[0].jobId, "job-integration");
     assert.equal(completed.attempts[0].model, "mock-image-edit");
-    assert.equal(completed.attempts[0].promptVersion, "standard-facade-v3");
+    assert.equal(completed.attempts[0].promptVersion, "standard-facade-v4");
     assert.equal(Number(completed.attempts[0].seed), 123);
     assert.equal(completed.attempts[0].actualCostMinor, 90);
     assert.equal(stored.size, 2);

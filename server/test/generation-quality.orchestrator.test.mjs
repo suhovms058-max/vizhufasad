@@ -7,6 +7,8 @@ function observation(overrides = {}) {
   return {
     sameHouse: 0.96, floors: 0.95, roof: 0.94, windows: 0.93, doors: 0.92,
     balconiesTerraces: 0.91, position: 0.95, perspective: 0.94,
+    sourceWindowCount: 3, candidateWindowCount: 3,
+    sourceDoorCount: 1, candidateDoorCount: 1,
     artifacts: 0.92, style: 0.9, detectedChanges: [], summary: "Pass",
     ...overrides,
   };
@@ -63,6 +65,23 @@ test("explicitly allowed roof change does not reject an otherwise good result", 
     ...request, allowedChanges: { roof: true },
   });
   assert.equal(result.decision, "passed");
+});
+
+test("extra protected window rejects even when all numeric scores are high", async () => {
+  const quality = orchestrator(observation({ candidateWindowCount: 5 }));
+  const first = await quality.assess(request);
+  const second = await quality.assess({ ...request, assessmentNumber: 2 });
+  assert.equal(first.decision, "retry_required");
+  assert.equal(second.decision, "rejected_refund");
+  assert.ok(first.failureReasons.includes("windows_count_mismatch"));
+});
+
+test("reported protected opening change rejects even when counts and scores match", async () => {
+  const result = await orchestrator(observation({
+    detectedChanges: ["windows_changed"],
+  })).assess(request);
+  assert.equal(result.decision, "retry_required");
+  assert.ok(result.failureReasons.includes("windows_changed_detected"));
 });
 
 test("finish texture cannot make a low layout-density score fail by itself", async () => {

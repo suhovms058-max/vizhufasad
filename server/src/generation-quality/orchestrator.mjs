@@ -1,7 +1,8 @@
 import Ajv from "ajv";
 import {
   assertGenerationQualityProvider, GenerationQualityError,
-  qualityDecisionForAttempt, VLM_QUALITY_RESULT_SCHEMA,
+  GENERATION_QUALITY_POLICY_VERSION, GENERATION_QUALITY_SCHEMA_VERSION,
+  QUALITY_SCORE_NAMES, qualityDecisionForAttempt, VLM_QUALITY_RESULT_SCHEMA,
 } from "./contract.mjs";
 import { composeGenerationQualityPrompt } from "./prompt.mjs";
 import { analyzeStructuralSimilarity } from "./structural.mjs";
@@ -21,7 +22,7 @@ function average(values) {
 function evaluate({ observation, structural, allowedChanges, thresholds, assessmentNumber }) {
   const vlm = Object.fromEntries(
     Object.entries(observation)
-      .filter(([, value]) => typeof value === "number")
+      .filter(([name, value]) => QUALITY_SCORE_NAMES.includes(name) && typeof value === "number")
       .map(([name, value]) => [name, basisPoints(value)]),
   );
   const protectedNames = [
@@ -38,6 +39,16 @@ function evaluate({ observation, structural, allowedChanges, thresholds, assessm
     + vlm.style * 0.1,
   );
   const failures = [];
+  const protectedDetectedChanges = {
+    different_house: [null, "different_house_detected"],
+    floors_changed: ["floors", "floors_changed_detected"],
+    roof_changed: ["roof", "roof_changed_detected"],
+    windows_changed: ["windows", "windows_changed_detected"],
+    doors_changed: ["doors", "doors_changed_detected"],
+    balconies_terraces_changed: ["balconiesTerraces", "balconies_terraces_changed_detected"],
+    position_changed: ["position", "position_changed_detected"],
+    perspective_changed: ["perspective", "perspective_changed_detected"],
+  };
   if (vlm.sameHouse < thresholds.sameHouse) failures.push("same_house_below_threshold");
   for (const name of protectedNames) {
     if (vlm[name] < thresholds.protectedElement) failures.push(`${name}_below_threshold`);
@@ -54,6 +65,20 @@ function evaluate({ observation, structural, allowedChanges, thresholds, assessm
   if (vlm.artifacts < thresholds.artifacts) failures.push("artifacts_below_threshold");
   if (vlm.style < thresholds.style) failures.push("style_below_threshold");
   if (overallScore < thresholds.overall) failures.push("overall_below_threshold");
+  if (allowedChanges.windows !== true
+    && observation.sourceWindowCount !== observation.candidateWindowCount) {
+    failures.push("windows_count_mismatch");
+  }
+  if (allowedChanges.doors !== true
+    && observation.sourceDoorCount !== observation.candidateDoorCount) {
+    failures.push("doors_count_mismatch");
+  }
+  for (const change of observation.detectedChanges) {
+    const protectedChange = protectedDetectedChanges[change];
+    if (!protectedChange) continue;
+    const [criterion, failure] = protectedChange;
+    if (criterion == null || allowedChanges[criterion] !== true) failures.push(failure);
+  }
   return {
     decision: qualityDecisionForAttempt(failures.length === 0, assessmentNumber),
     overallScore,
@@ -101,9 +126,9 @@ export class GenerationQualityOrchestrator {
           });
           return {
             ...evaluated,
-            schemaVersion: "generation-quality-assessment-v1",
+            schemaVersion: GENERATION_QUALITY_SCHEMA_VERSION,
             promptVersion: qualityPrompt.version,
-            policyVersion: "facade-quality-policy-v1",
+            policyVersion: GENERATION_QUALITY_POLICY_VERSION,
             provider: provider.name,
             model: provider.model,
             providerRequestId: result.requestId,

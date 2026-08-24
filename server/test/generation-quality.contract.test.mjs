@@ -28,6 +28,8 @@ test("provider contract and VLM schema are strict", () => {
   assert.throws(() => assertGenerationQualityProvider({}), /compare is required/);
   assert.equal(VLM_QUALITY_RESULT_SCHEMA.additionalProperties, false);
   assert.ok(VLM_QUALITY_RESULT_SCHEMA.required.includes("sameHouse"));
+  assert.ok(VLM_QUALITY_RESULT_SCHEMA.required.includes("sourceWindowCount"));
+  assert.ok(VLM_QUALITY_RESULT_SCHEMA.required.includes("candidateWindowCount"));
 });
 
 test("quality config selects Yandex first and fails closed for enabled generation", () => {

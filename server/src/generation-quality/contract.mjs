@@ -1,6 +1,6 @@
-export const GENERATION_QUALITY_SCHEMA_VERSION = "generation-quality-assessment-v1";
-export const GENERATION_QUALITY_PROMPT_VERSION = "facade-quality-compare-v2";
-export const GENERATION_QUALITY_POLICY_VERSION = "facade-quality-policy-v1";
+export const GENERATION_QUALITY_SCHEMA_VERSION = "generation-quality-assessment-v2";
+export const GENERATION_QUALITY_PROMPT_VERSION = "facade-quality-compare-v3";
+export const GENERATION_QUALITY_POLICY_VERSION = "facade-quality-policy-v2";
 
 export const QUALITY_DECISIONS = Object.freeze([
   "passed", "retry_required", "rejected_refund",
@@ -26,6 +26,10 @@ export const VLM_QUALITY_RESULT_SCHEMA = Object.freeze({
     perspective: { type: "number", minimum: 0, maximum: 1 },
     artifacts: { type: "number", minimum: 0, maximum: 1 },
     style: { type: "number", minimum: 0, maximum: 1 },
+    sourceWindowCount: { type: "integer", minimum: 0, maximum: 100 },
+    candidateWindowCount: { type: "integer", minimum: 0, maximum: 100 },
+    sourceDoorCount: { type: "integer", minimum: 0, maximum: 100 },
+    candidateDoorCount: { type: "integer", minimum: 0, maximum: 100 },
     detectedChanges: {
       type: "array",
       maxItems: 20,
@@ -44,6 +48,7 @@ export const VLM_QUALITY_RESULT_SCHEMA = Object.freeze({
   required: [
     "sameHouse", "floors", "roof", "windows", "doors",
     "balconiesTerraces", "position", "perspective", "artifacts", "style",
+    "sourceWindowCount", "candidateWindowCount", "sourceDoorCount", "candidateDoorCount",
     "detectedChanges", "summary",
   ],
 });

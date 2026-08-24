@@ -45,6 +45,17 @@ test("generation input defaults to gentle and protects structure", () => {
   assert.match(composed.prompt, /Do not invent a new balcony/u);
   assert.match(composed.prompt, /only permitted automatically inferred addition/u);
   assert.match(composed.prompt, /Automatically clean up the visible construction area/u);
+  assert.match(composed.prompt, /inventory every visible original window and door/u);
+  assert.match(composed.prompt, /Never add an opening to a blank wall/u);
+});
+
+test("quality retry strengthens the protected opening lock", () => {
+  const input = normalizeGenerationInput({ style: "современный" });
+  const composed = composeGenerationPrompt(input, {
+    qualityRetryReasons: ["windows_count_mismatch"],
+  });
+  assert.match(composed.prompt, /RETRY OPENING LOCK/u);
+  assert.match(composed.prompt, /extra, missing, moved, resized or duplicated opening/u);
 });
 
 test("generation state machine accepts only declared lifecycle transitions", () => {
