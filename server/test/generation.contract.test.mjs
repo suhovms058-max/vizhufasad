@@ -26,7 +26,7 @@ test("generation input defaults to gentle and protects structure", () => {
     doors: true,
     balconies: true,
     terraces: true,
-    plot: true,
+    plot: false,
     perspective: true,
     housePosition: true,
   });
@@ -44,6 +44,7 @@ test("generation input defaults to gentle and protects structure", () => {
   assert.match(composed.prompt, /automatically add realistic guardrails or handrails/u);
   assert.match(composed.prompt, /Do not invent a new balcony/u);
   assert.match(composed.prompt, /only permitted automatically inferred addition/u);
+  assert.match(composed.prompt, /Automatically clean up the visible construction area/u);
 });
 
 test("generation state machine accepts only declared lifecycle transitions", () => {
@@ -59,29 +60,29 @@ test("generation state machine accepts only declared lifecycle transitions", () 
   );
 });
 
-test("generation input accepts explicit structural permission and rejects unknown modes", () => {
+test("generation input ignores client attempts to disable structural protection", () => {
   const input = normalizeGenerationInput({
     style: "скандинавский",
     transformationLevel: "balanced",
     preserve: { roof: false },
   });
-  assert.equal(input.preserve.roof, false);
-  assert.match(composeGenerationPrompt(input).prompt, /explicitly allows changes to: roof shape/u);
+  assert.equal(input.preserve.roof, true);
+  assert.doesNotMatch(composeGenerationPrompt(input).prompt, /explicitly allows changes to: roof shape/u);
   assert.throws(
     () => normalizeGenerationInput({ style: "лофт", transformationLevel: "extreme" }),
     (error) => error instanceof GenerationError && error.code === "INVALID_TRANSFORMATION_LEVEL",
   );
 });
 
-test("generation input models all Stage 10 preservation choices conservatively", () => {
+test("generation input applies the fixed automated preservation policy", () => {
   const input = normalizeGenerationInput({
     style: "автоподбор",
     preserve: { balconies: false, terraces: false, plot: false, floors: false },
   });
-  assert.equal(input.preserve.balconies, false);
-  assert.equal(input.preserve.terraces, false);
+  assert.equal(input.preserve.balconies, true);
+  assert.equal(input.preserve.terraces, true);
   assert.equal(input.preserve.plot, false);
-  assert.equal(input.preserve.floors, false);
+  assert.equal(input.preserve.floors, true);
   assert.equal(input.preserve.noNewFloors, true);
   assert.match(composeGenerationPrompt(input).prompt, /Never add a new storey/u);
 });

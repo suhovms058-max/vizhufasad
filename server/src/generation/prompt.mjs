@@ -64,7 +64,10 @@ export function composeGenerationPrompt(input, { qualityRetryReasons = [], edit 
     allowedItems.length
       ? `The user explicitly allows changes to: ${allowedItems.join("; ")}.`
       : "",
-    "Keep the original environment, season, lighting direction and camera optics. The result is a facade visualization concept, not a construction drawing.",
+    input.preserve.plot
+      ? "Keep the original environment, season, lighting direction and camera optics."
+      : "Automatically clean up the visible construction area around the facade: remove temporary debris, loose building materials, tools, machinery, parked vehicles and other non-architectural clutter. Turn unfinished foreground into restrained, realistic landscaping with plausible lawn, paths and planting that fit the house. Do not move the house, change permanent terrain, hide the facade or invent structures.",
+    "The result is a facade visualization concept, not a construction drawing.",
     input.preserve.noNewFloors
       ? "Never add a new storey, even when other facade changes are allowed."
       : "A storey change is allowed only when the client also disabled preservation of the storey count.",

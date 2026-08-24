@@ -30,6 +30,8 @@ test("project configuration is normalized and persisted for reload", async () =>
   assert.equal(persisted.facadeConfig.style, "скандинавский");
   assert.equal(persisted.geometryPolicy.plot, false);
   assert.equal(persisted.geometryPolicy.geometry, true);
+  assert.equal(persisted.geometryPolicy.windows, true);
+  assert.equal(persisted.geometryPolicy.roof, true);
   assert.deepEqual(project.configuration, {
     ...persisted.facadeConfig,
     preserve: persisted.geometryPolicy,

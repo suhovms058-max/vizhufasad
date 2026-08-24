@@ -308,9 +308,11 @@
     const configuration = () => {
       const data = new FormData(form);
       const description = String(data.get("paletteDescription") || "").trim();
-      const preserve = {};
-      ["geometry", "windows", "doors", "roof", "balconies", "terraces", "plot", "noNewFloors"]
-        .forEach((name) => { preserve[name] = data.has(`preserve.${name}`); });
+      const preserve = {
+        geometry: true, floors: true, noNewFloors: true, roof: true,
+        windows: true, doors: true, balconies: true, terraces: true,
+        plot: false, perspective: true, housePosition: true,
+      };
       return {
         version: "1",
         style: data.get("style"),
@@ -330,9 +332,6 @@
       form.elements.paletteDescription.value = config.palette?.slice(1).join(", ") || "";
       if (config.transformationLevel) form.elements.transformationLevel.value = config.transformationLevel;
       form.elements.wishes.value = config.wishes || "";
-      Object.entries(config.preserve || {}).forEach(([name, value]) => {
-        const input = form.elements[`preserve.${name}`]; if (input) input.checked = value;
-      });
       updateStyleCards();
     };
     const save = async () => {

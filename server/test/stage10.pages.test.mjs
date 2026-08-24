@@ -43,7 +43,7 @@ async function render(path, { status = "completed" } = {}) {
 test("/app/new renders the complete Standard settings path from catalog data", async () => {
   const { status, html } = await render("/app/new?project=project-1");
   assert.equal(status, 200);
-  for (const text of ["Фото подходит", "современный", "тёмный хай-тек", "фиброцемент", "Не добавлять этажи", "Сбалансированный", "1 кредита", "700"]) {
+  for (const text of ["Фото подходит", "современный", "тёмный хай-тек", "фиброцемент", "Архитектура дома защищена автоматически", "Сбалансированный", "1 кредита", "700"]) {
     assert.match(html, new RegExp(text, "u"));
   }
   for (const marker of ["style-card-grid", "facade-scandinavian-bright.webp", "facade-neoclassical-bright.webp", "material-swatch", "palette-chips", "settings-progress", "data-wizard-step=\"3\""]) {
@@ -52,6 +52,7 @@ test("/app/new renders the complete Standard settings path from catalog data", a
   assert.match(html, /data-style="скандинавский"/u);
   assert.match(html, /name="palettePreset" value="автоподбор" checked/u);
   assert.match(html, /app-new\.js/u);
+  assert.doesNotMatch(html, /name="preserve\./u);
   assert.doesNotMatch(html, /телефон|специалист|отправить заявку/iu);
 });
 

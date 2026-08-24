@@ -5,6 +5,19 @@ export const GENERATION_EDIT_SCOPES = Object.freeze([
 ]);
 export const GENERATION_PROMPT_VERSION = "standard-facade-v3";
 export const GENERATION_INPUT_VERSION = "1";
+export const SYSTEM_PRESERVE_POLICY = Object.freeze({
+  geometry: true,
+  floors: true,
+  noNewFloors: true,
+  roof: true,
+  windows: true,
+  doors: true,
+  balconies: true,
+  terraces: true,
+  plot: false,
+  perspective: true,
+  housePosition: true,
+});
 export const GENERATION_STATUSES = Object.freeze([
   "created", "queued", "preprocessing", "generating", "quality_check_pending",
   "completed", "retrying", "failed_refunded", "cancelled",
@@ -94,27 +107,8 @@ function cleanPalette(value) {
   });
 }
 
-function preserveSettings(value = {}) {
-  if (value == null || typeof value !== "object" || Array.isArray(value)) {
-    throw new GenerationError("INVALID_PRESERVE_SETTINGS");
-  }
-  const settings = {
-    geometry: value.geometry ?? true,
-    floors: value.floors ?? true,
-    noNewFloors: value.noNewFloors ?? true,
-    roof: value.roof ?? true,
-    windows: value.windows ?? true,
-    doors: value.doors ?? true,
-    balconies: value.balconies ?? true,
-    terraces: value.terraces ?? true,
-    plot: value.plot ?? true,
-    perspective: value.perspective ?? true,
-    housePosition: value.housePosition ?? true,
-  };
-  for (const [key, item] of Object.entries(settings)) {
-    if (typeof item !== "boolean") throw new GenerationError(`INVALID_PRESERVE_${key.toUpperCase()}`);
-  }
-  return settings;
+function preserveSettings() {
+  return { ...SYSTEM_PRESERVE_POLICY };
 }
 
 export function normalizeGenerationInput(value = {}) {

@@ -48,12 +48,6 @@ const PALETTES = [
   ["графитовая", "Графитовая", ["#303532", "#59605c", "#b58b67"]],
   ["контрастная", "Контрастная", ["#f1e9dc", "#282b29", "#a45f3d"]],
 ];
-const PRESERVE = [
-  ["geometry", "Геометрию дома"], ["windows", "Окна"], ["doors", "Двери"],
-  ["roof", "Кровлю"], ["balconies", "Балконы"], ["terraces", "Террасы"],
-  ["plot", "Участок"], ["noNewFloors", "Не добавлять этажи"],
-];
-
 function escapeHtml(value) {
   return String(value ?? "")
     .replaceAll("&", "&amp;").replaceAll("<", "&lt;").replaceAll(">", "&gt;")
@@ -203,7 +197,6 @@ function featuredStyleCard(style, selectedStyle) {
 function settingsStep(project, balance, costs, features) {
   const config = project.configuration || {};
   const selectedMaterials = new Set(config.materials || []);
-  const preserve = config.preserve || {};
   const selectedStyle = config.style || "автоподбор";
   const selectedPalette = config.palette?.[0] || "автоподбор";
   return `<section id="generation-app" class="flow" data-project-id="${escapeHtml(project.id)}" data-image-id="${escapeHtml(project.image_id)}"
@@ -215,7 +208,7 @@ function settingsStep(project, balance, costs, features) {
       <ol class="settings-progress" aria-label="Шаги настройки фасада">
         <li aria-current="step"><span>1</span><strong>Задача и стиль</strong></li>
         <li><span>2</span><strong>Отделка и цвета</strong></li>
-        <li><span>3</span><strong>Ограничения и запуск</strong></li>
+        <li><span>3</span><strong>Пожелания и запуск</strong></li>
       </ol>
       <div class="settings-step" data-wizard-step="1">
       <div class="settings-step-heading"><p class="eyebrow">Настройка 1 из 3</p><h2>Как должен измениться фасад</h2><p>Выберите глубину изменений, качество результата и архитектурное направление.</p></div>
@@ -237,9 +230,9 @@ function settingsStep(project, balance, costs, features) {
       <label for="palette-description">Описание цветов</label><input id="palette-description" name="paletteDescription" maxlength="120" value="${escapeHtml(config.palette?.slice(1).join(", ") || "")}" placeholder="Например: молочный, натуральное дерево, графит"></fieldset>
       </div>
       <div class="settings-step hidden" data-wizard-step="3">
-      <div class="settings-step-heading"><p class="eyebrow">Настройка 3 из 3</p><h2>Что обязательно сохранить</h2><p>Проверьте ограничения, добавьте пожелания и подтвердите стоимость перед запуском.</p></div>
-      <fieldset><legend>Что сохранить</legend><p class="hint">Все ограничения включены по умолчанию.</p><div class="choice-grid preserve-grid">${PRESERVE.map(([name, label]) => `<label class="choice"><input type="checkbox" name="preserve.${name}" ${(preserve[name] ?? true) ? "checked" : ""}><span>${escapeHtml(label)}</span></label>`).join("")}</div></fieldset>
-      <fieldset><legend>Пожелания</legend><label for="wishes">Что важно учесть</label><textarea id="wishes" name="wishes" maxlength="700" rows="5" placeholder="Материалы, цвета, отделка карниза, цоколя, существующих опор…">${escapeHtml(config.wishes || "")}</textarea><p class="hint">Просьба передаётся генератору автоматически. Не просите менять этажность или геометрию, если соответствующие ограничения включены.</p><p class="counter"><span id="wishes-count">0</span>/700</p></fieldset>
+      <div class="settings-step-heading"><p class="eyebrow">Настройка 3 из 3</p><h2>Пожелания и запуск</h2><p>Дом останется тем же, а временный строительный беспорядок и участок сервис приведёт к аккуратному завершённому виду.</p></div>
+      <section class="panel assessment system-preserve-note" aria-label="Что сервис сохранит автоматически"><h3>Архитектура дома защищена автоматически</h3><p>Сохраняются геометрия, этажность, кровля, окна, двери, балконы, террасы, положение дома и ракурс. Новые этажи не добавляются.</p><p>Строительный мусор и временные предметы перед фасадом можно убрать, а участок — аккуратно благоустроить.</p></section>
+      <fieldset><legend>Пожелания</legend><label for="wishes">Что важно учесть</label><textarea id="wishes" name="wishes" maxlength="700" rows="5" placeholder="Материалы, цвета, отделка карниза, цоколя, существующих опор…">${escapeHtml(config.wishes || "")}</textarea><p class="hint">Пожелания автоматически попадут в задание генератору. Они не могут отменить защиту архитектуры дома.</p><p class="counter"><span id="wishes-count">0</span>/700</p></fieldset>
       <label class="confirm"><input id="cost-confirm" type="checkbox" required><span id="cost-confirm-text">Подтверждаю списание ${escapeHtml(costs.standard)} кредита за Standard. Assessment и скачивание бесплатны.</span></label>
       </div>
       <p id="draft-status" class="muted" role="status" aria-live="polite"></p>
