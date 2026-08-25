@@ -20,7 +20,7 @@ export function loadGenerationConfig(environment = process.env) {
   const editorEnabled = boolean(environment, "FEATURE_GENERATION_EDITOR_ENABLED", false);
   const apiKey = String(environment.GENAPI_API_KEY || "").trim();
   if ((enabled || proEnabled || editorEnabled) && !apiKey) throw new GenerationError("GENAPI_API_KEY_REQUIRED", 500);
-  const model = environment.GENAPI_STANDARD_MODEL || "nano-banana-2";
+  const model = environment.GENAPI_STANDARD_MODEL || "seedream-v5-pro";
   const retryModel = String(environment.GENAPI_STANDARD_RETRY_MODEL || "").trim();
   const proModel = String(environment.GENAPI_PRO_MODEL || "").trim();
   const editModel = String(environment.GENAPI_EDIT_MODEL || "").trim();
@@ -57,7 +57,7 @@ export function loadGenerationConfig(environment = process.env) {
     proModel,
     editModel,
     maskEditModel,
-    estimatedCostMinor: integer(environment, "GENAPI_STANDARD_ESTIMATED_COST_MINOR", 2500, 0, 100_000),
+    estimatedCostMinor: integer(environment, "GENAPI_STANDARD_ESTIMATED_COST_MINOR", 1688, 0, 100_000),
     retryEstimatedCostMinor: integer(
       environment,
       "GENAPI_STANDARD_RETRY_ESTIMATED_COST_MINOR",
