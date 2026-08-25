@@ -101,7 +101,6 @@ function compactEditPrompt(prompt, maxBytes = 1900) {
     /^OPENING LOCK:/u,
     /^AUTOMATIC QUALITY RETRY:/u,
     /^RETRY OPENING LOCK:/u,
-    /^MEASURED SOURCE INVENTORY:/u,
     /^SAFETY COMPLETION:/u,
     /^STRICTLY PRESERVE:/u,
     /^Never add a new storey/u,

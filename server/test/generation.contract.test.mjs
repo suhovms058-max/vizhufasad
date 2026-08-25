@@ -62,7 +62,7 @@ test("quality retry strengthens the protected opening lock", () => {
   });
   assert.match(composed.prompt, /RETRY OPENING LOCK/u);
   assert.match(composed.prompt, /extra, missing, moved, resized or duplicated opening/u);
-  assert.match(composed.prompt, /exactly 4 visible windows and 1 visible doors/u);
+  assert.doesNotMatch(composed.prompt, /MEASURED SOURCE INVENTORY/u);
 });
 
 test("generation state machine accepts only declared lifecycle transitions", () => {

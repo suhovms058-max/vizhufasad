@@ -5,6 +5,7 @@ import {
   qualityDecisionForAttempt, VLM_QUALITY_RESULT_SCHEMA,
 } from "../src/generation-quality/contract.mjs";
 import { loadGenerationQualityConfig } from "../src/generation-quality/config.mjs";
+import { composeGenerationQualityPrompt } from "../src/generation-quality/prompt.mjs";
 
 test("quality decision permits one retry and rejects the second failure", () => {
   assert.equal(qualityDecisionForAttempt(true, 1), "passed");
@@ -30,6 +31,18 @@ test("provider contract and VLM schema are strict", () => {
   assert.ok(VLM_QUALITY_RESULT_SCHEMA.required.includes("sameHouse"));
   assert.ok(VLM_QUALITY_RESULT_SCHEMA.required.includes("sourceWindowCount"));
   assert.ok(VLM_QUALITY_RESULT_SCHEMA.required.includes("candidateWindowCount"));
+});
+
+test("quality prompt counts outer openings and permits safety railings on existing slabs", () => {
+  const { prompt } = composeGenerationQualityPrompt({
+    input: { style: "modern", materials: [], palette: [], wishes: "" },
+    allowedChanges: {},
+  });
+  assert.match(prompt, /Count one opening per outer wall opening or outer frame/u);
+  assert.match(prompt, /Sashes, panes, mullions/u);
+  assert.match(prompt, /already-existing projecting slab or platform/u);
+  assert.match(prompt, /Adding only a guardrail or handrail/u);
+  assert.match(prompt, /do not report balconies_terraces_changed/u);
 });
 
 test("quality config selects Yandex first and fails closed for enabled generation", () => {
