@@ -28,6 +28,9 @@ test("active tariff repository reads the effective public catalog", { skip: !ena
       plans.map(({ code, priceMinor, credits }) => ({ code, priceMinor, credits })),
       [
         { code: "FREE", priceMinor: 0, credits: 1 },
+        { code: "TOPUP_1", priceMinor: 24900, credits: 1 },
+        { code: "TOPUP_2", priceMinor: 49800, credits: 2 },
+        { code: "TOPUP_3", priceMinor: 74700, credits: 3 },
         { code: "START", priceMinor: 79000, credits: 4 },
         { code: "OPTIMUM", priceMinor: 129000, credits: 8 },
         { code: "MAXIMUM", priceMinor: 349000, credits: 25 },

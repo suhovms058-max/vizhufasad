@@ -96,17 +96,26 @@ export function createWalletPagesRouter({ authService, walletService, paymentSer
         paymentHistoryPromise,
       ]);
       const standardCost = Number(catalog.actions.find((action) => action.code === "standard_generation")?.credits || 1);
-      const tariffs = catalog.tariffs.map((tariff) => `<article class="panel tariff-card">
-        <h3>${escapeHtml(tariff.name)}</h3><p><strong>${escapeHtml(rubles(tariff.priceMinor))}</strong></p>
-        <p>${escapeHtml(creditsLabel(tariff.credits))}</p>
-        <p class="tariff-outcome"><strong>До ${escapeHtml(Math.floor(tariff.credits / standardCost))} обычных генераций</strong><br>
-        <span class="muted">или используйте кредиты для Pro, доработок и 4K по стоимости действий ниже</span></p>
-        ${paymentConfig?.enabled && tariff.priceMinor > 0 ? `<form method="post" action="/app/payments/checkout">
+      const packagePlans = catalog.tariffs.filter((tariff) => !String(tariff.code || "").startsWith("TOPUP_"));
+      const topupPlans = catalog.tariffs.filter((tariff) => String(tariff.code || "").startsWith("TOPUP_"));
+      const checkoutForm = (tariff, buttonLabel = "Перейти к оплате") => paymentConfig?.enabled && tariff.priceMinor > 0 ? `<form method="post" action="/app/payments/checkout">
           <input type="hidden" name="tariffPlanId" value="${escapeHtml(tariff.id)}">
           <input type="hidden" name="idempotencyKey" value="${randomUUID()}">
           <label for="promo-${escapeHtml(tariff.id)}">Промокод, если есть</label>
           <input id="promo-${escapeHtml(tariff.id)}" name="promoCode" maxlength="32" autocomplete="off">
-          <p><button type="submit" data-analytics-event="payment_checkout_started" data-analytics-plan="${escapeHtml(tariff.code)}">Перейти к оплате</button></p></form>` : ""}
+          <p><button type="submit" data-analytics-event="payment_checkout_started" data-analytics-plan="${escapeHtml(tariff.code)}">${escapeHtml(buttonLabel)}</button></p></form>` : "";
+      const tariffs = packagePlans.map((tariff) => `<article class="panel tariff-card">
+        <h3>${escapeHtml(tariff.name)}</h3><p><strong>${escapeHtml(rubles(tariff.priceMinor))}</strong></p>
+        <p>${escapeHtml(creditsLabel(tariff.credits))}</p>
+        <p class="tariff-outcome"><strong>До ${escapeHtml(Math.floor(tariff.credits / standardCost))} обычных генераций</strong><br>
+        <span class="muted">или используйте кредиты для Pro, доработок и 4K по стоимости действий ниже</span></p>
+        ${checkoutForm(tariff)}
+      </article>`).join("");
+      const topups = topupPlans.map((tariff) => `<article class="panel tariff-card topup-card">
+        <h3>${escapeHtml(creditsLabel(tariff.credits))}</h3>
+        <p><strong>${escapeHtml(rubles(tariff.priceMinor))}</strong></p>
+        <p class="muted">Когда до нужного действия не хватает нескольких кредитов.</p>
+        ${checkoutForm(tariff, "Пополнить баланс")}
       </article>`).join("");
       const actions = catalog.actions.map((action) => `<tr><td>${escapeHtml(actionLabel(action))}</td>
         <td>${action.credits === 0 ? "Бесплатно" : `${escapeHtml(action.credits)} кр.`}</td></tr>`).join("");
@@ -138,6 +147,7 @@ export function createWalletPagesRouter({ authService, walletService, paymentSer
         <section class="panel balance-card"><p class="muted">Доступно</p>
           <p class="balance-value">${escapeHtml(creditsLabel(wallet.balance))}</p></section>
         <h2>Пакеты для генераций</h2><p class="muted">Обычная генерация стоит ${escapeHtml(standardCost)} кредит. Вы сами распределяете баланс между генерациями, Pro, доработками и 4K.</p><div class="tariff-grid">${tariffs}</div>
+        ${topups ? `<h2>Добавить несколько кредитов</h2><p class="muted">Точечное пополнение удобно, когда немного не хватает. Пакеты остаются выгоднее по цене одного кредита.</p><div class="tariff-grid topup-grid">${topups}</div>` : ""}
         <p class="muted">Цена и количество кредитов загружаются из единого серверного справочника.</p>
         ${paymentConfig?.enabled ? "" : '<p class="notice">Платежи временно выключены. Неработающая оплата пользователю не показывается.</p>'}
         <h2>Стоимость действий</h2><div class="table-wrap"><table><tbody>${actions}</tbody></table></div>

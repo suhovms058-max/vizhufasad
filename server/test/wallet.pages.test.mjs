@@ -64,7 +64,8 @@ test("enabled balance page offers checkout only for paid tariffs and shows owner
       return {
         tariffs: [
           { id: "free-id", name: "Бесплатный", priceMinor: 0, credits: 1 },
-          { id: "start-id", name: "Старт", priceMinor: 79_000, credits: 4 },
+          { id: "topup-id", code: "TOPUP_1", name: "1 кредит", priceMinor: 24_900, credits: 1 },
+          { id: "start-id", code: "START", name: "Старт", priceMinor: 79_000, credits: 4 },
         ],
         actions: [],
       };
@@ -89,8 +90,11 @@ test("enabled balance page offers checkout only for paid tariffs and shows owner
     const response = await fetch(`http://127.0.0.1:${server.address().port}/app/balance`);
     const html = await response.text();
     assert.equal(response.status, 200);
-    assert.equal((html.match(/action="\/app\/payments\/checkout"/g) || []).length, 1);
+    assert.equal((html.match(/action="\/app\/payments\/checkout"/g) || []).length, 2);
     assert.match(html, /value="start-id"/);
+    assert.match(html, /value="topup-id"/);
+    assert.match(html, /Добавить несколько кредитов/);
+    assert.match(html, /Пакеты остаются выгоднее/);
     assert.doesNotMatch(html, /value="free-id"/);
     assert.match(html, /Чек формирует Robokassa/);
   } finally {

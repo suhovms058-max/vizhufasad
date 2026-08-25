@@ -1,13 +1,17 @@
 import "dotenv/config";
 import { closeDatabase, getPool } from "../db/client.mjs";
 
-const effectiveAt = new Date("2026-08-23T00:00:00.000Z");
+const packageEffectiveAt = new Date("2026-08-23T00:00:00.000Z");
+const topupEffectiveAt = new Date("2026-08-25T00:00:00.000Z");
 const tariffPlans = [
-  ["FREE", "Бесплатный", "Одна пробная визуализация с водяным знаком", 0, 1, true, true],
-  ["START", "Старт", "4 визуализации", 79_000, 4, true, true],
-  ["OPTIMUM", "Оптимум", "8 визуализаций", 129_000, 8, true, true],
-  ["MAXIMUM", "Максимум", "25 визуализаций", 349_000, 25, true, true],
-  ["PLUS", "Plus", "Подготовлен, но не активирован", null, null, false, false],
+  ["FREE", "Бесплатный", "Одна пробная визуализация с водяным знаком", 0, 1, true, true, packageEffectiveAt],
+  ["START", "Старт", "4 визуализации", 79_000, 4, true, true, packageEffectiveAt],
+  ["OPTIMUM", "Оптимум", "8 визуализаций", 129_000, 8, true, true, packageEffectiveAt],
+  ["MAXIMUM", "Максимум", "25 визуализаций", 349_000, 25, true, true, packageEffectiveAt],
+  ["TOPUP_1", "1 кредит", "Точечное пополнение баланса", 24_900, 1, true, true, topupEffectiveAt],
+  ["TOPUP_2", "2 кредита", "Точечное пополнение баланса", 49_800, 2, true, true, topupEffectiveAt],
+  ["TOPUP_3", "3 кредита", "Точечное пополнение баланса", 74_700, 3, true, true, topupEffectiveAt],
+  ["PLUS", "Plus", "Подготовлен, но не активирован", null, null, false, false, packageEffectiveAt],
 ];
 const actionCosts = [
   ["standard_generation", "Обычная генерация", 1],
@@ -34,7 +38,7 @@ try {
           price_minor = excluded.price_minor, credits = excluded.credits,
           is_active = excluded.is_active, is_public = excluded.is_public,
           updated_at = now()`,
-        [...plan, effectiveAt],
+        plan,
       );
     }
     for (const action of actionCosts) {
@@ -44,7 +48,7 @@ try {
          on conflict (code, valid_from) do update set
            name = excluded.name, credits = excluded.credits,
            is_active = true, updated_at = now()`,
-        [...action, effectiveAt],
+        [...action, packageEffectiveAt],
       );
     }
     await client.query("commit");
