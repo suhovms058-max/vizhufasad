@@ -27,9 +27,6 @@ export function loadGenerationConfig(environment = process.env) {
   const maskEditModel = String(environment.GENAPI_MASK_EDIT_MODEL || "bria-genfill").trim();
   if (proEnabled && !proModel) throw new GenerationError("GENAPI_PRO_MODEL_REQUIRED", 500);
   if (proEnabled && proModel === model) throw new GenerationError("GENAPI_PRO_MODEL_MUST_DIFFER", 500);
-  if (retryModel && retryModel === model) {
-    throw new GenerationError("GENAPI_STANDARD_RETRY_MODEL_MUST_DIFFER", 500);
-  }
   if (editorEnabled && !editModel) throw new GenerationError("GENAPI_EDIT_MODEL_REQUIRED", 500);
   if (editorEnabled && !maskEditModel) throw new GenerationError("GENAPI_MASK_EDIT_MODEL_REQUIRED", 500);
   const stagingEnabled = String(environment.GENERATION_STAGING_ENABLED || "false") === "true";
