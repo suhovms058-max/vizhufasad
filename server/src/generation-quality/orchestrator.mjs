@@ -39,6 +39,18 @@ function evaluate({ observation, structural, allowedChanges, thresholds, assessm
     + vlm.style * 0.1,
   );
   const failures = [];
+  const sourceDoorCount = Number(observation.sourceDoorCount);
+  const candidateDoorCount = Number(observation.candidateDoorCount);
+  const doorCountsMatch = sourceDoorCount === candidateDoorCount;
+  const doorZoneScore = Number(structural.zones?.doors || 0);
+  // New cladding, trims, lighting and removal of construction clutter can make
+  // the VLM describe an existing door as changed. Do not reject that signal by
+  // itself when the opening count and independent structural evidence agree.
+  const doorGeometryConfirmed = allowedChanges.doors !== true
+    && doorCountsMatch
+    && structural.contours >= thresholds.contours
+    && structural.protectedZones >= thresholds.protectedZones
+    && doorZoneScore >= Math.max(0, thresholds.protectedElement - 1_000);
   const protectedDetectedChanges = {
     different_house: [null, "different_house_detected"],
     floors_changed: ["floors", "floors_changed_detected"],
@@ -51,7 +63,10 @@ function evaluate({ observation, structural, allowedChanges, thresholds, assessm
   };
   if (vlm.sameHouse < thresholds.sameHouse) failures.push("same_house_below_threshold");
   for (const name of protectedNames) {
-    if (vlm[name] < thresholds.protectedElement) failures.push(`${name}_below_threshold`);
+    if (vlm[name] < thresholds.protectedElement
+      && !(name === "doors" && doorGeometryConfirmed)) {
+      failures.push(`${name}_below_threshold`);
+    }
   }
   if (structural.contours < thresholds.contours) failures.push("contours_below_threshold");
   // Material seams, timber slats and landscaping legitimately change local
@@ -70,13 +85,14 @@ function evaluate({ observation, structural, allowedChanges, thresholds, assessm
     failures.push("windows_count_mismatch");
   }
   if (allowedChanges.doors !== true
-    && observation.sourceDoorCount !== observation.candidateDoorCount) {
+    && !doorCountsMatch) {
     failures.push("doors_count_mismatch");
   }
   for (const change of observation.detectedChanges) {
     const protectedChange = protectedDetectedChanges[change];
     if (!protectedChange) continue;
     const [criterion, failure] = protectedChange;
+    if (change === "doors_changed" && doorGeometryConfirmed) continue;
     if (criterion == null || allowedChanges[criterion] !== true) failures.push(failure);
   }
   return {

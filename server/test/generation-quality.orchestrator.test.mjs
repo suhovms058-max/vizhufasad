@@ -84,6 +84,65 @@ test("reported protected opening change rejects even when counts and scores matc
   assert.ok(result.failureReasons.includes("windows_changed_detected"));
 });
 
+test("door finish signal passes when counts and independent geometry confirm the opening", async () => {
+  const quality = new GenerationQualityOrchestrator({
+    config,
+    providers: {
+      primary: { name: "primary", model: "mock", async compare() {
+        return {
+          observation: observation({ doors: 0, detectedChanges: ["doors_changed"] }),
+          requestId: "request",
+        };
+      } },
+    },
+    structuralAnalyzer: async () => ({
+      version: "test", contours: 8450, spatialLayout: 5200,
+      protectedZones: 7873,
+      zones: { doors: 6608 },
+      edgeDensityDelta: 465,
+    }),
+  });
+  const result = await quality.assess(request);
+  assert.equal(result.decision, "passed");
+  assert.equal(result.failureReasons.includes("doors_below_threshold"), false);
+  assert.equal(result.failureReasons.includes("doors_changed_detected"), false);
+});
+
+test("door change still rejects when the opening count differs", async () => {
+  const result = await orchestrator(observation({
+    doors: 0,
+    candidateDoorCount: 2,
+    detectedChanges: ["doors_changed"],
+  })).assess(request);
+  assert.equal(result.decision, "retry_required");
+  assert.ok(result.failureReasons.includes("doors_count_mismatch"));
+  assert.ok(result.failureReasons.includes("doors_changed_detected"));
+});
+
+test("door change still rejects when structural door evidence is weak", async () => {
+  const quality = new GenerationQualityOrchestrator({
+    config,
+    providers: {
+      primary: { name: "primary", model: "mock", async compare() {
+        return {
+          observation: observation({ doors: 0, detectedChanges: ["doors_changed"] }),
+          requestId: "request",
+        };
+      } },
+    },
+    structuralAnalyzer: async () => ({
+      version: "test", contours: 8450, spatialLayout: 5200,
+      protectedZones: 7873,
+      zones: { doors: 4200 },
+      edgeDensityDelta: 465,
+    }),
+  });
+  const result = await quality.assess(request);
+  assert.equal(result.decision, "retry_required");
+  assert.ok(result.failureReasons.includes("doors_below_threshold"));
+  assert.ok(result.failureReasons.includes("doors_changed_detected"));
+});
+
 test("finish texture cannot make a low layout-density score fail by itself", async () => {
   const quality = new GenerationQualityOrchestrator({
     config,
