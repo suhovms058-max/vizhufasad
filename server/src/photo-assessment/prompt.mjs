@@ -1,4 +1,4 @@
-export const PHOTO_ASSESSMENT_PROMPT_VERSION = "facade-photo-assessment-v1";
+export const PHOTO_ASSESSMENT_PROMPT_VERSION = "facade-photo-assessment-v2";
 
 export const photoAssessmentPrompt = [
   "Оцени исходную фотографию только для автоматической визуализации фасада частного дома.",
@@ -8,5 +8,10 @@ export const photoAssessmentPrompt = [
   "не обрезаны ли крыша и основные границы дома.",
   "Интерьер, скриншот, несколько домов без однозначного главного объекта и неразличимый фасад отмечай",
   "соответствующими scene и issueCodes.",
+  "issueCodes должны только дублировать признаки из остальных полей и не могут им противоречить:",
+  "не указывай not_house при houseVisible=true, interior/screenshot/multiple_houses при другом scene,",
+  "blurred при sharpness=good, severe_obstruction при obstruction=none или roof_cropped при roofCrop=none.",
+  "Временные стройматериалы, инструменты, велосипеды и другие убираемые предметы перед домом",
+  "не являются причиной отказа, если фасад, окна, двери, кровля и общая геометрия читаются.",
   "Не принимай итоговое решение и не пиши свободный текст: верни только признаки по заданной JSON Schema.",
 ].join(" ");

@@ -53,18 +53,13 @@ export function decidePhotoAssessment(technical, observation) {
   } else if (observation.lighting === "acceptable") {
     warnings.push(issues.has("too_bright") ? "too_bright" : "too_dark");
   }
-  for (const issue of issues) {
-    if (["not_house", "interior", "screenshot", "multiple_houses", "facade_not_visible",
-      "severe_obstruction", "blurred", "too_dark", "too_bright"].includes(issue)) {
-      blocking.push(issue);
-    } else {
-      warnings.push(issue);
-    }
-  }
   if (observation.confidence < 0.6) blocking.push("low_confidence");
 
   const blockingReasons = unique(blocking);
   const warningReasons = unique(warnings).filter((reason) => !blockingReasons.includes(reason));
+  const ignoredIssueCodes = [...issues].filter(
+    (issue) => !blockingReasons.includes(issue) && !warningReasons.includes(issue),
+  );
   const decision = blockingReasons.length
     ? "retake_required"
     : warningReasons.length || observation.confidence < 0.82
@@ -92,11 +87,12 @@ export function decidePhotoAssessment(technical, observation) {
       sharp: technical,
       observation,
       policy: {
-        version: "facade-photo-policy-v1",
+        version: "facade-photo-policy-v2",
         acceptedConfidence: 0.82,
         minimumConfidence: 0.6,
         blockingReasons,
         warningReasons,
+        ignoredIssueCodes,
       },
     },
     userResult,

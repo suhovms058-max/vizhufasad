@@ -67,3 +67,35 @@ test("provider observation schema is strict", () => {
   assert.equal(validate({ ...baseObservation, unexpected: "manual route" }), false);
   assert.equal(validate({ ...baseObservation, scene: "interior", houseVisible: "yes" }), false);
 });
+
+test("contradictory scene issue codes do not reject a visible exterior facade", () => {
+  const result = decidePhotoAssessment(baseTechnical, {
+    ...baseObservation,
+    scene: "exterior_partial",
+    frameCompleteness: "minor_crop",
+    confidence: 0.9,
+    issueCodes: ["not_house", "interior", "screenshot", "multiple_houses"],
+  });
+
+  assert.equal(result.decision, "accepted_with_warning");
+  assert.deepEqual(result.technicalResult.policy.blockingReasons, []);
+  assert.deepEqual(result.technicalResult.policy.ignoredIssueCodes, [
+    "not_house", "interior", "screenshot", "multiple_houses",
+  ]);
+});
+
+test("contradictory blur code does not reject an otherwise sharp construction photo", () => {
+  const result = decidePhotoAssessment(baseTechnical, {
+    ...baseObservation,
+    scene: "exterior_partial",
+    frameCompleteness: "minor_crop",
+    obstruction: "minor",
+    sharpness: "good",
+    confidence: 0.87,
+    issueCodes: ["roof_cropped", "blurred"],
+  });
+
+  assert.equal(result.decision, "accepted_with_warning");
+  assert.deepEqual(result.technicalResult.policy.blockingReasons, []);
+  assert.deepEqual(result.technicalResult.policy.ignoredIssueCodes, ["roof_cropped", "blurred"]);
+});
