@@ -50,6 +50,8 @@ test("/app/new renders the complete ordinary-generation settings path from catal
     assert.match(html, new RegExp(marker, "u"));
   }
   assert.equal((html.match(/class="style-card(?: active)?" type="button"/g) || []).length, 11);
+  assert.match(html, /facade-minimalism-bright-960\.webp\?v=20260825-2/u);
+  assert.match(html, /material-plaster\.webp\?v=20260825-2/u);
   assert.match(html, /data-style="скандинавский"/u);
   assert.match(html, /name="palettePreset" value="автоподбор" checked/u);
   assert.match(html, /app-new\.js/u);

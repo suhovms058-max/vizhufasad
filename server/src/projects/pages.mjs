@@ -56,7 +56,7 @@ const STYLE_OPTIONS = [
     image: "/facade-dark-high-tech-bright-960.webp", alt: "Фасад дома в стиле тёмный хай-тек",
   },
 ];
-const SELECTION_ASSET_VERSION = "20260824-1";
+const SELECTION_ASSET_VERSION = "20260825-2";
 const MATERIALS = [
   ["штукатурка", "Ровная матовая поверхность", "/material-plaster.webp"],
   ["кирпич", "Тёплая кладка с заметным швом", "/material-brick.webp"],
