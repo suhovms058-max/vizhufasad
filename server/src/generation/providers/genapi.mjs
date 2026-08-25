@@ -97,14 +97,19 @@ function compactEditPrompt(prompt, maxBytes = 1900) {
   const priorities = [
     /^TASK:/u,
     /^EDIT BOUNDARY:/u,
+    /^STRUCTURAL LOCK:/u,
+    /^OPENING LOCK:/u,
+    /^AUTOMATIC QUALITY RETRY:/u,
+    /^RETRY OPENING LOCK:/u,
+    /^MEASURED SOURCE INVENTORY:/u,
+    /^SAFETY COMPLETION:/u,
+    /^STRICTLY PRESERVE:/u,
+    /^Never add a new storey/u,
+    /^Do not change any protected/u,
     /^Required client wishes:/u,
     /^Required facade style:/u,
     /^Required finish materials:/u,
     /^Required color palette:/u,
-    /^STRICTLY PRESERVE:/u,
-    /^Never add a new storey/u,
-    /^Do not change any protected/u,
-    /^AUTOMATIC QUALITY RETRY:/u,
     /^Additional forbidden changes:/u,
     /^COMPLETION STANDARD:/u,
   ];
@@ -195,7 +200,8 @@ function createGenerationBody({
     body.append(
       "negative_prompt",
       "changed building geometry, changed floor count, changed roof, extra windows, missing windows, "
-        + "extra doors, missing doors, shifted openings, changed camera perspective, duplicate objects, artifacts",
+        + "extra doors, missing doors, shifted openings, new balcony, missing balcony, new terrace, "
+        + "missing terrace, changed posts, changed canopy, changed camera perspective, duplicate objects, artifacts",
     );
     body.append("width", String(width));
     body.append("height", String(height));

@@ -3,7 +3,7 @@ export const GENERATION_KINDS = Object.freeze(["standard", "pro", "edit"]);
 export const GENERATION_EDIT_SCOPES = Object.freeze([
   "full_facade", "walls", "plinth", "roof", "entrance", "custom_mask",
 ]);
-export const GENERATION_PROMPT_VERSION = "standard-facade-v5";
+export const GENERATION_PROMPT_VERSION = "standard-facade-v6";
 export const GENERATION_INPUT_VERSION = "1";
 export const SYSTEM_PRESERVE_POLICY = Object.freeze({
   geometry: true,

@@ -116,6 +116,8 @@ test("Qwen edit prompts stay within the API limit without dropping edit boundari
     "TASK: Edit the exact same house.",
     "EDIT BOUNDARY: Change walls only. Everything outside must remain identical.",
     `FILLER: ${"detail ".repeat(600)}`,
+    "STRUCTURAL LOCK: Keep the exact same house, storeys, roof, windows, doors, balconies, terraces, posts and canopy.",
+    "OPENING LOCK: Keep the identical count, type, size and pixel position of every window and door.",
     "STRICTLY PRESERVE: windows; doors; roof; camera viewpoint.",
     "Required facade style: modern.",
   ].join("\n");
@@ -135,8 +137,30 @@ test("Qwen edit prompts stay within the API limit without dropping edit boundari
     const compact = body.get("prompt");
     assert.ok(Buffer.byteLength(compact, "utf8") <= 1900, model);
     assert.match(compact, /EDIT BOUNDARY: Change walls only/u, model);
+    assert.match(compact, /STRUCTURAL LOCK: Keep the exact same house/u, model);
+    assert.match(compact, /OPENING LOCK: Keep the identical count/u, model);
     assert.match(compact, /STRICTLY PRESERVE: windows; doors; roof/u, model);
   }
+});
+
+test("Qwen 2511 sends structural negative constraints for facade edits", async () => {
+  let body;
+  const provider = new GenApiGenerationProvider({
+    apiKey: "secret",
+    model: "qwen-image-edit-2511",
+    fetchImplementation: async (_url, options) => {
+      body = options.body;
+      return Response.json({ error: true }, { status: 422 });
+    },
+  });
+  await assert.rejects(provider.generate({
+    sourceImage: Buffer.from("source"), prompt: "TASK: Edit the same house.", seed: 1, width: 1024, height: 768,
+  }));
+  const negative = body.get("negative_prompt");
+  assert.match(negative, /extra windows/u);
+  assert.match(negative, /new balcony/u);
+  assert.match(negative, /new terrace/u);
+  assert.match(negative, /changed canopy/u);
 });
 
 test("GenAPI resumes a persisted paid request without submitting another generation", async () => {
