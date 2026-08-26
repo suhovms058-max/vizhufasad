@@ -24,9 +24,17 @@ function creditsLabel(value) {
   return `${amount} ${noun}`;
 }
 
+function generationLimitLabel(value) {
+  const amount = Number(value);
+  const mod100 = amount % 100;
+  const mod10 = amount % 10;
+  const noun = mod10 === 1 && !(mod100 >= 11 && mod100 <= 14) ? "генерации" : "генераций";
+  return `${amount} ${noun}`;
+}
+
 function actionLabel(action) {
   return ({
-    standard_generation: "Обычная генерация",
+    standard_generation: "Генерация фасада",
     pro_generation: "Pro-генерация",
     text_revision: "Текстовая доработка",
     upscale_4k: "Подготовка 4K",
@@ -107,7 +115,7 @@ export function createWalletPagesRouter({ authService, walletService, paymentSer
       const tariffs = packagePlans.map((tariff) => `<article class="panel tariff-card">
         <h3>${escapeHtml(tariff.name)}</h3><p><strong>${escapeHtml(rubles(tariff.priceMinor))}</strong></p>
         <p>${escapeHtml(creditsLabel(tariff.credits))}</p>
-        <p class="tariff-outcome"><strong>До ${escapeHtml(Math.floor(tariff.credits / standardCost))} обычных генераций</strong><br>
+        <p class="tariff-outcome"><strong>До ${escapeHtml(generationLimitLabel(Math.floor(tariff.credits / standardCost)))}</strong><br>
         <span class="muted">или используйте кредиты для Pro, доработок и 4K по стоимости действий ниже</span></p>
         ${checkoutForm(tariff)}
       </article>`).join("");
@@ -146,7 +154,7 @@ export function createWalletPagesRouter({ authService, walletService, paymentSer
         <section class="page-heading"><div><p class="eyebrow">Кошелёк</p><h1>Баланс и тарифы</h1></div></section>
         <section class="panel balance-card"><p class="muted">Доступно</p>
           <p class="balance-value">${escapeHtml(creditsLabel(wallet.balance))}</p></section>
-        <h2>Пакеты для генераций</h2><p class="muted">Обычная генерация стоит ${escapeHtml(standardCost)} кредит. Вы сами распределяете баланс между генерациями, Pro, доработками и 4K.</p><div class="tariff-grid">${tariffs}</div>
+        <h2>Пакеты для генераций</h2><p class="muted">Генерация фасада стоит ${escapeHtml(standardCost)} кредит. Вы сами распределяете баланс между генерациями, Pro, доработками и 4K.</p><div class="tariff-grid">${tariffs}</div>
         ${topups ? `<h2>Добавить несколько кредитов</h2><p class="muted">Точечное пополнение удобно, когда немного не хватает. Пакеты остаются выгоднее по цене одного кредита.</p><div class="tariff-grid topup-grid">${topups}</div>` : ""}
         <p class="muted">Цена и количество кредитов загружаются из единого серверного справочника.</p>
         ${paymentConfig?.enabled ? "" : '<p class="notice">Платежи временно выключены. Неработающая оплата пользователю не показывается.</p>'}

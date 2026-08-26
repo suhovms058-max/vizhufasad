@@ -60,10 +60,10 @@ async function render(path) {
   } finally { await new Promise((resolve) => server.close(resolve)); }
 }
 
-test("Stage 12 new-project page shows clear ordinary-generation and enabled Pro costs", async () => {
+test("Stage 12 new-project page shows clear generation and enabled Pro costs", async () => {
   const { status, html } = await render("/app/new?project=project-1");
   assert.equal(status, 200);
-  assert.match(html, /Обычная генерация · 1 кредит/u);
+  assert.match(html, /Генерация · 1 кредит/u);
   assert.match(html, /Pro · 2 кредита/u);
   assert.doesNotMatch(html, /Standard-вариант/u);
   assert.match(html, /data-pro-enabled="true"/u);

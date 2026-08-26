@@ -50,7 +50,7 @@
     MIME_DECODER_MISMATCH: "Содержимое файла не соответствует его формату.",
     IMAGE_DECODE_FAILED: "Файл повреждён или не декодируется.",
     INSUFFICIENT_BALANCE: "Недостаточно кредитов для генерации.",
-    STANDARD_GENERATION_DISABLED: "Обычная генерация пока не включена на этом сервере.",
+    STANDARD_GENERATION_DISABLED: "Генерация фасада пока не включена на этом сервере.",
     PRO_GENERATION_DISABLED: "Pro пока не включён: модель должна пройти реальную проверку качества.",
     PHOTO_PROCESSING_CONSENT_REQUIRED: "Подтвердите отдельное согласие на обработку фотографии.",
   };

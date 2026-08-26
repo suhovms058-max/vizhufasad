@@ -14,7 +14,7 @@ const tariffPlans = [
   ["PLUS", "Plus", "Подготовлен, но не активирован", null, null, false, false, packageEffectiveAt],
 ];
 const actionCosts = [
-  ["standard_generation", "Обычная генерация", 1],
+  ["standard_generation", "Генерация фасада", 1],
   ["pro_generation", "Pro-генерация", 2],
   ["text_revision", "Текстовая доработка", 1],
   ["upscale_4k", "4K", 1],

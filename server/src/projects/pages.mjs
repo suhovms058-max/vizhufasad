@@ -208,7 +208,7 @@ function option(value, selected) {
 }
 
 function generationKindLabel(kind) {
-  return ({ standard: "Обычная генерация", pro: "Pro-генерация", edit: "Доработка" })[kind] || "Обычная генерация";
+  return ({ standard: "Генерация", pro: "Pro-генерация", edit: "Доработка" })[kind] || "Генерация";
 }
 
 function transformationLevelLabel(level) {
@@ -243,7 +243,7 @@ function settingsStep(project, balance, costs, features) {
       <div class="settings-step-heading"><p class="eyebrow">Настройка 1 из 3</p><h2>Как должен измениться фасад</h2><p>Выберите глубину изменений, качество результата и архитектурное направление.</p></div>
       <fieldset><legend>Уровень изменений</legend><div class="mode-grid">${[["gentle", "Бережный", "Освежить отделку без изменения архитектуры"], ["balanced", "Сбалансированный", "Заметнее обновить сочетание материалов"], ["conceptual", "Концептуальный", "Создать выразительное решение в пределах ограничений"]].map(([value, label, description]) => `<label class="mode"><input type="radio" name="transformationLevel" value="${value}" ${(config.transformationLevel || "gentle") === value ? "checked" : ""}><span><strong>${label}</strong><small>${description}</small></span></label>`).join("")}</div></fieldset>
       <fieldset><legend>Качество результата</legend><div class="generation-tier-grid">
-        <label class="generation-tier"><input type="radio" name="generationKind" value="standard" checked><span><strong>Обычная генерация · ${escapeHtml(costs.standard)} кредит</strong><small>Быстрый способ подобрать отделку и цветовое решение.</small></span></label>
+        <label class="generation-tier"><input type="radio" name="generationKind" value="standard" checked><span><strong>Генерация · ${escapeHtml(costs.standard)} кредит</strong><small>Быстрый способ подобрать отделку и цветовое решение.</small></span></label>
         <label class="generation-tier ${features.pro ? "" : "is-disabled"}"><input type="radio" name="generationKind" value="pro" ${features.pro ? "" : "disabled"}><span><strong>Pro · ${escapeHtml(costs.pro)} кредита</strong><small>${features.pro ? "Модель более высокого качества, больше деталей и реалистичности." : "Появится после подтверждения качества модели на реальных фасадах."}</small></span></label>
       </div></fieldset>
       <fieldset><legend>Стиль</legend><p class="hint">Сравните все направления на одном доме. Наведите курсор для акцента или нажмите карточку, чтобы выбрать стиль.</p>
@@ -262,7 +262,7 @@ function settingsStep(project, balance, costs, features) {
       <div class="settings-step-heading"><p class="eyebrow">Настройка 3 из 3</p><h2>Пожелания и запуск</h2><p>Дом останется тем же, а временный строительный беспорядок и участок сервис приведёт к аккуратному завершённому виду.</p></div>
       <section class="panel assessment system-preserve-note" aria-label="Что сервис сохранит автоматически"><h3>Архитектура дома защищена автоматически</h3><p>Сохраняются геометрия, этажность, кровля, окна, двери, балконы, террасы, положение дома и ракурс. Новые этажи не добавляются.</p><p>Строительный мусор и временные предметы перед фасадом можно убрать, а участок — аккуратно благоустроить.</p></section>
       <fieldset><legend>Пожелания</legend><label for="wishes">Что важно учесть</label><textarea id="wishes" name="wishes" maxlength="700" rows="5" placeholder="Материалы, цвета, отделка карниза, цоколя, существующих опор…">${escapeHtml(config.wishes || "")}</textarea><p class="hint">Пожелания автоматически попадут в задание генератору. Они не могут отменить защиту архитектуры дома.</p><p class="counter"><span id="wishes-count">0</span>/700</p></fieldset>
-      <label class="confirm"><input id="cost-confirm" type="checkbox" required><span id="cost-confirm-text">Подтверждаю списание ${escapeHtml(costs.standard)} кредита за одну обычную генерацию. Проверка фото и скачивание бесплатны.</span></label>
+      <label class="confirm"><input id="cost-confirm" type="checkbox" required><span id="cost-confirm-text">Подтверждаю списание ${escapeHtml(costs.standard)} кредита за генерацию фасада. Проверка фото и скачивание бесплатны.</span></label>
       </div>
       <p id="draft-status" class="muted" role="status" aria-live="polite"></p>
       <p id="generation-message" class="form-message" role="status" aria-live="polite"></p>

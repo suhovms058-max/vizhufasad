@@ -43,9 +43,9 @@ test("balance page uses catalog data and exposes no payment action", async () =>
     assert.equal(response.status, 200);
     assert.match(html, /1 кредит/);
     assert.match(html, /790(?:\s|&nbsp;)*₽/);
-    assert.match(html, /Обычная генерация/);
+    assert.match(html, /Генерация фасада/);
     assert.match(html, /4 кредита/);
-    assert.match(html, /До 4 обычных генераций/);
+    assert.match(html, /До 4 генераций/);
     assert.doesNotMatch(html, /Standard-вариант/u);
     assert.match(html, /\/assets\/app-ui\.css/);
     assert.match(html, /class="tariff-grid"/);
@@ -95,6 +95,7 @@ test("enabled balance page offers checkout only for paid tariffs and shows owner
     assert.match(html, /value="topup-id"/);
     assert.match(html, /Добавить несколько кредитов/);
     assert.match(html, /Пакеты остаются выгоднее/);
+    assert.match(html, /До 1 генерации/);
     assert.doesNotMatch(html, /value="free-id"/);
     assert.match(html, /Чек формирует Robokassa/);
   } finally {

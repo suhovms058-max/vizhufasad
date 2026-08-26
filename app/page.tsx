@@ -150,6 +150,12 @@ export default function App() {
   const maximumPlan = tariff("MAXIMUM", 349_000, 25);
   const rubles = (minor: number) => new Intl.NumberFormat("ru-RU", { maximumFractionDigits: 0 }).format(minor / 100) + " ₽";
   const ordinaryGenerations = (plan: PublicTariff) => Math.floor(plan.credits / standardCost);
+  const generationLimitLabel = (amount: number) => {
+    const mod100 = amount % 100;
+    const mod10 = amount % 10;
+    const noun = mod10 === 1 && !(mod100 >= 11 && mod100 <= 14) ? "генерации" : "генераций";
+    return `${amount} ${noun}`;
+  };
   const creditsLabel = (amount: number) => {
     const mod100 = amount % 100;
     const mod10 = amount % 10;
@@ -306,7 +312,7 @@ export default function App() {
       <section className="pricing section shell" id="pricing">
         <div className="pricingHead">
           <div><div className="eyebrow"><span /> ЕДИНЫЕ КРЕДИТЫ</div><h2>Начните бесплатно.<br /><em>Выбирайте пакет</em>, когда нужно.</h2></div>
-          <p>Обычная генерация фасада стоит 1 кредит. Проверка фото и скачивание бесплатны.</p>
+          <p>Генерация фасада стоит 1 кредит. Проверка фото и скачивание бесплатны.</p>
         </div>
         <div className="priceGrid paidPriceGrid">
           <article className="priceCard freePlanCard">
@@ -319,19 +325,19 @@ export default function App() {
             <div className="popular">ПОПУЛЯРНЫЙ ТАРИФ</div>
             <div><span className="planNum">01</span><h3>Старт</h3><p>Для нескольких вариантов одного дома</p></div>
             <div className="price">{rubles(startPlan.priceMinor)}</div>
-            <ul><li><Check /> {creditsLabel(startPlan.credits)} в пакете</li><li><Check /> До {ordinaryGenerations(startPlan)} обычных генераций</li><li><Check /> Можно использовать для Pro и доработок</li></ul>
+            <ul><li><Check /> {creditsLabel(startPlan.credits)} в пакете</li><li><Check /> До {generationLimitLabel(ordinaryGenerations(startPlan))}</li><li><Check /> Можно использовать для Pro и доработок</li></ul>
             <button className="button primary" data-analytics-event="pricing_cta" data-analytics-plan="START" onClick={() => startOrder("visual")}>Открыть кабинет <Arrow /></button>
           </article>
           <article className="priceCard">
             <div><span className="planNum">02</span><h3>Оптимум</h3><p>Для исследования нескольких стилей</p></div>
             <div className="price">{rubles(optimumPlan.priceMinor)}</div>
-            <ul><li><Check /> {creditsLabel(optimumPlan.credits)} в пакете</li><li><Check /> До {ordinaryGenerations(optimumPlan)} обычных генераций</li><li><Check /> Сравнение до четырёх решений</li></ul>
+            <ul><li><Check /> {creditsLabel(optimumPlan.credits)} в пакете</li><li><Check /> До {generationLimitLabel(ordinaryGenerations(optimumPlan))}</li><li><Check /> Сравнение до четырёх решений</li></ul>
             <button className="button ghost" data-analytics-event="pricing_cta" data-analytics-plan="OPTIMUM" onClick={() => startOrder("selection")}>Открыть кабинет <Arrow /></button>
           </article>
           <article className="priceCard premium">
             <div><span className="planNum">03</span><h3>Максимум</h3><p>Для большого числа концепций</p></div>
             <div className="price">{rubles(maximumPlan.priceMinor)}</div>
-            <ul><li><Check /> {creditsLabel(maximumPlan.credits)} в пакете</li><li><Check /> До {ordinaryGenerations(maximumPlan)} обычных генераций</li><li><Check /> Для нескольких домов и серий решений</li></ul>
+            <ul><li><Check /> {creditsLabel(maximumPlan.credits)} в пакете</li><li><Check /> До {generationLimitLabel(ordinaryGenerations(maximumPlan))}</li><li><Check /> Для нескольких домов и серий решений</li></ul>
             <button className="button copper" data-analytics-event="pricing_cta" data-analytics-plan="MAXIMUM" onClick={() => startOrder("realization")}>Открыть кабинет <Arrow /></button>
           </article>
         </div>
