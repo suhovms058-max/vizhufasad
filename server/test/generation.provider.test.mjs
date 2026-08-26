@@ -143,6 +143,38 @@ test("Qwen edit prompts stay within the API limit without dropping edit boundari
   }
 });
 
+test("Seedream retry prompts stay below the GenAPI limit and retain quality locks", async () => {
+  const prompt = [
+    "TASK: Edit the exact same house.",
+    `FILLER: ${"architectural detail ".repeat(400)}`,
+    "STRUCTURAL LOCK: Keep the exact same house, storeys, roof, windows and doors.",
+    "OPENING LOCK: Keep every source opening in its exact pixel position.",
+    "AUTOMATIC QUALITY RETRY: Correct the rejected candidate without changing the house.",
+    "RETRY OPENING LOCK: Do not add, remove, move, resize or duplicate an opening.",
+    "STRICTLY PRESERVE: geometry; windows; doors; roof; camera viewpoint.",
+  ].join("\n");
+  let body;
+  const provider = new GenApiGenerationProvider({
+    apiKey: "secret",
+    model: "seedream-v5-pro",
+    fetchImplementation: async (_url, options) => {
+      body = options.body;
+      return Response.json({ error: true }, { status: 422 });
+    },
+  });
+  await assert.rejects(provider.generate({
+    sourceImage: Buffer.from("source"), prompt, seed: 1, width: 1024, height: 768,
+  }));
+  const compact = body.get("prompt");
+  assert.ok([...compact].length < 5000);
+  assert.ok(Buffer.byteLength(compact, "utf8") <= 4800);
+  assert.match(compact, /STRUCTURAL LOCK: Keep the exact same house/u);
+  assert.match(compact, /OPENING LOCK: Keep every source opening/u);
+  assert.match(compact, /AUTOMATIC QUALITY RETRY: Correct the rejected candidate/u);
+  assert.match(compact, /RETRY OPENING LOCK: Do not add, remove/u);
+  assert.match(compact, /STRICTLY PRESERVE: geometry; windows; doors/u);
+});
+
 test("Qwen 2511 sends structural negative constraints for facade edits", async () => {
   let body;
   const provider = new GenApiGenerationProvider({

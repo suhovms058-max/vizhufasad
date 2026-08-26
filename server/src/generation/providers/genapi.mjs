@@ -124,6 +124,13 @@ function compactEditPrompt(prompt, maxBytes = 1900) {
   return truncateUtf8(selected.join("\n"), maxBytes);
 }
 
+function compactSeedreamPrompt(prompt) {
+  // GenAPI rejects Seedream prompts longer than 5,000 characters. Keep a
+  // small safety margin and prioritize the structural/retry locks when the
+  // complete brief exceeds that upstream limit.
+  return compactEditPrompt(prompt, 4800);
+}
+
 function compactMaskPrompt(prompt) {
   const value = String(prompt || "");
   const command = value.match(/Client command:\s*(.+?)(?:\.\s*Everything outside|$)/su)?.[1]?.trim();
@@ -216,7 +223,7 @@ function createGenerationBody({
   if (model === "seedream-v5-pro" || model === "seedream-v5-lite") {
     body.append("translate_input", "false");
     body.append("is_sync", "false");
-    body.append("prompt", prompt);
+    body.append("prompt", compactSeedreamPrompt(prompt));
     appendSource(body, "image_urls[]", sourceImage, sourceMimeType);
     body.append("width", String(width));
     body.append("height", String(height));
