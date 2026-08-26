@@ -460,11 +460,62 @@ h2 { font-size: clamp(48px, 5vw, 76px); margin-top: 24px; }
 .casePairLarge img { height: min(58vh,650px); }
 .caseLightboxNav { display: flex; align-items: center; justify-content: space-between; gap: 12px; padding: 18px 24px; }
 .caseLightboxNav span { font-weight: 800; white-space: nowrap; }
+.styleIndexLead { margin: 0 0 30px; }
 .styleIndexGrid { display: grid; grid-template-columns: repeat(3,minmax(0,1fr)); gap: 22px; }
-.styleIndexGrid article { overflow: hidden; border: 1px solid var(--line); background: #f8f4ee; }
-.styleIndexGrid img { width: 100%; aspect-ratio: 4/3; object-fit: cover; }
-.styleIndexGrid article > div { padding: 24px; }
-.styleIndexGrid .button { margin-top: 8px; }
+.styleIndexGrid article { position: relative; overflow: hidden; border: 1px solid #7d4a35; background: var(--basalt); color: var(--cream); box-shadow: 0 18px 36px rgba(22,20,17,.1); }
+.styleIndexGrid article::after { content: ""; position: absolute; right: -52px; bottom: -52px; width: 120px; height: 120px; border: 1px solid rgba(197,108,70,.35); transform: rotate(45deg); pointer-events: none; }
+.styleIndexMedia { position: relative; padding: 0 !important; overflow: hidden; }
+.styleIndexGrid img { width: 100%; aspect-ratio: 4/3; object-fit: cover; transition: transform .35s ease; }
+.styleIndexGrid article:hover img { transform: scale(1.025); }
+.styleIndexMedia span { position: absolute; top: 16px; left: 18px; color: #f2ae8b; font-family: var(--font-bodoni),Georgia,serif; font-size: 42px; line-height: 1; text-shadow: 0 2px 16px rgba(0,0,0,.55); }
+.styleIndexGrid article > div:last-child { padding: 24px; }
+.styleIndexGrid h3 { color: var(--cream); }
+.styleIndexGrid p { color: rgba(245,234,220,.78); }
+.styleIndexGrid small { display: block; min-height: 42px; color: #d59a79; line-height: 1.5; }
+.styleIndexCharacter { margin: 0; color: #d18461 !important; font-size: 11px !important; font-weight: 700; letter-spacing: .13em; text-transform: uppercase; }
+.styleIndexGrid .button { margin-top: 18px; border-color: rgba(245,234,220,.45); color: var(--cream); }
+.styleJournalPage .seoHero { position: relative; overflow: hidden; }
+.styleJournalPage .seoHero::after { content: ""; position: absolute; right: -120px; bottom: -230px; width: 520px; height: 520px; border: 1px solid rgba(208,118,75,.32); transform: rotate(45deg); pointer-events: none; }
+.styleJournalPage .seoContent { display: block; width: min(100% - 48px,1280px); padding-block: 88px 110px; }
+.styleJournalPage .seoContent > section { padding: 78px 0 96px; content-visibility: auto; contain-intrinsic-size: 1200px; }
+.styleJournalPage .seoContent > section:first-child { padding-top: 26px; }
+.styleJournalPage .seoContent h2 { max-width: 820px; margin: 0 0 18px; font-size: clamp(48px,6vw,78px); }
+.styleJournalEntry { scroll-margin-top: 24px; }
+.styleJournalIntro { display: grid; grid-template-columns: .35fr 1fr; gap: 42px; align-items: start; margin-bottom: 32px; }
+.styleJournalCharacter { margin: 7px 0 0; color: var(--action); font-size: 11px !important; font-weight: 850; letter-spacing: .15em; text-transform: uppercase; }
+.styleJournalDeck { margin: 0; color: #4d4d47; font-size: clamp(19px,2vw,26px) !important; line-height: 1.5 !important; }
+.styleJournalGallery { display: grid; grid-template-columns: repeat(3,minmax(0,1fr)); gap: 18px; width: 100%; max-width: 1100px; margin-inline: auto; }
+.styleJournalCard { position: relative; min-width: 0; margin: 0; overflow: hidden; border: 1px solid #845038; background: #161916; color: var(--cream); box-shadow: 0 18px 44px rgba(25,22,18,.14); }
+.styleJournalMedia { position: relative; overflow: hidden; background: #222522; }
+.styleJournalMedia img { display: block; width: 100%; height: auto; aspect-ratio: 2/3; object-fit: cover; }
+.styleJournalCompass { position: absolute; z-index: 2; top: 0; left: 0; display: grid; width: 112px; height: 100%; place-items: start; padding: 16px 0 0 7px; background: radial-gradient(circle at 0 0,rgba(6,8,7,.98) 0,rgba(10,13,11,.86) 27%,rgba(26,29,27,.48) 48%,rgba(12,15,13,.14) 66%,transparent 76%); background-repeat: no-repeat; background-size: 112px 108px; color: #e58e5c; filter: drop-shadow(0 5px 12px rgba(6,8,7,.2)); }
+.styleJournalCompass::before,.styleJournalCompass::after { content: ""; position: absolute; width: 1px; transform: none; }
+.styleJournalCompass::before { top: 59px; bottom: 12px; left: 30px; background: linear-gradient(180deg,#ec9560 0,rgba(229,142,92,.86) 45%,rgba(229,142,92,.35) 82%,transparent); box-shadow: none; }
+.styleJournalCompass::after { top: 98px; bottom: 22px; left: 34px; background: linear-gradient(180deg,rgba(91,98,93,.86),rgba(65,72,68,.5) 70%,transparent); }
+.styleJournalCompass svg { position: relative; z-index: 1; width: 47px; height: 47px; overflow: visible; filter: drop-shadow(1px 1px 0 #3f4642) drop-shadow(2px 3px 3px rgba(0,0,0,.52)); }
+.styleJournalCompass polygon { stroke-linejoin: bevel; }
+.styleJournalCompassCopper { fill: #ed9966; stroke: #f3ad82; stroke-width: .7; }
+.styleJournalCompassGraphite { fill: #444b47; stroke: #282d2a; stroke-width: .7; }
+.styleJournalCompassCopperSoft { fill: rgba(205,120,77,.72); stroke: rgba(238,157,108,.65); stroke-width: .45; }
+.styleJournalCompassGraphiteSoft { fill: rgba(101,110,104,.66); stroke: rgba(53,59,55,.72); stroke-width: .45; }
+.styleJournalCompassCore { fill: #d47d50; stroke: #242925; stroke-width: 1; }
+.styleJournalBrand { position: absolute; z-index: 3; right: 0; bottom: 0; display: flex; width: 122px; height: 112px; align-items: flex-end; justify-content: flex-end; overflow: hidden; padding: 0 11px 8px 0; background: radial-gradient(circle at 100% 100%,rgba(5,7,6,.98) 0,rgba(9,12,10,.88) 32%,rgba(24,28,25,.52) 50%,rgba(10,13,11,.14) 68%,transparent 77%); }
+.styleJournalBrand::before,.styleJournalBrand::after { content: ""; position: absolute; z-index: 0; height: 1px; transform: rotate(-43deg); }
+.styleJournalBrand::before { right: -15px; bottom: 58px; width: 88px; background: linear-gradient(90deg,transparent,rgba(236,149,96,.45) 18%,#ec9560 100%); }
+.styleJournalBrand::after { right: 48px; bottom: -11px; width: 84px; background: linear-gradient(90deg,rgba(79,87,82,.88),rgba(115,122,117,.54) 72%,transparent); }
+.styleJournalBrand b { position: relative; z-index: 1; font-family: var(--font-bodoni),Georgia,serif; font-size: 18px; font-weight: 750; letter-spacing: -.04em; color: #ec9560; text-shadow: 1px 1px 0 #9b5f40,2px 2px 0 #505752,3px 3px 7px rgba(0,0,0,.72); }
+.styleJournalDots { display: none; }
+.styleJournalCopy { columns: 2; column-gap: 64px; margin: 48px 0 38px; }
+.styleJournalCopy p { max-width: none; margin: 0 0 20px; break-inside: avoid; color: #363832; font-size: 16px; line-height: 1.75; }
+.styleJournalCopy p:first-child::first-letter { float: left; margin: 7px 9px 0 0; color: var(--action); font-family: var(--font-bodoni),Georgia,serif; font-size: 64px; line-height: .72; }
+.styleJournalFacts { display: grid; grid-template-columns: 1fr 1fr 1.25fr; margin: 0; border-block: 1px solid var(--line); }
+.styleJournalFacts div { padding: 24px 26px; border-left: 1px solid var(--line); }
+.styleJournalFacts div:first-child { border-left: 0; padding-left: 0; }
+.styleJournalFacts dt { color: var(--action); font-size: 10px; font-weight: 850; letter-spacing: .14em; text-transform: uppercase; }
+.styleJournalFacts dd { margin: 9px 0 0; color: #363832; font-size: 15px; line-height: 1.55; }
+.styleJournalNote { display: grid; grid-template-columns: .35fr 1fr; gap: 42px; margin-top: 25px; }
+.styleJournalNote strong { color: var(--action); font-size: 11px; letter-spacing: .12em; text-transform: uppercase; }
+.styleJournalNote p { margin: 0; color: #595b54; font-size: 14px; line-height: 1.65; }
 .styleDetailFigure { margin: 0; }
 .styleDetailFigure img { width: 100%; max-height: 760px; object-fit: cover; }
 .styleDetailFigure figcaption { padding: 14px 0; color: var(--text-dark-muted); font-size: 13px; }
@@ -472,11 +523,17 @@ h2 { font-size: clamp(48px, 5vw, 76px); margin-top: 24px; }
 .styleDefinition div { padding: 18px 0; border-top: 1px solid var(--line); }
 .styleDefinition dt { color: var(--text-dark-muted); font-size: 12px; font-weight: 700; letter-spacing: .1em; text-transform: uppercase; }
 .styleDefinition dd { margin: 7px 0 0; font-size: 18px; line-height: 1.5; }
+.styleArticle p + p { margin-top: 18px; }
+.stylePrinciples { margin: 0; padding: 0; list-style: none; counter-reset: principle; }
+.stylePrinciples li { position: relative; padding: 18px 18px 18px 64px; border-top: 1px solid var(--line); counter-increment: principle; }
+.stylePrinciples li::before { content: "0" counter(principle); position: absolute; left: 0; top: 13px; color: var(--action); font-family: var(--font-bodoni),Georgia,serif; font-size: 28px; }
+@media (prefers-reduced-motion: reduce) { .styleIndexGrid img { transition: none; } }
 @media (max-width: 1100px) {
   .homeStyleGrid { grid-template-columns: repeat(2,minmax(0,1fr)); }
   .styleIndexGrid { grid-template-columns: 1fr; }
   .homeStyleGrid article { border: 1px solid rgba(208,118,75,.42); }
   .homeStyleGrid article > div > p:not(.eyebrow) { min-height: 0; }
+  .styleJournalCopy { column-gap: 38px; }
 }
 @media (max-width: 720px) {
   .seoHeader { padding-block: 12px; align-items: flex-start; }
@@ -502,4 +559,29 @@ h2 { font-size: clamp(48px, 5vw, 76px); margin-top: 24px; }
   .casePairLarge img { height: 36vh; }
   .caseLightboxNav { padding: 14px 12px; }
   .caseLightboxNav .button { padding-inline: 10px; font-size: 12px; }
+  .styleJournalPage .seoContent { width: min(100% - 32px,1280px); padding-block: 38px 70px; }
+  .styleJournalPage .seoContent > section { padding: 52px 0 64px; contain-intrinsic-size: 1900px; }
+  .styleJournalPage .seoContent > section:first-child { padding-top: 16px; }
+  .styleJournalPage .seoContent h2 { overflow-wrap: anywhere; font-size: clamp(38px,12vw,48px); }
+  .styleJournalIntro { display: block; margin-bottom: 24px; }
+  .styleJournalCharacter { margin-bottom: 9px; }
+  .styleJournalDeck { font-size: 18px !important; }
+  .styleJournalGallery { display: flex; width: calc(100% + 16px); gap: 12px; margin-right: -16px; padding-right: 16px; overflow-x: auto; overscroll-behavior-inline: contain; scroll-snap-type: x mandatory; scrollbar-width: none; }
+  .styleJournalGallery::-webkit-scrollbar { display: none; }
+  .styleJournalCard { flex: 0 0 min(82vw,340px); scroll-snap-align: start; }
+  .styleJournalCompass { width: 100px; height: 100%; padding: 14px 0 0 6px; background-size: 100px 96px; }
+  .styleJournalCompass::before { top: 53px; bottom: 11px; left: 27px; }
+  .styleJournalCompass::after { top: 88px; bottom: 20px; left: 31px; }
+  .styleJournalCompass svg { width: 42px; height: 42px; }
+  .styleJournalBrand { width: 110px; height: 100px; }
+  .styleJournalDots { display: flex; gap: 6px; justify-content: center; margin: 14px 0 0; }
+  .styleJournalDots i { width: 6px; height: 6px; border-radius: 50%; background: #b6afa4; }
+  .styleJournalDots i:first-child { width: 18px; border-radius: 999px; background: var(--action); }
+  .styleJournalCopy { columns: auto; margin: 34px 0 28px; }
+  .styleJournalCopy p { font-size: 15px; line-height: 1.72; }
+  .styleJournalFacts { grid-template-columns: 1fr; }
+  .styleJournalFacts div,.styleJournalFacts div:first-child { padding: 18px 0; border-top: 1px solid var(--line); border-left: 0; }
+  .styleJournalFacts div:first-child { border-top: 0; }
+  .styleJournalNote { display: block; }
+  .styleJournalNote strong { display: block; margin-bottom: 8px; }
 }

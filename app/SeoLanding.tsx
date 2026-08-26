@@ -6,7 +6,7 @@ const siteOrigin = process.env.NEXT_PUBLIC_SITE_ORIGIN || "https://vizhufasad.ru
 type Section = { title: string; body: ReactNode };
 
 export function SeoLanding({
-  eyebrow, title, lead, sections, path, breadcrumb, parentBreadcrumb, cta = "Попробовать бесплатно",
+  eyebrow, title, lead, sections, path, breadcrumb, parentBreadcrumb, cta = "Попробовать бесплатно", className,
 }: {
   eyebrow: string;
   title: string;
@@ -16,13 +16,14 @@ export function SeoLanding({
   breadcrumb: string;
   parentBreadcrumb?: { name: string; path: string };
   cta?: string;
+  className?: string;
 }) {
   const breadcrumbItems = [
     { name: "Главная", path: "/" },
     ...(parentBreadcrumb ? [parentBreadcrumb] : []),
     { name: breadcrumb, path },
   ];
-  return <main className="seoPage">
+  return <main className={["seoPage", className].filter(Boolean).join(" ")}>
     <header className="seoHeader shell">
       <a className="logo" href="/"><span className="logoMark">ВФ</span><span>ВИЖУФАСАД<small>AI-ВИЗУАЛИЗАЦИЯ ФАСАДОВ</small></span></a>
       <nav aria-label="Основная навигация"><a href="/gallery">Примеры</a><a href="/styles">Стили</a><a href="/#pricing">Тарифы</a><a className="seoHeaderCta" href="/app/new">Создать проект</a></nav>
