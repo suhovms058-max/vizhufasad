@@ -93,7 +93,7 @@ function page(title, body, { scripts = [] } = {}) {
   <meta name="color-scheme" content="dark"><title>${escapeHtml(title)} — ВИЖУФАСАД</title>
   <link rel="stylesheet" href="/assets/app-ui.css"></head><body>
   <a class="skip-link" href="#main">К содержанию</a>
-  <header class="app-header"><a class="brand" href="/app">ВИЖУФАСАД</a>
+  <header class="app-header"><a class="brand brand-home" href="/" aria-label="Вернуться на главную страницу"><svg viewBox="0 0 24 24" aria-hidden="true"><path d="M3 11.5 12 4l9 7.5M5.5 10v9h13v-9M9.5 19v-5h5v5"/></svg><span>ВИЖУФАСАД</span></a>
     <nav aria-label="Основная навигация"><a href="/app">Мои проекты</a><a href="/app/new">Новый проект</a>
     <a href="/app/balance">Баланс</a><a href="/app/settings">Настройки</a></nav></header>
   <main id="main" class="app-main">${body}</main>

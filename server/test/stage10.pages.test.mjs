@@ -55,6 +55,7 @@ test("/app/new renders the complete generation settings path from catalog data",
   assert.match(html, /data-style="скандинавский"/u);
   assert.match(html, /name="palettePreset" value="автоподбор" checked/u);
   assert.match(html, /app-new\.js/u);
+  assert.match(html, /class="brand brand-home" href="\/" aria-label="Вернуться на главную страницу"/u);
   assert.doesNotMatch(html, /name="preserve\./u);
   assert.doesNotMatch(html, /material-swatch/u);
   assert.doesNotMatch(html, /телефон|специалист|отправить заявку/iu);
