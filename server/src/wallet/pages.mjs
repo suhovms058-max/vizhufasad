@@ -15,13 +15,13 @@ function rubles(priceMinor) {
   }).format(Number(priceMinor) / 100);
 }
 
-function creditsLabel(value) {
+function vfCoinsLabel(value) {
   const amount = Number(value);
   const mod100 = amount % 100;
   const mod10 = amount % 10;
   const noun = mod100 >= 11 && mod100 <= 14
-    ? "кредитов"
-    : mod10 === 1 ? "кредит" : mod10 >= 2 && mod10 <= 4 ? "кредита" : "кредитов";
+    ? "ВФ-коинов"
+    : mod10 === 1 ? "ВФ-коин" : mod10 >= 2 && mod10 <= 4 ? "ВФ-коина" : "ВФ-коинов";
   return `${amount} ${noun}`;
 }
 
@@ -85,7 +85,7 @@ function returnNotice(query) {
   const failed = query.payment_return === "fail";
   return `<div class="notice ${failed ? "error" : "success"}" role="status">
     ${failed
-      ? "Платёж не завершён. Кредиты не начислялись."
+      ? "Платёж не завершён. ВФ-коины не начислялись."
       : "Вы вернулись со страницы оплаты. Это не подтверждение платежа: баланс изменится только после подписанного уведомления Robokassa."}
   </div>`;
 }
@@ -124,17 +124,17 @@ export function createWalletPagesRouter({ authService, walletService, paymentSer
         ${requestedPlan === tariff.code ? '<p class="selected-plan-label">Вы выбрали этот пакет</p>' : ""}
         <h3>${escapeHtml(tariff.name)}</h3><p><strong>${escapeHtml(rubles(tariff.priceMinor))}</strong></p>
         <p class="tariff-outcome"><strong>До ${escapeHtml(generationLimitLabel(Math.floor(tariff.credits / standardCost)))}</strong><br>
-        <span class="muted">${escapeHtml(creditsLabel(tariff.credits))} можно распределить между генерациями, Pro, доработками и 4K</span></p>
+        <span class="muted">${escapeHtml(vfCoinsLabel(tariff.credits))} можно распределить между генерациями, Pro, доработками и 4K</span></p>
         ${checkoutForm(tariff)}
       </article>`).join("");
       const topups = topupPlans.map((tariff) => `<article class="panel tariff-card topup-card">
-        <h3>${escapeHtml(creditsLabel(tariff.credits))}</h3>
+        <h3>${escapeHtml(vfCoinsLabel(tariff.credits))}</h3>
         <p><strong>${escapeHtml(rubles(tariff.priceMinor))}</strong></p>
-        <p class="muted">Когда до нужного действия не хватает нескольких кредитов.</p>
+        <p class="muted">Когда до нужного действия не хватает нескольких ВФ-коинов.</p>
         ${checkoutForm(tariff, "Пополнить баланс")}
       </article>`).join("");
       const actions = catalog.actions.map((action) => `<tr><td>${escapeHtml(actionLabel(action))}</td>
-        <td>${action.credits === 0 ? "Бесплатно" : `${escapeHtml(action.credits)} кр.`}</td></tr>`).join("");
+        <td>${action.credits === 0 ? "Бесплатно" : escapeHtml(vfCoinsLabel(action.credits))}</td></tr>`).join("");
       const walletRows = history.map((item) => `<tr><td>${escapeHtml(new Date(item.created_at).toLocaleDateString("ru-RU"))}</td>
         <td>${escapeHtml(item.type)}</td><td>${Number(item.amount) > 0 ? "+" : ""}${escapeHtml(item.amount)}</td>
         <td>${escapeHtml(item.balance_after)}</td></tr>`).join("");
@@ -164,14 +164,14 @@ export function createWalletPagesRouter({ authService, walletService, paymentSer
         })()}</td>
       </tr>`).join("");
       return response.type("html").send(page(`${returnNotice(request.query)}
-        <section class="page-heading"><div><p class="eyebrow">Продолжение работы</p><h1>Получите ещё варианты фасада</h1><p class="muted">Первый результат уже показал возможности сервиса. Выберите пакет для серии решений или добавьте несколько отдельных кредитов.</p></div></section>
+        <section class="page-heading"><div><p class="eyebrow">Продолжение работы</p><h1>Получите ещё варианты фасада</h1><p class="muted">Первый результат уже показал возможности сервиса. Выберите пакет для серии решений или добавьте несколько отдельных ВФ-коинов.</p></div></section>
         <section class="panel balance-card"><p class="muted">Доступно</p>
-          <p class="balance-value">${escapeHtml(creditsLabel(wallet.balance))}</p></section>
+          <p class="balance-value">${escapeHtml(vfCoinsLabel(wallet.balance))}</p></section>
         ${requestedPlan ? `<div class="notice success" role="status">Выбранный на главной пакет выделен ниже. Проверьте состав и переходите к оплате.</div>` : ""}
-        <section class="purchase-choice" aria-label="Способы продолжить работу"><div><strong>Пакет</strong><span>Выгоднее для нескольких вариантов одного или разных домов.</span></div><div><strong>Отдельные кредиты</strong><span>Когда нужна ещё одна, две или три генерации.</span></div></section>
-        <h2>Пакеты для нескольких вариантов</h2><p class="muted">Обычная генерация фасада стоит ${escapeHtml(standardCost)} кредит. Перед каждым платным действием сервис показывает точную стоимость.</p><div class="tariff-grid">${tariffs}</div>
-        ${topups ? `<section id="topups" class="topup-section"><h2>Добавить несколько кредитов</h2><p class="muted">Точечное пополнение удобно, когда немного не хватает. Пакеты остаются выгоднее по цене одного кредита.</p><div class="tariff-grid topup-grid">${topups}</div></section>` : ""}
-        <p class="muted">Цена и количество кредитов загружаются из единого серверного справочника.</p>
+        <section class="purchase-choice" aria-label="Способы продолжить работу"><div><strong>Пакет</strong><span>Выгоднее для нескольких вариантов одного или разных домов.</span></div><div><strong>Отдельные ВФ-коины</strong><span>Когда нужна ещё одна, две или три генерации.</span></div></section>
+        <h2>Пакеты для нескольких вариантов</h2><p class="muted">Обычная генерация фасада стоит ${escapeHtml(vfCoinsLabel(standardCost))}. Перед каждым платным действием сервис показывает точную стоимость.</p><div class="tariff-grid">${tariffs}</div>
+        ${topups ? `<section id="topups" class="topup-section"><h2>Добавить ВФ-коины</h2><p class="muted">Точечное пополнение удобно, когда немного не хватает. Пакеты остаются выгоднее по цене одного ВФ-коина.</p><div class="tariff-grid topup-grid">${topups}</div></section>` : ""}
+        <p class="muted">Цена и количество ВФ-коинов загружаются из единого серверного справочника.</p>
         ${paymentConfig?.enabled ? "" : '<p class="notice">Платежи временно выключены. Неработающая оплата пользователю не показывается.</p>'}
         <h2>Стоимость действий</h2><div class="table-wrap"><table><tbody>${actions}</tbody></table></div>
         ${paymentConfig?.enabled ? `<h2>Платежи и чеки</h2><div class="table-wrap"><table><thead><tr><th>Дата</th><th>Пакет</th><th>Сумма</th><th>Статус</th><th class="optional">Чек</th><th></th></tr></thead><tbody>${paymentRows || '<tr><td colspan="6">Платежей пока нет</td></tr>'}</tbody></table></div>` : ""}

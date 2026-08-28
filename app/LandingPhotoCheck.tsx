@@ -21,7 +21,7 @@ type CheckResult = {
 const idleResult: CheckResult = {
   kind: "idle",
   title: "Проверим фото перед созданием варианта фасада",
-  message: "Формат, размер и разрешение проверяются бесплатно. Кредит не списывается.",
+  message: "Формат, размер и разрешение проверяются бесплатно. ВФ-коин не списывается.",
 };
 
 function openDraftDatabase(): Promise<IDBDatabase> {

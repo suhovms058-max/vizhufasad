@@ -41,10 +41,10 @@ test("balance page uses catalog data and exposes no payment action", async () =>
     const response = await fetch(`http://127.0.0.1:${server.address().port}/app/balance`);
     const html = await response.text();
     assert.equal(response.status, 200);
-    assert.match(html, /1 кредит/);
+    assert.match(html, /1 ВФ-коин/);
     assert.match(html, /790(?:\s|&nbsp;)*₽/);
     assert.match(html, /Генерация фасада/);
-    assert.match(html, /4 кредита/);
+    assert.match(html, /4 ВФ-коина/);
     assert.match(html, /До 4 генераций/);
     assert.doesNotMatch(html, /Standard-вариант/u);
     assert.match(html, /\/assets\/app-ui\.css/);
@@ -97,7 +97,7 @@ test("enabled balance page offers checkout only for paid tariffs and shows owner
     assert.match(html, /name="offerHash" value="[a-f0-9]{64}"/u);
     assert.match(html, /value="start-id"/);
     assert.match(html, /value="topup-id"/);
-    assert.match(html, /Добавить несколько кредитов/);
+    assert.match(html, /Добавить ВФ-коины/);
     assert.match(html, /Пакеты остаются выгоднее/);
     assert.match(html, /До 4 генераций/);
     assert.match(html, /id="plan-START" class="panel tariff-card selected-plan"/);

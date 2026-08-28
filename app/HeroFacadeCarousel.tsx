@@ -2,6 +2,8 @@
 
 import { PointerEvent, useEffect, useRef, useState } from "react";
 
+const slideDuration = 1000;
+
 const slides = [
   {
     src: "/facade-before-bright.webp",
@@ -9,7 +11,6 @@ const slides = [
     title: "Исходное фото",
     details: "Дом до выбора отделки",
     alt: "Исходная фотография дома без фасадной отделки",
-    duration: 900,
   },
   {
     src: "/facade-after-bright.webp",
@@ -17,7 +18,6 @@ const slides = [
     title: "Современный",
     details: "Штукатурка · дерево · камень",
     alt: "Современный вариант отделки фасада этого же дома",
-    duration: 400,
   },
   {
     src: "/facade-minimalism-bright.webp",
@@ -25,7 +25,6 @@ const slides = [
     title: "Минимализм",
     details: "Штукатурка · панели · спокойная палитра",
     alt: "Минималистичный вариант отделки фасада этого же дома",
-    duration: 400,
   },
   {
     src: "/facade-scandinavian-bright.webp",
@@ -33,7 +32,6 @@ const slides = [
     title: "Скандинавский",
     details: "Фиброцемент · термодерево · камень",
     alt: "Скандинавский вариант отделки фасада этого же дома",
-    duration: 400,
   },
   {
     src: "/facade-barnhouse-bright.webp",
@@ -41,7 +39,6 @@ const slides = [
     title: "Барнхаус",
     details: "Фальц · дерево · тёмные плоскости",
     alt: "Вариант отделки фасада этого же дома в стиле барнхаус",
-    duration: 400,
   },
   {
     src: "/facade-chalet-bright.webp",
@@ -49,7 +46,6 @@ const slides = [
     title: "Шале",
     details: "Камень · дерево · тёплая отделка",
     alt: "Вариант отделки фасада этого же дома в стиле шале",
-    duration: 400,
   },
   {
     src: "/facade-classic-bright.webp",
@@ -57,7 +53,6 @@ const slides = [
     title: "Классический",
     details: "Светлая штукатурка · симметрия · декор",
     alt: "Классический вариант отделки фасада этого же дома",
-    duration: 400,
   },
   {
     src: "/facade-neoclassical-bright.webp",
@@ -65,7 +60,6 @@ const slides = [
     title: "Неоклассика",
     details: "Штукатурка · фасадный декор · камень",
     alt: "Неоклассический вариант отделки фасада этого же дома",
-    duration: 400,
   },
   {
     src: "/facade-contemporary-bright.webp",
@@ -73,7 +67,6 @@ const slides = [
     title: "Контемпорари",
     details: "Камень · панели · выразительные детали",
     alt: "Вариант отделки фасада этого же дома в стиле контемпорари",
-    duration: 400,
   },
   {
     src: "/facade-loft-bright.webp",
@@ -81,7 +74,6 @@ const slides = [
     title: "Лофт",
     details: "Кирпич · металл · индустриальный характер",
     alt: "Вариант отделки фасада этого же дома в стиле лофт",
-    duration: 400,
   },
   {
     src: "/facade-dark-high-tech-bright.webp",
@@ -89,7 +81,6 @@ const slides = [
     title: "Тёмный хай-тек",
     details: "Графитовые панели · стекло · точная подсветка",
     alt: "Вариант отделки фасада этого же дома в стиле тёмный хай-тек",
-    duration: 400,
   },
 ] as const;
 
@@ -130,10 +121,10 @@ export function HeroFacadeCarousel() {
 
     const timeout = window.setTimeout(() => {
       setActiveIndex((current) => (current + 1) % slides.length);
-    }, activeSlide.duration);
+    }, slideDuration);
 
     return () => window.clearTimeout(timeout);
-  }, [activeSlide.duration, paused]);
+  }, [paused]);
 
   const showPrevious = () => {
     setActiveIndex((current) => (current - 1 + slides.length) % slides.length);

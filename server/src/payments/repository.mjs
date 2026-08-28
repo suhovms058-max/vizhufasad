@@ -158,7 +158,7 @@ export class PaymentRepository {
         [
           userId, selected.id, idempotencyKey, amountMinor, selected.price_minor,
           selected.currency, selected.credits, promoCredits, promo?.id || null,
-          `Пакет «${selected.name}» — ${selected.credits + promoCredits} кредитов ВИЖУФАСАД`,
+          `Пакет «${selected.name}» — ${selected.credits + promoCredits} ВФ-коинов`,
           expiresAt,
           { tariffCode: selected.code, promoCode: promo?.code || null },
         ],

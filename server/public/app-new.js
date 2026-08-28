@@ -49,10 +49,20 @@
     PIXEL_LIMIT_EXCEEDED: "У изображения слишком большое число пикселей.",
     MIME_DECODER_MISMATCH: "Содержимое файла не соответствует его формату.",
     IMAGE_DECODE_FAILED: "Файл повреждён или не декодируется.",
-    INSUFFICIENT_BALANCE: "Недостаточно кредитов для генерации.",
+    INSUFFICIENT_BALANCE: "Недостаточно ВФ-коинов для генерации.",
     STANDARD_GENERATION_DISABLED: "Генерация фасада пока не включена на этом сервере.",
     PRO_GENERATION_DISABLED: "Pro пока не включён: модель должна пройти реальную проверку качества.",
     PHOTO_PROCESSING_CONSENT_REQUIRED: "Подтвердите отдельное согласие на обработку фотографии.",
+  };
+
+  const vfCoinsLabel = (value) => {
+    const amount = Number(value);
+    const mod100 = amount % 100;
+    const mod10 = amount % 10;
+    const noun = mod100 >= 11 && mod100 <= 14
+      ? "ВФ-коинов"
+      : mod10 === 1 ? "ВФ-коин" : mod10 >= 2 && mod10 <= 4 ? "ВФ-коина" : "ВФ-коинов";
+    return `${amount} ${noun}`;
   };
 
   async function request(url, options = {}) {
@@ -360,7 +370,7 @@
       const chargeLabel = kind === "pro" ? "Pro-генерацию" : "обычную генерацию";
       const cost = kind === "pro" ? root.dataset.proCost : root.dataset.standardCost;
       start.textContent = buttonLabel;
-      costText.textContent = `Подтверждаю списание ${cost} ${Number(cost) === 1 ? "кредита" : "кредитов"} за ${chargeLabel}. Проверка фото и скачивание бесплатны.`;
+      costText.textContent = `Подтверждаю списание ${vfCoinsLabel(cost)} за ${chargeLabel}. Проверка фото и скачивание бесплатны.`;
     };
     updateCount();
     updateGenerationKind();
@@ -394,7 +404,7 @@
       } catch (error) {
         start.disabled = false;
         message.className = "form-message error";
-        message.textContent = errors[error.code] || "Не удалось запустить генерацию. Кредит не списан или будет автоматически возвращён.";
+        message.textContent = errors[error.code] || "Не удалось запустить генерацию. ВФ-коин не списан или будет автоматически возвращён.";
       }
     });
   }

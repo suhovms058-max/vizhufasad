@@ -45,14 +45,14 @@ const packageCodes: Partial<Record<PackageId, "START" | "OPTIMUM" | "MAXIMUM">> 
 };
 
 const faqs = [
-  ["Что происходит после бесплатной генерации?", "Готовый первый вариант остаётся в вашем проекте. Если захотите сравнить другие стили, можно выбрать пакет для нескольких генераций или добавить в кабинете 1–3 отдельных кредита."],
+  ["Что происходит после бесплатной генерации?", "Готовый первый вариант остаётся в вашем проекте. Если захотите сравнить другие стили, можно выбрать пакет для нескольких генераций или добавить в кабинете 1–3 ВФ-коина."],
   ["Нужно ли знать названия материалов?", "Нет. Можно выбрать автоподбор или отметить желаемые материалы и цвета самостоятельно."],
   ["Изменится ли форма дома?", "Наша задача — сохранить геометрию, окна, двери и кровлю. Визуализация показывает отделку, а не придумывает другое здание."],
   ["Какое фото подойдёт?", "Снимите дом днём и постарайтесь показать фасад целиком. Временные предметы, стройматериалы и незначительные препятствия допустимы, если хорошо видны стены, окна, двери и кровля."],
   ["Где хранится загруженная фотография?", "После отдельного согласия исходник передаётся в приватное объектное хранилище. Файлы доступны владельцу проекта только по временным ссылкам и удаляются вместе с проектом или аккаунтом."],
-  ["Что произойдёт, если генерация исказит дом?", "Результат проходит автоматическую проверку. При грубом изменении выполняется одна бесплатная повторная попытка, а после второй неудачи кредит возвращается и брак не показывается."],
+  ["Что произойдёт, если генерация исказит дом?", "Результат проходит автоматическую проверку. При грубом изменении выполняется одна бесплатная повторная попытка, а после второй неудачи ВФ-коин возвращается и брак не показывается."],
   ["Что может отличаться от будущей отделки?", "Оттенок и фактура реального материала зависят от производителя, освещения и экрана. Мелкий декор и детали участка тоже могут отличаться: сервис помогает выбрать визуальное направление, а не фиксирует строительную спецификацию."],
-  ["Когда списывается кредит и что будет при технической ошибке?", "Перед запуском действия кредит резервируется один раз. После успешного результата списание подтверждается, а при технической неудаче или окончательном отклонении автоматической проверкой кредит возвращается автоматически. Повторный запрос не создаёт двойного списания или возврата."],
+  ["Когда списывается ВФ-коин и что будет при технической ошибке?", "Перед запуском действия ВФ-коин резервируется один раз. После успешного результата списание подтверждается, а при технической неудаче или окончательном отклонении автоматической проверкой ВФ-коин возвращается автоматически. Повторный запрос не создаёт двойного списания или возврата."],
   ["Можно ли описать свои пожелания?", "Да. В мастере проекта можно указать материалы, цвета, отделку карниза, цоколя и существующих опор. Пожелания автоматически входят в задание генератору."],
   ["Это строительный проект?", "Нет. Результат — концепция внешнего вида фасада, а не чертёж, смета или инструкция для строителей."],
 ];
@@ -175,12 +175,12 @@ export default function App() {
     const noun = mod10 === 1 && !(mod100 >= 11 && mod100 <= 14) ? "генерации" : "генераций";
     return `${amount} ${noun}`;
   };
-  const creditsLabel = (amount: number) => {
+  const vfCoinsLabel = (amount: number) => {
     const mod100 = amount % 100;
     const mod10 = amount % 10;
     const noun = mod100 >= 11 && mod100 <= 14
-      ? "кредитов"
-      : mod10 === 1 ? "кредит" : mod10 >= 2 && mod10 <= 4 ? "кредита" : "кредитов";
+      ? "ВФ-коинов"
+      : mod10 === 1 ? "ВФ-коин" : mod10 >= 2 && mod10 <= 4 ? "ВФ-коина" : "ВФ-коинов";
     return `${amount} ${noun}`;
   };
   const showProcessStep = (index: number) => {
@@ -221,7 +221,7 @@ export default function App() {
           <p>Загрузите фотографию, выберите стиль, материалы и цвета. Сервис создаст визуализацию и автоматически проверит, сохранились ли окна, двери, кровля и пропорции дома.</p>
           <div className="heroOffer">
             <strong>Первая визуализация фасада — бесплатно</strong>
-            <span>Без оплаты и привязки карты. После результата можно выбрать пакет или добавить отдельные кредиты.</span>
+            <span>Без оплаты и привязки карты. После результата можно выбрать пакет или добавить отдельные ВФ-коины.</span>
           </div>
           <div className="heroActions">
             <a className="button primary" href="#photo-check" data-analytics-event="hero_cta" data-analytics-placement="hero">Создать фасад бесплатно <Arrow /></a>
@@ -330,8 +330,8 @@ export default function App() {
       <section className="deliver section">
         <div className="shell deliverGrid">
           <div className="deliverVisual">
-            <img src="./facade-after-bright.webp" alt="Готовая визуализация современного фасада" />
-            <div className="materialCard"><span>МАТЕРИАЛ 02</span><strong>Планкен<br />натуральный</strong><small>Фрагмент визуализации</small></div>
+            <img src="/facade-styles/shale-01.webp" alt="Одноэтажный дом в стиле шале с отделкой камнем, деревом и минеральной штукатуркой" />
+            <div className="materialCard"><span>МАТЕРИАЛЫ</span><strong>Камень<br />и дерево</strong><small>Минеральная штукатурка</small></div>
           </div>
           <div className="deliverCopy">
             <div className="eyebrow"><span /> НЕ ПРОСТО КРАСИВАЯ КАРТИНКА</div>
@@ -340,7 +340,7 @@ export default function App() {
             <ul>
               <li><Check /><span><strong>Автоматическая проверка</strong>ИИ сверяет окна, двери, кровлю и пропорции с исходной фотографией.</span></li>
               <li><Check /><span><strong>Настройки пользователя</strong>Стиль, отделка, палитра и ограничения входят в задание генератору.</span></li>
-              <li><Check /><span><strong>Только проверенный результат</strong>При грубом изменении дома выполняется автоматический повтор или возврат кредита.</span></li>
+              <li><Check /><span><strong>Только проверенный результат</strong>При грубом изменении дома выполняется автоматический повтор или возврат ВФ-коина.</span></li>
             </ul>
             <a className="textLink" href="#photo-check">Создать бесплатный вариант <Arrow /></a>
           </div>
@@ -349,13 +349,22 @@ export default function App() {
 
       <section className="stylePreview section" id="examples">
         <div className="shell compactStyleGuide">
-          <div>
-            <div className="eyebrow"><span /> БОЛЬШЕ ИДЕЙ ДЛЯ ФАСАДА</div>
-            <h2>Изучите стили<br /><em>подробнее</em></h2>
+          <div className="compactStyleHeadline">
+            <div className="eyebrow"><span /> ЖУРНАЛ ФАСАДНЫХ РЕШЕНИЙ</div>
+            <h2>Найдите стиль,<br />который подойдёт <em>вашему дому</em></h2>
+            <p>Не выбирайте фасад по одному красивому кадру. Сравните направления и найдите решение, которое хочется примерить к своему дому.</p>
           </div>
           <div className="compactStyleCopy">
-            <p>В каталоге собраны десять направлений с примерами домов, характерными материалами и палитрами.</p>
-            <div className="stylePreviewActions"><a className="button primary" href="/styles">Открыть каталог стилей <Arrow /></a><a className="textLink" href="/gallery">Посмотреть готовые примеры <Arrow /></a></div>
+            <div className="stylePreviewJournal">
+              <div className="stylePreviewCount"><strong>10</strong><span>стилей<br />в подробных статьях</span></div>
+              <p>Для каждого стиля мы собрали три примера разных домов, объяснили характерные детали и показали подходящие материалы и палитры.</p>
+              <div className="stylePreviewFacts" aria-label="Что находится в журнале стилей">
+                <span><strong>30</strong> примеров домов</span>
+                <span><strong>10</strong> разборов стилей</span>
+                <span><strong>Материалы</strong> и палитры</span>
+              </div>
+              <div className="stylePreviewActions"><a className="button primary" href="/styles">Посмотреть 10 стилей и выбрать свой <Arrow /></a><a className="textLink" href="/gallery">Смотреть готовые фасады <Arrow /></a></div>
+            </div>
           </div>
         </div>
       </section>
@@ -372,33 +381,33 @@ export default function App() {
           <div className="pricingPathSteps">
             <div><span>01</span><strong>Создайте первый фасад</strong><small>Первая генерация — бесплатно</small></div>
             <div><span>02</span><strong>Оцените результат</strong><small>Вариант сохранится в проекте</small></div>
-            <div><span>03</span><strong>Решите, нужны ли ещё</strong><small>Пакет или 1–3 отдельных кредита</small></div>
+            <div><span>03</span><strong>Решите, нужны ли ещё</strong><small>Пакет или 1–3 отдельных ВФ-коина</small></div>
           </div>
         </div>
         <div className="priceGrid paidPriceGrid">
           <article className="priceCard freePlanCard">
             <div><span className="planNum">00</span><h3>Бесплатно</h3><p>Посмотрите свой дом с новой отделкой</p></div>
             <div className="price">{rubles(freePlan.priceMinor)}</div>
-            <ul><li><Check /> {creditsLabel(freePlan.credits)} на пробную генерацию</li><li><Check /> Автоматическая проверка результата</li><li><Check /> Водяной знак на изображении</li></ul>
+            <ul><li><Check /> {vfCoinsLabel(freePlan.credits)} на пробную генерацию</li><li><Check /> Автоматическая проверка результата</li><li><Check /> Водяной знак на изображении</li></ul>
             <a className="button ghost" href="#photo-check" data-analytics-event="pricing_cta" data-analytics-plan="FREE">Создать фасад бесплатно <Arrow /></a>
           </article>
           <article className="priceCard featured">
             <div className="popular">ПОПУЛЯРНЫЙ ТАРИФ</div>
             <div><span className="planNum">01</span><h3>Старт</h3><p>Для нескольких вариантов одного дома</p></div>
             <div className="price">{rubles(startPlan.priceMinor)}</div>
-            <ul><li><Check /> До {generationLimitLabel(ordinaryGenerations(startPlan))}</li><li><Check /> {creditsLabel(startPlan.credits)} в пакете</li><li><Check /> Можно использовать для Pro и доработок</li></ul>
+            <ul><li><Check /> До {generationLimitLabel(ordinaryGenerations(startPlan))}</li><li><Check /> {vfCoinsLabel(startPlan.credits)} в пакете</li><li><Check /> Можно использовать для Pro и доработок</li></ul>
             <button className="button primary" data-analytics-event="pricing_cta" data-analytics-plan="START" onClick={() => startOrder("visual")}>Выбрать пакет <Arrow /></button>
           </article>
           <article className="priceCard">
             <div><span className="planNum">02</span><h3>Оптимум</h3><p>Для исследования нескольких стилей</p></div>
             <div className="price">{rubles(optimumPlan.priceMinor)}</div>
-            <ul><li><Check /> До {generationLimitLabel(ordinaryGenerations(optimumPlan))}</li><li><Check /> {creditsLabel(optimumPlan.credits)} в пакете</li><li><Check /> Сравнение до четырёх решений</li></ul>
+            <ul><li><Check /> До {generationLimitLabel(ordinaryGenerations(optimumPlan))}</li><li><Check /> {vfCoinsLabel(optimumPlan.credits)} в пакете</li><li><Check /> Сравнение до четырёх решений</li></ul>
             <button className="button ghost" data-analytics-event="pricing_cta" data-analytics-plan="OPTIMUM" onClick={() => startOrder("selection")}>Выбрать пакет <Arrow /></button>
           </article>
           <article className="priceCard premium">
             <div><span className="planNum">03</span><h3>Максимум</h3><p>Для большого числа концепций</p></div>
             <div className="price">{rubles(maximumPlan.priceMinor)}</div>
-            <ul><li><Check /> До {generationLimitLabel(ordinaryGenerations(maximumPlan))}</li><li><Check /> {creditsLabel(maximumPlan.credits)} в пакете</li><li><Check /> Для нескольких домов и серий решений</li></ul>
+            <ul><li><Check /> До {generationLimitLabel(ordinaryGenerations(maximumPlan))}</li><li><Check /> {vfCoinsLabel(maximumPlan.credits)} в пакете</li><li><Check /> Для нескольких домов и серий решений</li></ul>
             <button className="button copper" data-analytics-event="pricing_cta" data-analytics-plan="MAXIMUM" onClick={() => startOrder("realization")}>Выбрать пакет <Arrow /></button>
           </article>
         </div>
@@ -406,13 +415,13 @@ export default function App() {
           <div className="pricingContinuationCopy"><span>ПОСЛЕ БЕСПЛАТНОГО РЕЗУЛЬТАТА</span><strong>Продолжайте в удобном формате</strong></div>
           <div className="pricingContinuationOptions">
             <span><b>Пакет</b> для серии вариантов</span>
-            <span><b>1–3 кредита</b> для точечной задачи</span>
+            <span><b>1–3 ВФ-коина</b> для точечной задачи</span>
           </div>
-          <a href="/app/balance#topups">Добавить кредиты <Arrow /></a>
+          <a href="/app/balance#topups">Добавить ВФ-коины <Arrow /></a>
         </div>
         <p className="pricingNote">{PAYMENTS_ENABLED
-          ? "Разовая покупка кредитов доступна в кабинете. Подписки и автопродление выключены."
-          : "Оплата временно выключена и не показывается в кабинете."} Перед запуском сервис показывает точную стоимость действия в кредитах.</p>
+          ? "Разовая покупка ВФ-коинов доступна в кабинете. Подписки и автопродление выключены."
+          : "Оплата временно выключена и не показывается в кабинете."} Перед запуском сервис показывает точную стоимость действия в ВФ-коинах.</p>
       </section>
 
       <section className="faq section shell" id="faq">

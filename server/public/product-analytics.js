@@ -38,11 +38,11 @@
     const banner = document.createElement("section");
     banner.className = "privacy-banner";
     banner.dataset.privacyBanner = "";
-    banner.setAttribute("aria-label", "Необязательная аналитика");
+    banner.setAttribute("aria-label", "Настройка cookie");
     const detailsUrl = location.hostname === "localhost" || location.hostname === "127.0.0.1"
       ? "https://vizhufasad.ru/legal/privacy"
       : "/legal/privacy";
-    banner.innerHTML = `<div><strong>Необязательная аналитика</strong><p>Для входа и основных функций используются только необходимые cookie и браузерное хранилище. С вашего разрешения сервис может дополнительно собирать обезличенную статистику использования. Фото, email и тексты заданий в аналитику не передаются.</p><a href="${detailsUrl}">О данных и аналитике</a></div><div class="privacy-actions"><button type="button" class="secondary" data-privacy-essential>Оставить только необходимые</button><button type="button" data-privacy-analytics>Разрешить аналитику</button></div>`;
+    banner.innerHTML = `<div><strong>Настройка cookie</strong><p>Сайт использует необходимые cookie и браузерное хранилище для входа, безопасности и сохранения настроек. Без них часть функций не работает. Разрешите дополнительно включить обезличенную аналитику? Фото, email и тексты заданий в неё не передаются.</p><a href="${detailsUrl}">О cookie и обработке данных</a></div><div class="privacy-actions"><button type="button" class="secondary" data-privacy-essential>Только необходимые cookie</button><button type="button" data-privacy-analytics>Разрешить аналитику</button></div>`;
     document.body.append(banner);
     banner.querySelector("[data-privacy-essential]").addEventListener("click", () => saveChoice(false));
     banner.querySelector("[data-privacy-analytics]").addEventListener("click", () => saveChoice(true));

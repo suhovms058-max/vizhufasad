@@ -8,7 +8,7 @@ test("upload step is understandable, responsive and rejects a tiny image before 
   await page.goto("/app/new");
   await expect(page.getByRole("heading", { name: "Загрузите фотографию дома" })).toBeVisible();
   await expect(page.getByText("Как снять фасад")).toBeVisible();
-  await expect(page.getByText("Кредит на этом шаге не списывается.")).toBeVisible();
+  await expect(page.getByText("ВФ-коин на этом шаге не списывается.")).toBeVisible();
   await page.locator("#photo-input").setInputFiles({
     name: "tiny.png",
     mimeType: "image/png",
@@ -60,7 +60,7 @@ test("photo settings to checked Standard result survives navigation and fits vie
   await page.getByLabel("Описание цветов").fill("молочный, графит");
   await page.getByRole("button", { name: "Продолжить" }).click();
   await page.getByLabel("Что важно учесть").fill("Отделать карниз и существующие опоры");
-  await page.getByLabel(/Подтверждаю списание 1 кредита/u).check();
+  await page.getByLabel(/Подтверждаю списание 1 ВФ-коина/u).check();
   await expect.poll(() => page.evaluate(() => document.documentElement.scrollWidth <= document.documentElement.clientWidth)).toBe(true);
   await page.getByRole("button", { name: "Запустить Standard" }).click();
   await expect(page).toHaveURL(/\/app\/projects\/project-e2e\/generations\/[0-9a-f-]{36}$/u);

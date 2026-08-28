@@ -5,8 +5,8 @@ test.beforeEach(async ({ request }) => { await request.post("/__reset"); });
 
 test("Pro, edit, 4K and comparison remain usable without horizontal overflow", async ({ page }) => {
   await page.goto("/app/new?project=project-e2e");
-  await expect(page.getByText("Pro · 2 кредита")).toBeVisible();
-  await page.getByLabel(/Pro · 2 кредита/u).check();
+  await expect(page.getByText("Pro · 2 ВФ-коина")).toBeVisible();
+  await page.getByLabel(/Pro · 2 ВФ-коина/u).check();
   await page.getByRole("button", { name: "Продолжить" }).click();
   await page.getByRole("button", { name: "Продолжить" }).click();
   await expect(page.getByRole("button", { name: "Запустить Pro" })).toBeVisible();

@@ -63,8 +63,8 @@ async function render(path) {
 test("Stage 12 new-project page shows clear generation and enabled Pro costs", async () => {
   const { status, html } = await render("/app/new?project=project-1");
   assert.equal(status, 200);
-  assert.match(html, /Генерация · 1 кредит/u);
-  assert.match(html, /Pro · 2 кредита/u);
+  assert.match(html, /Генерация · 1 ВФ-коин/u);
+  assert.match(html, /Pro · 2 ВФ-коина/u);
   assert.doesNotMatch(html, /Standard-вариант/u);
   assert.match(html, /data-pro-enabled="true"/u);
 });

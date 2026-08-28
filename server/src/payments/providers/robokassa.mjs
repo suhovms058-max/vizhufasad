@@ -33,7 +33,7 @@ export class RobokassaPaymentProvider {
     const custom = `Shp_payment=${payment.id}`;
     const receipt = JSON.stringify({
       items: [{
-        name: String(payment.description || "Кредиты ВИЖУФАСАД").slice(0, 128),
+        name: String(payment.description || "ВФ-коины ВИЖУФАСАД").slice(0, 128),
         quantity: 1,
         sum: Number(outSum),
         payment_method: "full_payment",

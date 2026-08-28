@@ -84,6 +84,16 @@ function escapeHtml(value) {
     .replaceAll('"', "&quot;").replaceAll("'", "&#39;");
 }
 
+function vfCoinsLabel(value) {
+  const amount = Number(value);
+  const mod100 = amount % 100;
+  const mod10 = amount % 10;
+  const noun = mod100 >= 11 && mod100 <= 14
+    ? "ВФ-коинов"
+    : mod10 === 1 ? "ВФ-коин" : mod10 >= 2 && mod10 <= 4 ? "ВФ-коина" : "ВФ-коинов";
+  return `${amount} ${noun}`;
+}
+
 function jsonData(value) {
   return JSON.stringify(value ?? {}).replaceAll("<", "\\u003c").replaceAll("&", "\\u0026");
 }
@@ -108,7 +118,7 @@ function statusLabel(status) {
     photo_retake_required: "Нужно заменить фото", configuration_required: "Нужны настройки",
     generation_queued: "В очереди", generating: "Генерация", qa_queued: "Автопроверка",
     qa_failed_retrying: "Повторная генерация", ready: "Результат готов",
-    failed_terminal: "Не выполнено — кредит возвращён", deleted: "Удалён",
+    failed_terminal: "Не выполнено — ВФ-коин возвращён", deleted: "Удалён",
   })[status] || status;
 }
 
@@ -120,7 +130,7 @@ function assessmentBlock(project) {
   }
   if (assessment.status === "provider_unavailable") {
     return `<section class="panel assessment warning"><h2>Проверка временно недоступна</h2>
-      <p>Фото сохранено. Кредит не списан.</p><form method="post" action="/app/projects/${escapeHtml(project.id)}/images/${escapeHtml(project.image_id)}/assessment/retry">
+      <p>Фото сохранено. ВФ-коин не списан.</p><form method="post" action="/app/projects/${escapeHtml(project.id)}/images/${escapeHtml(project.image_id)}/assessment/retry">
       <button type="submit">Повторить автоматическую проверку</button></form></section>`;
   }
   const result = assessment.userResult || {};
@@ -159,7 +169,7 @@ function uploadStep(project) {
     data-consent-version="${PHOTO_PROCESSING_CONSENT_VERSION}" data-consent-hash="${PHOTO_PROCESSING_CONSENT_HASH}"
     data-rights-version="${PHOTO_USAGE_RIGHTS_VERSION}" data-rights-hash="${PHOTO_USAGE_RIGHTS_HASH}">
     <div class="flow-heading"><p class="eyebrow">Шаг 1 из 3 · бесплатно</p><h1>${project ? "Замените фотографию дома" : "Загрузите фотографию дома"}</h1>
-    <p>Сначала автоматически проверим, подходит ли снимок для визуализации. Кредит на этом шаге не списывается.</p></div>
+    <p>Сначала автоматически проверим, подходит ли снимок для визуализации. ВФ-коин на этом шаге не списывается.</p></div>
     <div class="upload-layout">
       <div class="panel upload-panel">
         <label for="project-title">Название проекта</label>
@@ -234,7 +244,7 @@ function settingsStep(project, balance, costs, features) {
     data-standard-cost="${escapeHtml(costs.standard)}" data-pro-cost="${escapeHtml(costs.pro)}" data-pro-enabled="${features.pro}">
     <script id="initial-configuration" type="application/json">${jsonData(config)}</script>
     <div class="flow-heading"><p class="eyebrow">Шаг 3 из 3</p><h1>Настройте фасад</h1>
-    <p>Баланс: <strong>${escapeHtml(balance)} кр.</strong></p></div>
+    <p>Баланс: <strong>${escapeHtml(vfCoinsLabel(balance))}</strong></p></div>
     <form id="generation-form" class="settings-form panel" data-wizard-current="1">
       <ol class="settings-progress" aria-label="Шаги настройки фасада">
         <li aria-current="step"><span>1</span><strong>Задача и стиль</strong></li>
@@ -245,8 +255,8 @@ function settingsStep(project, balance, costs, features) {
       <div class="settings-step-heading"><p class="eyebrow">Настройка 1 из 3</p><h2>Как должен измениться фасад</h2><p>Выберите глубину изменений, качество результата и архитектурное направление.</p></div>
       <fieldset><legend>Уровень изменений</legend><div class="mode-grid">${[["gentle", "Бережный", "Освежить отделку без изменения архитектуры"], ["balanced", "Сбалансированный", "Заметнее обновить сочетание материалов"], ["conceptual", "Концептуальный", "Создать выразительное решение в пределах ограничений"]].map(([value, label, description]) => `<label class="mode"><input type="radio" name="transformationLevel" value="${value}" ${(config.transformationLevel || "gentle") === value ? "checked" : ""}><span><strong>${label}</strong><small>${description}</small></span></label>`).join("")}</div></fieldset>
       <fieldset><legend>Качество результата</legend><div class="generation-tier-grid">
-        <label class="generation-tier"><input type="radio" name="generationKind" value="standard" checked><span><strong>Генерация · ${escapeHtml(costs.standard)} кредит</strong><small>Быстрый способ подобрать отделку и цветовое решение.</small></span></label>
-        <label class="generation-tier ${features.pro ? "" : "is-disabled"}"><input type="radio" name="generationKind" value="pro" ${features.pro ? "" : "disabled"}><span><strong>Pro · ${escapeHtml(costs.pro)} кредита</strong><small>${features.pro ? "Модель более высокого качества, больше деталей и реалистичности." : "Появится после подтверждения качества модели на реальных фасадах."}</small></span></label>
+        <label class="generation-tier"><input type="radio" name="generationKind" value="standard" checked><span><strong>Генерация · ${escapeHtml(vfCoinsLabel(costs.standard))}</strong><small>Быстрый способ подобрать отделку и цветовое решение.</small></span></label>
+        <label class="generation-tier ${features.pro ? "" : "is-disabled"}"><input type="radio" name="generationKind" value="pro" ${features.pro ? "" : "disabled"}><span><strong>Pro · ${escapeHtml(vfCoinsLabel(costs.pro))}</strong><small>${features.pro ? "Модель более высокого качества, больше деталей и реалистичности." : "Появится после подтверждения качества модели на реальных фасадах."}</small></span></label>
       </div></fieldset>
       <fieldset><legend>Стиль</legend><p class="hint">Сравните все направления на одном доме. Наведите курсор для акцента или нажмите карточку, чтобы выбрать стиль.</p>
       <div class="style-card-grid" aria-label="Стили фасада">${STYLE_OPTIONS.map((item) => featuredStyleCard(item, selectedStyle)).join("")}</div>
@@ -264,7 +274,7 @@ function settingsStep(project, balance, costs, features) {
       <div class="settings-step-heading"><p class="eyebrow">Настройка 3 из 3</p><h2>Пожелания и запуск</h2><p>Дом останется тем же, а временный строительный беспорядок и участок сервис приведёт к аккуратному завершённому виду.</p></div>
       <section class="panel assessment system-preserve-note" aria-label="Что сервис сохранит автоматически"><h3>Архитектура дома защищена автоматически</h3><p>Сохраняются геометрия, этажность, кровля, окна, двери, балконы, террасы, положение дома и ракурс. Новые этажи не добавляются.</p><p>Строительный мусор и временные предметы перед фасадом можно убрать, а участок — аккуратно благоустроить.</p></section>
       <fieldset><legend>Пожелания</legend><label for="wishes">Что важно учесть</label><textarea id="wishes" name="wishes" maxlength="700" rows="5" placeholder="Материалы, цвета, отделка карниза, цоколя, существующих опор…">${escapeHtml(config.wishes || "")}</textarea><p class="hint">Пожелания автоматически попадут в задание генератору. Они не могут отменить защиту архитектуры дома.</p><p class="counter"><span id="wishes-count">0</span>/700</p></fieldset>
-      <label class="confirm"><input id="cost-confirm" type="checkbox" required><span id="cost-confirm-text">Подтверждаю списание ${escapeHtml(costs.standard)} кредита за генерацию фасада. Проверка фото и скачивание бесплатны.</span></label>
+      <label class="confirm"><input id="cost-confirm" type="checkbox" required><span id="cost-confirm-text">Подтверждаю списание ${escapeHtml(vfCoinsLabel(costs.standard))} за генерацию фасада. Проверка фото и скачивание бесплатны.</span></label>
       </div>
       <p id="draft-status" class="muted" role="status" aria-live="polite"></p>
       <p id="generation-message" class="form-message" role="status" aria-live="polite"></p>
@@ -281,16 +291,16 @@ function statusSteps() {
 
 function resultTools(project, generation, history, costs, features, comparisonAccess) {
   if (generation.status !== "completed") return "";
-  const editor = features.editor ? `<section class="panel stage12-tool"><p class="eyebrow">ИИ-редактор · ${escapeHtml(costs.edit)} кредит</p><h2>Доработать результат</h2>
+  const editor = features.editor ? `<section class="panel stage12-tool"><p class="eyebrow">ИИ-редактор · ${escapeHtml(vfCoinsLabel(costs.edit))}</p><h2>Доработать результат</h2>
     <p>Команда применяется к текущему результату. Остальные части дома защищены от изменений.</p>
     <form id="edit-form" class="form-stack"><label for="edit-scope">Область<select id="edit-scope" name="scope">
       <option value="full_facade">Весь фасад</option><option value="walls">Стены</option><option value="plinth">Цоколь</option>
       <option value="roof">Кровля</option><option value="entrance">Входная группа</option><option value="custom_mask">Пользовательская маска PNG</option>
     </select></label><label id="edit-mask-row" class="hidden" for="edit-mask">Маска той же ширины и высоты, что результат<input id="edit-mask" type="file" accept="image/png"></label>
     <label for="edit-command">Что изменить<textarea id="edit-command" name="command" maxlength="700" rows="4" required placeholder="Например: заменить отделку стен на светлый клинкер, не меняя окна и кровлю"></textarea></label>
-    <label class="confirm"><input type="checkbox" required><span>Подтверждаю списание ${escapeHtml(costs.edit)} кредита. При технической неудаче кредит вернётся автоматически.</span></label>
+    <label class="confirm"><input type="checkbox" required><span>Подтверждаю списание ${escapeHtml(vfCoinsLabel(costs.edit))}. При технической неудаче ВФ-коин вернётся автоматически.</span></label>
     <button id="edit-start" type="submit">Создать доработку</button></form></section>` : "";
-  const upscale = features.upscale ? `<section class="panel stage12-tool"><p class="eyebrow">4K · ${escapeHtml(costs.upscale)} кредит</p><h2>Подготовить 4K</h2>
+  const upscale = features.upscale ? `<section class="panel stage12-tool"><p class="eyebrow">4K · ${escapeHtml(vfCoinsLabel(costs.upscale))}</p><h2>Подготовить 4K</h2>
     <p>Отдельная задача увеличит изображение минимум до 3840×2160 и проверит его на артефакты.</p>
     <button id="upscale-start" type="button">Создать 4K</button><div id="upscale-status" class="form-message" role="status" aria-live="polite"></div></section>` : "";
   const completed = history.filter((item) => item.status === "completed");
@@ -314,8 +324,8 @@ function resultPage(project, generation, history, sourceUrl, resultUrl, balance,
   const terminal = ["completed", "failed_refunded", "cancelled"].includes(generation.status);
   const freeResultOffer = generation.requires_watermark ? `<section class="result-next-step" aria-label="Продолжение после бесплатной генерации">
       <p class="eyebrow">Бесплатный вариант готов</p><h2>Хотите сравнить другие стили?</h2>
-      <p>Выберите пакет для нескольких вариантов или добавьте отдельные кредиты, если нужна ещё одна, две или три генерации.</p>
-      <div><a class="button" href="/app/balance?plan=START#plan-START">Получить ещё варианты</a><a href="/app/balance#topups">Добавить кредиты</a></div>
+      <p>Выберите пакет для нескольких вариантов или добавьте отдельные ВФ-коины, если нужна ещё одна, две или три генерации.</p>
+      <div><a class="button" href="/app/balance?plan=START#plan-START">Получить ещё варианты</a><a href="/app/balance#topups">Добавить ВФ-коины</a></div>
     </section>` : "";
   const visual = generation.status === "completed" && resultUrl
     ? `<section class="result-layout"><div id="comparison" class="comparison" style="--position:50%">
@@ -327,12 +337,12 @@ function resultPage(project, generation, history, sourceUrl, resultUrl, balance,
       <div class="result-verification"><strong>Автопроверка пройдена</strong><span>Результат допущен к показу автоматическим контролем качества.</span></div>
       <dl><div><dt>Стиль</dt><dd>${escapeHtml(config.style)}</dd></div><div><dt>Материалы</dt><dd>${escapeHtml((config.materials || []).join(", ") || "Автоподбор")}</dd></div>
       <div><dt>Палитра</dt><dd>${escapeHtml((config.palette || []).join(", ") || "Автоподбор")}</dd></div><div><dt>Режим</dt><dd>${escapeHtml(transformationLevelLabel(config.transformationLevel))}</dd></div></dl>
-      <p class="concept-note">Визуализация является концепцией, а не рабочим строительным проектом.${generation.requires_watermark ? " Водяной знак означает, что использованы бесплатные кредиты." : ""}</p>
+      <p class="concept-note">Визуализация является концепцией, а не рабочим строительным проектом.${generation.requires_watermark ? " Водяной знак означает, что использованы бесплатные ВФ-коины." : ""}</p>
       ${freeResultOffer}
       <div class="actions stacked"><a class="button" href="${escapeHtml(resultUrl)}" download>Скачать</a>
       <button id="favorite-button" class="secondary" type="button" data-favorite="${generation.is_favorite}">${generation.is_favorite ? "Убрать из избранного" : "В избранное"}</button>
       <a class="button secondary" href="/app/new?project=${escapeHtml(project.id)}&repeat=${escapeHtml(generation.id)}">Повторить настройки</a>
-      <a class="button secondary" href="/app/new">Создать ещё</a></div><div class="result-balance"><span>Доступно</span><strong>${escapeHtml(balance)} кр.</strong><a href="/app/balance">Баланс и пакеты →</a></div></aside></section>`
+      <a class="button secondary" href="/app/new">Создать ещё</a></div><div class="result-balance"><span>Доступно</span><strong>${escapeHtml(vfCoinsLabel(balance))}</strong><a href="/app/balance">Баланс и пакеты →</a></div></aside></section>`
     : `<section class="generation-wait-layout" aria-label="Состояние создания фасада">
       <figure class="generation-source-preview"><img src="${escapeHtml(sourceUrl)}" alt="Исходная фотография проекта ${escapeHtml(project.title)}"><figcaption>Исходное фото · геометрия под защитой</figcaption></figure>
       <div class="panel status-panel"><p class="eyebrow">${escapeHtml(generationKindLabel(kind))} · вариант ${escapeHtml(generation.revision)}</p><h1>${terminal ? "Генерация остановлена" : "Создаём фасад"}</h1>

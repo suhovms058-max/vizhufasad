@@ -103,8 +103,8 @@
         } catch (error) {
           const text = error.code === "INVALID_EDIT_MASK"
             ? "Нужна PNG-маска до 5 МБ точно того же размера, что результат."
-            : error.code === "INSUFFICIENT_BALANCE" ? "Недостаточно кредитов для доработки."
-              : "Доработка не запущена. Кредит не списан или будет автоматически возвращён.";
+            : error.code === "INSUFFICIENT_BALANCE" ? "Недостаточно ВФ-коинов для доработки."
+              : "Доработка не запущена. ВФ-коин не списан или будет автоматически возвращён.";
           show(text, "error");
           submit.disabled = false;
         }
@@ -118,7 +118,7 @@
       const renderUpscale = async (upscale) => {
         const labels = {
           created: "Задача создана.", queued: "4K ожидает свободный worker.", processing: "Увеличиваем изображение и проверяем артефакты.",
-          completed: "4K готов.", failed_refunded: "4K не создан. Кредит возвращён.", cancelled: "Задача отменена, кредит возвращён.",
+          completed: "4K готов.", failed_refunded: "4K не создан. ВФ-коин возвращён.", cancelled: "Задача отменена, ВФ-коин возвращён.",
         };
         upscaleStatus.textContent = labels[upscale.status] || upscale.status;
         if (upscale.status === "completed") {
@@ -155,8 +155,8 @@
           localStorage.removeItem(keyName);
           await renderUpscale(body.upscale);
         } catch (error) {
-          upscaleStatus.textContent = error.code === "INSUFFICIENT_BALANCE" ? "Недостаточно кредитов для 4K."
-            : "4K не запущен. Кредит не списан или будет автоматически возвращён.";
+          upscaleStatus.textContent = error.code === "INSUFFICIENT_BALANCE" ? "Недостаточно ВФ-коинов для 4K."
+            : "4K не запущен. ВФ-коин не списан или будет автоматически возвращён.";
           upscaleStart.disabled = false;
         }
       });

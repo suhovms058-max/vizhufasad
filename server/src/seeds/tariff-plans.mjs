@@ -8,9 +8,9 @@ const tariffPlans = [
   ["START", "Старт", "4 визуализации", 79_000, 4, true, true, packageEffectiveAt],
   ["OPTIMUM", "Оптимум", "8 визуализаций", 129_000, 8, true, true, packageEffectiveAt],
   ["MAXIMUM", "Максимум", "25 визуализаций", 349_000, 25, true, true, packageEffectiveAt],
-  ["TOPUP_1", "1 кредит", "Точечное пополнение баланса", 24_900, 1, true, true, topupEffectiveAt],
-  ["TOPUP_2", "2 кредита", "Точечное пополнение баланса", 49_800, 2, true, true, topupEffectiveAt],
-  ["TOPUP_3", "3 кредита", "Точечное пополнение баланса", 74_700, 3, true, true, topupEffectiveAt],
+  ["TOPUP_1", "1 ВФ-коин", "Точечное пополнение баланса", 24_900, 1, true, true, topupEffectiveAt],
+  ["TOPUP_2", "2 ВФ-коина", "Точечное пополнение баланса", 49_800, 2, true, true, topupEffectiveAt],
+  ["TOPUP_3", "3 ВФ-коина", "Точечное пополнение баланса", 74_700, 3, true, true, topupEffectiveAt],
   ["PLUS", "Plus", "Подготовлен, но не активирован", null, null, false, false, packageEffectiveAt],
 ];
 const actionCosts = [

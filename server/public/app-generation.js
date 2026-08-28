@@ -8,15 +8,15 @@
   const generationId = root.dataset.generationId;
   let timer;
   const states = {
-    created: ["analysis", "Задача создана. Резервируем кредит без окончательного списания."],
+    created: ["analysis", "Задача создана. Резервируем ВФ-коин без окончательного списания."],
     queued: ["analysis", "Задача ожидает свободный worker."],
     retrying: ["analysis", "Технический сбой. Выполняется ограниченная автоматическая попытка."],
     preprocessing: ["preprocessing", "Подготавливаем исходную фотографию."],
     generating: ["generating", "Генератор создаёт вариант фасада."],
     quality_check_pending: ["quality_check_pending", "Автоматически проверяем дом, геометрию и артефакты."],
     completed: ["completed", "Проверенный результат готов."],
-    failed_refunded: ["analysis", "Результат не прошёл автоматическую проверку. Кредит возвращён на баланс."],
-    cancelled: ["analysis", "Задача отменена. Зарезервированный кредит возвращён."],
+    failed_refunded: ["analysis", "Результат не прошёл автоматическую проверку. ВФ-коин возвращён на баланс."],
+    cancelled: ["analysis", "Задача отменена. Зарезервированный ВФ-коин возвращён."],
   };
   const cancellable = new Set(["created", "queued", "retrying"]);
   const terminal = new Set(["completed", "failed_refunded", "cancelled"]);
