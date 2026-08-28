@@ -1,6 +1,7 @@
 import { randomUUID } from "node:crypto";
 import express from "express";
 import { createRequireSession } from "../auth/http.mjs";
+import { legalDocument } from "../legal/documents.mjs";
 
 function escapeHtml(value) {
   return String(value ?? "")
@@ -59,8 +60,7 @@ function page(body) {
   <link rel="stylesheet" href="/assets/app-ui.css"></head><body><a class="skip-link" href="#main">К содержанию</a>
   <header class="app-header"><a class="brand brand-home" href="/" aria-label="Вернуться на главную страницу"><svg viewBox="0 0 24 24" aria-hidden="true"><path d="M3 11.5 12 4l9 7.5M5.5 10v9h13v-9M9.5 19v-5h5v5"/></svg><span>ВИЖУФАСАД</span></a><nav aria-label="Основная навигация">
   <a href="/app">Мои проекты</a><a href="/app/new">Новый проект</a><a href="/app/balance" aria-current="page">Баланс</a><a href="/app/settings">Настройки</a></nav></header>
-  <main id="main" class="app-main">${body}</main><footer class="app-footer"><a href="/legal/offer">Условия оплаты</a>
-  <a href="/legal/privacy">Конфиденциальность</a><a href="/legal/refunds">Возвраты</a></footer><script src="/assets/product-analytics.js" defer></script></body></html>`;
+  <main id="main" class="app-main">${body}</main><footer class="app-footer"><a href="/legal">Правовая информация</a><a href="/legal/offer">Оплата</a><a href="/legal/privacy">Конфиденциальность</a><button type="button" class="link-button" data-privacy-settings>Настройки конфиденциальности</button></footer><script src="/assets/product-analytics.js" defer></script></body></html>`;
 }
 
 function returnNotice(query) {
@@ -69,7 +69,8 @@ function returnNotice(query) {
       PROMO_NOT_AVAILABLE: "Промокод недействителен или срок его действия закончился.",
       PROMO_ALREADY_USED: "Этот промокод уже был использован вашим аккаунтом.",
       PROMO_LIMIT_REACHED: "Лимит применений промокода исчерпан.",
-      INSUFFICIENT_CREDITS: "Возврат невозможен: часть купленных кредитов уже использована.",
+      OFFER_ACCEPTANCE_REQUIRED: "Перед оплатой необходимо отдельно принять актуальную публичную оферту.",
+      INSUFFICIENT_CREDITS: "Автоматический возврат не рассчитан для частично использованного пакета. Направьте требование через раздел «Правовая информация» — право на обращение сохраняется.",
       REFUND_OPERATION_KEY_UNAVAILABLE: "Автоматический возврат ещё недоступен: Robokassa не передала идентификатор операции.",
     };
     return `<div class="notice error" role="alert">${escapeHtml(messages[query.payment_error] || "Операцию выполнить не удалось. Баланс не изменён.")}</div>`;
@@ -104,19 +105,26 @@ export function createWalletPagesRouter({ authService, walletService, paymentSer
         paymentHistoryPromise,
       ]);
       const standardCost = Number(catalog.actions.find((action) => action.code === "standard_generation")?.credits || 1);
-      const packagePlans = catalog.tariffs.filter((tariff) => !String(tariff.code || "").startsWith("TOPUP_"));
+      const requestedPlan = ["START", "OPTIMUM", "MAXIMUM"].includes(String(request.query.plan || "").toUpperCase())
+        ? String(request.query.plan).toUpperCase()
+        : "";
+      const packagePlans = catalog.tariffs.filter((tariff) => !String(tariff.code || "").startsWith("TOPUP_") && Number(tariff.priceMinor) > 0);
       const topupPlans = catalog.tariffs.filter((tariff) => String(tariff.code || "").startsWith("TOPUP_"));
+      const offer = legalDocument("offer");
       const checkoutForm = (tariff, buttonLabel = "Перейти к оплате") => paymentConfig?.enabled && tariff.priceMinor > 0 ? `<form method="post" action="/app/payments/checkout">
           <input type="hidden" name="tariffPlanId" value="${escapeHtml(tariff.id)}">
           <input type="hidden" name="idempotencyKey" value="${randomUUID()}">
+          <input type="hidden" name="offerVersion" value="${escapeHtml(offer.revision)}">
+          <input type="hidden" name="offerHash" value="${escapeHtml(offer.hash)}">
           <label for="promo-${escapeHtml(tariff.id)}">Промокод, если есть</label>
           <input id="promo-${escapeHtml(tariff.id)}" name="promoCode" maxlength="32" autocomplete="off">
+          <label class="confirm consent-confirm"><input type="checkbox" name="offerAccepted" value="yes" required> Принимаю <a href="/legal/offer" target="_blank" rel="noopener">публичную оферту</a> редакции от 28 августа 2026 года</label>
           <p><button type="submit" data-analytics-event="payment_checkout_started" data-analytics-plan="${escapeHtml(tariff.code)}">${escapeHtml(buttonLabel)}</button></p></form>` : "";
-      const tariffs = packagePlans.map((tariff) => `<article class="panel tariff-card">
+      const tariffs = packagePlans.map((tariff) => `<article id="plan-${escapeHtml(tariff.code)}" class="panel tariff-card${requestedPlan === tariff.code ? " selected-plan" : ""}">
+        ${requestedPlan === tariff.code ? '<p class="selected-plan-label">Вы выбрали этот пакет</p>' : ""}
         <h3>${escapeHtml(tariff.name)}</h3><p><strong>${escapeHtml(rubles(tariff.priceMinor))}</strong></p>
-        <p>${escapeHtml(creditsLabel(tariff.credits))}</p>
         <p class="tariff-outcome"><strong>До ${escapeHtml(generationLimitLabel(Math.floor(tariff.credits / standardCost)))}</strong><br>
-        <span class="muted">или используйте кредиты для Pro, доработок и 4K по стоимости действий ниже</span></p>
+        <span class="muted">${escapeHtml(creditsLabel(tariff.credits))} можно распределить между генерациями, Pro, доработками и 4K</span></p>
         ${checkoutForm(tariff)}
       </article>`).join("");
       const topups = topupPlans.map((tariff) => `<article class="panel tariff-card topup-card">
@@ -141,7 +149,12 @@ export function createWalletPagesRouter({ authService, walletService, paymentSer
           const actions = [];
           if (payment.refundable && paymentConfig.password3) {
             actions.push(`<form method="post" action="/app/payments/${escapeHtml(payment.id)}/refund">
-          <input type="hidden" name="idempotencyKey" value="${randomUUID()}"><button class="secondary" type="submit">Вернуть</button></form>`);
+          <input type="hidden" name="idempotencyKey" value="${randomUUID()}"><button class="secondary" type="submit">Вернуть всю оплату</button></form>`);
+          }
+          if (payment.status === "paid") {
+            const subject = encodeURIComponent(`Возврат ВИЖУФАСАД — платёж ${payment.id}`);
+            const body = encodeURIComponent(`Прошу рассмотреть возврат по платежу ${payment.id}.\nУкажите причину и желаемую сумму возврата:`);
+            actions.push(`<a class="button secondary" href="mailto:vizhufasad0058@bk.ru?subject=${subject}&body=${body}">Запросить частичный или иной возврат</a>`);
           }
           if (["created", "pending", "failed"].includes(payment.status)) {
             actions.push(`<form method="post" action="/app/payments/${escapeHtml(payment.id)}/cancel">
@@ -151,11 +164,13 @@ export function createWalletPagesRouter({ authService, walletService, paymentSer
         })()}</td>
       </tr>`).join("");
       return response.type("html").send(page(`${returnNotice(request.query)}
-        <section class="page-heading"><div><p class="eyebrow">Кошелёк</p><h1>Баланс и тарифы</h1></div></section>
+        <section class="page-heading"><div><p class="eyebrow">Продолжение работы</p><h1>Получите ещё варианты фасада</h1><p class="muted">Первый результат уже показал возможности сервиса. Выберите пакет для серии решений или добавьте несколько отдельных кредитов.</p></div></section>
         <section class="panel balance-card"><p class="muted">Доступно</p>
           <p class="balance-value">${escapeHtml(creditsLabel(wallet.balance))}</p></section>
-        <h2>Пакеты для генераций</h2><p class="muted">Генерация фасада стоит ${escapeHtml(standardCost)} кредит. Вы сами распределяете баланс между генерациями, Pro, доработками и 4K.</p><div class="tariff-grid">${tariffs}</div>
-        ${topups ? `<h2>Добавить несколько кредитов</h2><p class="muted">Точечное пополнение удобно, когда немного не хватает. Пакеты остаются выгоднее по цене одного кредита.</p><div class="tariff-grid topup-grid">${topups}</div>` : ""}
+        ${requestedPlan ? `<div class="notice success" role="status">Выбранный на главной пакет выделен ниже. Проверьте состав и переходите к оплате.</div>` : ""}
+        <section class="purchase-choice" aria-label="Способы продолжить работу"><div><strong>Пакет</strong><span>Выгоднее для нескольких вариантов одного или разных домов.</span></div><div><strong>Отдельные кредиты</strong><span>Когда нужна ещё одна, две или три генерации.</span></div></section>
+        <h2>Пакеты для нескольких вариантов</h2><p class="muted">Обычная генерация фасада стоит ${escapeHtml(standardCost)} кредит. Перед каждым платным действием сервис показывает точную стоимость.</p><div class="tariff-grid">${tariffs}</div>
+        ${topups ? `<section id="topups" class="topup-section"><h2>Добавить несколько кредитов</h2><p class="muted">Точечное пополнение удобно, когда немного не хватает. Пакеты остаются выгоднее по цене одного кредита.</p><div class="tariff-grid topup-grid">${topups}</div></section>` : ""}
         <p class="muted">Цена и количество кредитов загружаются из единого серверного справочника.</p>
         ${paymentConfig?.enabled ? "" : '<p class="notice">Платежи временно выключены. Неработающая оплата пользователю не показывается.</p>'}
         <h2>Стоимость действий</h2><div class="table-wrap"><table><tbody>${actions}</tbody></table></div>

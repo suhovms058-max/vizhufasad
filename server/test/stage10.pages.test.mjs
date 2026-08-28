@@ -68,7 +68,10 @@ test("/app/new explains the private free photo check before upload", async () =>
     assert.match(html, new RegExp(text, "u"));
   }
   assert.match(html, /id="preview-shell"/u);
-  assert.match(html, /id="photo-processing-consent"/u);
+    assert.match(html, /id="photo-processing-consent"/u);
+    assert.match(html, /id="photo-usage-rights"/u);
+    assert.match(html, /data-consent-hash="[a-f0-9]{64}"/u);
+    assert.match(html, /data-rights-hash="[a-f0-9]{64}"/u);
   assert.match(html, /id="photo-usage-rights"/u);
   assert.match(html, /\/legal\/photo-processing-consent/u);
   assert.match(html, /id="remove-photo"/u);

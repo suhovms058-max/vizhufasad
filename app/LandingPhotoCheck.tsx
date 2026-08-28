@@ -164,9 +164,9 @@ export function LandingPhotoCheck({ appUrl }: { appUrl: string }) {
     <section className="photoStart section" id="photo-check" aria-labelledby="photo-check-title">
       <div className="shell photoStartGrid">
         <div className="photoStartCopy">
-          <div className="eyebrow light"><span /> НАЧНИТЕ С ФОТОГРАФИИ</div>
-          <h2 id="photo-check-title">Проверьте фото дома<br /><em>до выбора отделки</em></h2>
-          <p>Загрузите снимок прямо здесь. Сначала бесплатно проверим технические параметры, затем в кабинете — пригодность фасада для визуализации.</p>
+          <div className="eyebrow light"><span /> ПЕРВЫЙ ВАРИАНТ БЕЗ ОПЛАТЫ</div>
+          <h2 id="photo-check-title">Начните с фотографии<br /><em>своего дома</em></h2>
+          <p>Загрузите снимок, чтобы создать первую визуализацию фасада бесплатно. Сначала сервис проверит технические параметры фото, затем предложит выбрать стиль и материалы.</p>
           <ul>
             <li>Дом виден целиком и снят при дневном свете</li>
             <li>Перед фасадом нет крупных деревьев и автомобилей</li>
@@ -211,9 +211,9 @@ export function LandingPhotoCheck({ appUrl }: { appUrl: string }) {
             <span>{result.message}</span>
           </div>
           <button className="button photoContinue" type="button" disabled={!file || saving} onClick={continueToApp}>
-            {saving ? "Сохраняем фото…" : "Продолжить с этим фото →"}
+            {saving ? "Сохраняем фото…" : "Выбрать стиль и создать фасад →"}
           </button>
-          <p className="photoNoCharge">На этом шаге оплата и кредит не требуются</p>
+          <p className="photoNoCharge">Первая генерация бесплатна · банковская карта не требуется</p>
         </div>
       </div>
     </section>

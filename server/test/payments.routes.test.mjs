@@ -3,6 +3,8 @@ import test from "node:test";
 import express from "express";
 import { createPaymentRouter, createPaymentWebhookRouter } from "../src/payments/http.mjs";
 import { createPaymentPagesRouter } from "../src/payments/pages.mjs";
+import { createLegalPagesRouter } from "../src/legal/pages.mjs";
+import { legalDocument } from "../src/legal/documents.mjs";
 
 async function withServer(callback) {
   const authService = { async sessionFromRequest(request) {
@@ -27,7 +29,9 @@ async function withServer(callback) {
   const app = express();
   app.use("/api/payments/webhooks", createPaymentWebhookRouter({ paymentService }));
   app.use(express.json());
-  app.use("/api/payments", createPaymentRouter({ authService, paymentService }));
+  app.use("/api/payments", createPaymentRouter({
+    authService, paymentService, legalAcceptanceRepository: { async record() {} },
+  }));
   const server = app.listen(0, "127.0.0.1");
   await new Promise((resolve) => server.once("listening", resolve));
   try { await callback(`http://127.0.0.1:${server.address().port}`); }
@@ -42,7 +46,9 @@ test("payment routes require a session and checkout requires server idempotency"
     const checkout = await fetch(`${baseUrl}/api/payments/checkout`, {
       method: "POST",
       headers: { ...headers, "content-type": "application/json", "idempotency-key": "checkout-key" },
-      body: JSON.stringify({ tariffPlanId: "tariff-id", priceMinor: 1, credits: 999999 }),
+      body: JSON.stringify({ tariffPlanId: "tariff-id", priceMinor: 1, credits: 999999, offer: {
+        accepted: true, version: legalDocument("offer").revision, hash: legalDocument("offer").hash,
+      } }),
     });
     assert.equal(checkout.status, 201);
     const subscription = await fetch(`${baseUrl}/api/payments/subscriptions`, { method: "POST", headers });
@@ -85,12 +91,17 @@ test("payment form accepts browser same-origin metadata and rejects cross-site p
         return { payment: { id: "payment-id" }, checkout: { url: "https://pay.test" } };
       },
     },
+    legalAcceptanceRepository: { async record() {} },
     config: { siteOrigin: "https://vizhufasad.ru" },
   }));
   const server = app.listen(0, "127.0.0.1");
   await new Promise((resolve) => server.once("listening", resolve));
   const url = `http://127.0.0.1:${server.address().port}/app/payments/checkout`;
-  const body = new URLSearchParams({ tariffPlanId: "tariff-id", idempotencyKey: "checkout-key" });
+  const offer = legalDocument("offer");
+  const body = new URLSearchParams({
+    tariffPlanId: "tariff-id", idempotencyKey: "checkout-key", offerAccepted: "yes",
+    offerVersion: offer.revision, offerHash: offer.hash,
+  });
   try {
     const sameOrigin = await fetch(url, {
       method: "POST",
@@ -122,19 +133,9 @@ test("payment form accepts browser same-origin metadata and rejects cross-site p
   }
 });
 
-test("public offer identifies the automated digital service and published merchant", async () => {
+test("public offer identifies the automated digital service and published operator", async () => {
   const app = express();
-  app.use(createPaymentPagesRouter({
-    authService: { async sessionFromRequest() { return null; } },
-    paymentService: {},
-    config: {
-      siteOrigin: "https://stage.example.test",
-      merchantName: "Иванов Иван Иванович LEGAL_MERCHANT_INN=000000000000 LEGAL_MERCHANT_EMAIL=merchant@example.test",
-      merchantInn: "000000000000",
-      merchantEmail: "merchant@example.test",
-      merchantStatus: "Самозанятый, плательщик НПД",
-    },
-  }));
+  app.use(createLegalPagesRouter());
   const server = app.listen(0, "127.0.0.1");
   await new Promise((resolve) => server.once("listening", resolve));
   try {
@@ -144,10 +145,10 @@ test("public offer identifies the automated digital service and published mercha
     assert.match(html, /Публичная оферта/);
     assert.match(html, /\/assets\/app-ui\.css/u);
     assert.match(html, /class="panel legal-content"/u);
-    assert.match(html, /Иванов Иван Иванович/);
-    assert.doesNotMatch(html, /LEGAL_MERCHANT_/u);
-    assert.match(html, /самостоятельного автоматического создания/);
-    assert.doesNotMatch(html, /дизайнера или оператора[^<]*предоставляет/u);
+    assert.match(html, /Сухов Максим Сергеевич|Оператор/u);
+    assert.match(html, /автоматизированных цифровых услуг/u);
+    assert.match(html, /SHA-256/u);
+    assert.doesNotMatch(html, /ТРЕБУЕТ|не публиковать|\[[^\]]+\]/u);
   } finally {
     await new Promise((resolve) => server.close(resolve));
   }

@@ -5,8 +5,17 @@ import test from "node:test";
 import { closeDatabase, getPool } from "../src/db/client.mjs";
 import { AuthRepository } from "../src/auth/repository.mjs";
 import { AuthService } from "../src/auth/service.mjs";
+import { LegalAcceptanceRepository } from "../src/legal/repository.mjs";
+import { AGE_CONFIRMATION, legalDocument } from "../src/legal/documents.mjs";
 
 const enabled = Boolean(process.env.DATABASE_URL);
+const agreement = legalDocument("user-agreement");
+const personalData = legalDocument("personal-data-consent");
+const accountConsents = {
+  agreementAccepted: true, agreementVersion: agreement.revision, agreementHash: agreement.hash,
+  personalDataAccepted: true, personalDataVersion: personalData.revision, personalDataHash: personalData.hash,
+  ageConfirmed: true, ageVersion: AGE_CONFIRMATION.revision, ageHash: AGE_CONFIRMATION.hash,
+};
 
 test("login code is one-time and creates user, wallet and revocable session", { skip: !enabled }, async () => {
   const pool = getPool();
@@ -23,6 +32,7 @@ test("login code is one-time and creates user, wallet and revocable session", { 
   };
   const service = new AuthService({
     repository,
+    legalAcceptanceRepository: new LegalAcceptanceRepository(pool),
     config,
     mailer: { async sendLoginCode(message) { deliveredCode = message.code; } },
   });
@@ -31,6 +41,7 @@ test("login code is one-time and creates user, wallet and revocable session", { 
     const exhausted = await service.requestCode(email, { ip: "127.0.0.1" });
     for (let attempt = 2; attempt >= 0; attempt -= 1) {
       const rejected = await service.verifyCode({
+        ...accountConsents,
         challengeId: exhausted.challengeId,
         code: deliveredCode === "000000" ? "999999" : "000000",
       }, { ip: "127.0.0.1" });
@@ -39,6 +50,7 @@ test("login code is one-time and creates user, wallet and revocable session", { 
       assert.equal(rejected.attemptsRemaining, attempt);
     }
     const afterExhaustion = await service.verifyCode({
+      ...accountConsents,
       challengeId: exhausted.challengeId,
       code: deliveredCode,
     }, { ip: "127.0.0.1" });
@@ -47,12 +59,14 @@ test("login code is one-time and creates user, wallet and revocable session", { 
 
     const requested = await service.requestCode(email, { ip: "127.0.0.1" });
     const first = await service.verifyCode({
+      ...accountConsents,
       challengeId: requested.challengeId,
       code: deliveredCode,
     }, { ip: "127.0.0.1", userAgent: "node-test" });
     assert.equal(first.ok, true);
 
     const repeated = await service.verifyCode({
+      ...accountConsents,
       challengeId: requested.challengeId,
       code: deliveredCode,
     }, { ip: "127.0.0.1" });
@@ -83,6 +97,7 @@ test("login code is one-time and creates user, wallet and revocable session", { 
 
     const repeatRequest = await service.requestCode(email, { ip: "127.0.0.1" });
     const repeatLogin = await service.verifyCode({
+      ...accountConsents,
       challengeId: repeatRequest.challengeId,
       code: deliveredCode,
     }, { ip: "127.0.0.1", userAgent: "node-test-repeat" });
@@ -103,6 +118,7 @@ test("login code is one-time and creates user, wallet and revocable session", { 
     assert.equal(await service.sessionFromRequest({ headers: { cookie: `session=${repeatLogin.token}` } }), null);
     const deletionLogin = await service.requestCode(email, { ip: "127.0.0.1" });
     const rejectedDeletionLogin = await service.verifyCode({
+      ...accountConsents,
       challengeId: deletionLogin.challengeId,
       code: deliveredCode,
     }, { ip: "127.0.0.1" });
@@ -111,6 +127,7 @@ test("login code is one-time and creates user, wallet and revocable session", { 
   } finally {
     const user = await pool.query("select id from users where email = $1", [email]);
     if (user.rows[0]) {
+      await pool.query("delete from legal_acceptances where user_id = $1", [user.rows[0].id]);
       await pool.query(
         "delete from wallet_transactions where wallet_id in (select id from wallets where user_id = $1)",
         [user.rows[0].id],

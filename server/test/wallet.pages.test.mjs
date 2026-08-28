@@ -88,17 +88,24 @@ test("enabled balance page offers checkout only for paid tariffs and shows owner
   const server = app.listen(0, "127.0.0.1");
   await new Promise((resolve) => server.once("listening", resolve));
   try {
-    const response = await fetch(`http://127.0.0.1:${server.address().port}/app/balance`);
+    const response = await fetch(`http://127.0.0.1:${server.address().port}/app/balance?plan=START`);
     const html = await response.text();
     assert.equal(response.status, 200);
     assert.equal((html.match(/action="\/app\/payments\/checkout"/g) || []).length, 2);
+    assert.equal((html.match(/name="offerAccepted" value="yes" required/g) || []).length, 2);
+    assert.doesNotMatch(html, /name="offerAccepted"[^>]*checked/u);
+    assert.match(html, /name="offerHash" value="[a-f0-9]{64}"/u);
     assert.match(html, /value="start-id"/);
     assert.match(html, /value="topup-id"/);
     assert.match(html, /Добавить несколько кредитов/);
     assert.match(html, /Пакеты остаются выгоднее/);
-    assert.match(html, /До 1 генерации/);
+    assert.match(html, /До 4 генераций/);
+    assert.match(html, /id="plan-START" class="panel tariff-card selected-plan"/);
+    assert.match(html, /Вы выбрали этот пакет/);
     assert.doesNotMatch(html, /value="free-id"/);
     assert.match(html, /Чек формирует Robokassa/);
+    assert.match(html, /Запросить частичный или иной возврат/);
+    assert.match(html, /payment-id/);
   } finally {
     await new Promise((resolve) => server.close(resolve));
   }

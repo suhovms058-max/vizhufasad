@@ -95,6 +95,10 @@ test("email login and verification pages use the responsive cabinet design", asy
     const verifyHtml = await verify.text();
     assert.match(verifyHtml, /autocomplete="one-time-code"/u);
     assert.match(verifyHtml, /class="code-input"/u);
+    assert.match(verifyHtml, /name="agreementAccepted" value="yes" required/u);
+    assert.match(verifyHtml, /name="ageConfirmed" value="yes" required/u);
+    assert.match(verifyHtml, /name="personalDataAccepted" value="yes" required/u);
+    assert.doesNotMatch(verifyHtml, /name="(?:agreementAccepted|ageConfirmed|personalDataAccepted)"[^>]*checked/u);
   });
 });
 

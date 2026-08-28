@@ -230,4 +230,58 @@ export class AuthRepository {
       client.release();
     }
   }
+
+  async pendingAccountDeletions(limit = 20) {
+    const result = await this.pool.query(
+      `select id, email, account_deletion_requested_at
+       from users
+       where account_deletion_requested_at is not null and deleted_at is null
+       order by account_deletion_requested_at asc limit $1`,
+      [limit],
+    );
+    return result.rows;
+  }
+
+  async finalizeAccountDeletion(userId) {
+    const client = await this.pool.connect();
+    try {
+      await client.query("begin");
+      const current = await client.query(
+        `select id, email from users
+         where id = $1 and account_deletion_requested_at is not null and deleted_at is null
+         for update`,
+        [userId],
+      );
+      if (!current.rowCount) {
+        await client.query("commit");
+        return { completed: false };
+      }
+      const email = current.rows[0].email;
+      const codes = await client.query(
+        "delete from email_login_codes where lower(email) = lower($1)",
+        [email],
+      );
+      const sessions = await client.query("delete from auth_sessions where user_id = $1", [userId]);
+      await client.query(
+        `update users set status = 'deleted',
+          email = concat('deleted+', id::text, '@invalid.vizhufasad.local'),
+          deleted_at = now(), updated_at = now()
+         where id = $1`,
+        [userId],
+      );
+      await client.query(
+        `insert into audit_logs (actor_user_id, action, entity_type, entity_id, details)
+         values ($1, 'account.deletion_completed', 'user', $1,
+           jsonb_build_object('loginCodesDeleted', $2::int, 'sessionsDeleted', $3::int))`,
+        [userId, codes.rowCount, sessions.rowCount],
+      );
+      await client.query("commit");
+      return { completed: true, loginCodesDeleted: codes.rowCount, sessionsDeleted: sessions.rowCount };
+    } catch (error) {
+      await client.query("rollback");
+      throw error;
+    } finally {
+      client.release();
+    }
+  }
 }

@@ -1,7 +1,8 @@
 import express from "express";
 import { createRequireSession } from "../auth/http.mjs";
 import {
-  PHOTO_PROCESSING_CONSENT_PATH, PHOTO_PROCESSING_CONSENT_VERSION,
+  PHOTO_PROCESSING_CONSENT_HASH, PHOTO_PROCESSING_CONSENT_PATH, PHOTO_PROCESSING_CONSENT_VERSION,
+  PHOTO_USAGE_RIGHTS_HASH, PHOTO_USAGE_RIGHTS_VERSION,
 } from "../legal/photo-consent.mjs";
 import { ProjectError } from "./service.mjs";
 
@@ -96,7 +97,7 @@ function page(title, body, { scripts = [] } = {}) {
   <header class="app-header"><a class="brand brand-home" href="/" aria-label="Вернуться на главную страницу"><svg viewBox="0 0 24 24" aria-hidden="true"><path d="M3 11.5 12 4l9 7.5M5.5 10v9h13v-9M9.5 19v-5h5v5"/></svg><span>ВИЖУФАСАД</span></a>
     <nav aria-label="Основная навигация"><a href="/app">Мои проекты</a><a href="/app/new">Новый проект</a>
     <a href="/app/balance">Баланс</a><a href="/app/settings">Настройки</a></nav></header>
-  <main id="main" class="app-main">${body}</main>
+  <main id="main" class="app-main">${body}</main><footer class="app-footer"><a href="/legal">Правовая информация</a><a href="/legal/offer">Оплата</a><a href="/legal/privacy">Конфиденциальность</a><button type="button" class="link-button" data-privacy-settings>Настройки конфиденциальности</button></footer>
   ${["/assets/product-analytics.js", ...scripts].map((src) => `<script src="${src}" defer></script>`).join("")}</body></html>`;
 }
 
@@ -155,7 +156,8 @@ function projectCard(project) {
 
 function uploadStep(project) {
   return `<section id="upload-app" class="flow upload-flow" data-project-id="${escapeHtml(project?.id || "")}"
-    data-consent-version="${PHOTO_PROCESSING_CONSENT_VERSION}">
+    data-consent-version="${PHOTO_PROCESSING_CONSENT_VERSION}" data-consent-hash="${PHOTO_PROCESSING_CONSENT_HASH}"
+    data-rights-version="${PHOTO_USAGE_RIGHTS_VERSION}" data-rights-hash="${PHOTO_USAGE_RIGHTS_HASH}">
     <div class="flow-heading"><p class="eyebrow">Шаг 1 из 3 · бесплатно</p><h1>${project ? "Замените фотографию дома" : "Загрузите фотографию дома"}</h1>
     <p>Сначала автоматически проверим, подходит ли снимок для визуализации. Кредит на этом шаге не списывается.</p></div>
     <div class="upload-layout">
@@ -310,6 +312,11 @@ function resultPage(project, generation, history, sourceUrl, resultUrl, balance,
   const config = generation.config_snapshot || {};
   const kind = generation.kind || config.generationKind || "standard";
   const terminal = ["completed", "failed_refunded", "cancelled"].includes(generation.status);
+  const freeResultOffer = generation.requires_watermark ? `<section class="result-next-step" aria-label="Продолжение после бесплатной генерации">
+      <p class="eyebrow">Бесплатный вариант готов</p><h2>Хотите сравнить другие стили?</h2>
+      <p>Выберите пакет для нескольких вариантов или добавьте отдельные кредиты, если нужна ещё одна, две или три генерации.</p>
+      <div><a class="button" href="/app/balance?plan=START#plan-START">Получить ещё варианты</a><a href="/app/balance#topups">Добавить кредиты</a></div>
+    </section>` : "";
   const visual = generation.status === "completed" && resultUrl
     ? `<section class="result-layout"><div id="comparison" class="comparison" style="--position:50%">
       <img src="${escapeHtml(resultUrl)}" alt="Проверенный результат фасада">
@@ -321,6 +328,7 @@ function resultPage(project, generation, history, sourceUrl, resultUrl, balance,
       <dl><div><dt>Стиль</dt><dd>${escapeHtml(config.style)}</dd></div><div><dt>Материалы</dt><dd>${escapeHtml((config.materials || []).join(", ") || "Автоподбор")}</dd></div>
       <div><dt>Палитра</dt><dd>${escapeHtml((config.palette || []).join(", ") || "Автоподбор")}</dd></div><div><dt>Режим</dt><dd>${escapeHtml(transformationLevelLabel(config.transformationLevel))}</dd></div></dl>
       <p class="concept-note">Визуализация является концепцией, а не рабочим строительным проектом.${generation.requires_watermark ? " Водяной знак означает, что использованы бесплатные кредиты." : ""}</p>
+      ${freeResultOffer}
       <div class="actions stacked"><a class="button" href="${escapeHtml(resultUrl)}" download>Скачать</a>
       <button id="favorite-button" class="secondary" type="button" data-favorite="${generation.is_favorite}">${generation.is_favorite ? "Убрать из избранного" : "В избранное"}</button>
       <a class="button secondary" href="/app/new?project=${escapeHtml(project.id)}&repeat=${escapeHtml(generation.id)}">Повторить настройки</a>

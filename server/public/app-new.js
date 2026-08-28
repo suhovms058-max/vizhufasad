@@ -202,7 +202,8 @@
             filename: selectedFile.name,
             mimeType: selectedFile.type,
             byteSize: selectedFile.size,
-            consent: { accepted: true, version: root.dataset.consentVersion },
+            consent: { accepted: true, version: root.dataset.consentVersion, hash: root.dataset.consentHash },
+            rights: { accepted: true, version: root.dataset.rightsVersion, hash: root.dataset.rightsHash },
           }),
         });
         show("Загружаем напрямую в приватное хранилище…");

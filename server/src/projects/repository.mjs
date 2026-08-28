@@ -91,13 +91,15 @@ export class ProjectRepository {
         `insert into source_images (
           id, project_id, storage_bucket, storage_key, original_filename,
           declared_mime_type, mime_type, byte_size, status, upload_expires_at,
-          consent_version, consented_at
-        ) values ($1, $2, $3, $4, $5, $6, $6, $7, 'uploading', $8, $9, $10)
+          consent_version, consent_hash, consented_at,
+          rights_version, rights_hash, rights_confirmed_at
+        ) values ($1, $2, $3, $4, $5, $6, $6, $7, 'uploading', $8, $9, $10, $11, $12, $13, $14)
         returning *`,
         [
           input.id, input.projectId, input.bucket, input.storageKey, input.originalFilename,
           input.declaredMimeType, input.byteSize, input.uploadExpiresAt,
-          input.consentVersion, input.consentedAt,
+          input.consentVersion, input.consentHash, input.consentedAt,
+          input.rightsVersion, input.rightsHash, input.rightsConfirmedAt,
         ],
       );
       await client.query(
@@ -299,5 +301,37 @@ export class ProjectRepository {
 
   async hardDeleteProject(projectId) {
     await this.pool.query("delete from projects where id = $1 and deleted_at is not null", [projectId]);
+  }
+
+  async projectsForAccountDeletion(userId) {
+    const result = await this.pool.query(
+      `select p.id, coalesce(array_agg(stored.key) filter (where stored.key is not null), '{}') as keys
+       from projects p
+       left join lateral (
+         select unnest(array[i.storage_key, i.working_storage_key, i.thumbnail_storage_key]) as key
+           from source_images i where i.project_id = p.id
+         union all
+         select unnest(array[g.result_key, g.watermark_key]) as key
+           from generations g where g.project_id = p.id
+         union all
+         select a.result_key as key from generation_attempts a
+           join generations g on g.id = a.generation_id where g.project_id = p.id
+         union all
+         select q.diagnostic_key as key from generation_quality_assessments q
+           join generations g on g.id = q.generation_id where g.project_id = p.id
+       ) stored on true
+       where p.user_id = $1 group by p.id`,
+      [userId],
+    );
+    return result.rows;
+  }
+
+  async markProjectForAccountDeletion(userId, projectId) {
+    const result = await this.pool.query(
+      `update projects set status = 'deleted', deleted_at = coalesce(deleted_at, now()), updated_at = now()
+       where id = $1 and user_id = $2 returning id`,
+      [projectId, userId],
+    );
+    return Boolean(result.rowCount);
   }
 }

@@ -1,7 +1,7 @@
 import assert from "node:assert/strict";
 import test from "node:test";
 import { ProductAnalyticsRepository } from "../src/analytics/repository.mjs";
-import { ProductAnalyticsService } from "../src/analytics/service.mjs";
+import { ANALYTICS_CONSENT_VERSION, ProductAnalyticsService } from "../src/analytics/service.mjs";
 
 test("product analytics stores only allowlisted non-sensitive fields", async () => {
   const records = [];
@@ -14,6 +14,7 @@ test("product analytics stores only allowlisted non-sensitive fields", async () 
     sessionId: "a3f8b099-8e3d-4d8e-9612-127f629e4b19",
     path: "/?email=private@example.test",
     properties: { plan: "START", email: "private@example.test", paymentId: "secret" },
+    consent: { accepted: true, version: ANALYTICS_CONSENT_VERSION },
   });
   assert.equal(result.accepted, true);
   assert.equal(records.length, 1);
@@ -33,6 +34,9 @@ test("product analytics rejects unknown events and malformed sessions", async ()
     eventName: "arbitrary_event", sessionId: "a3f8b099-8e3d-4d8e-9612-127f629e4b19", path: "/",
   }), { accepted: false });
   assert.deepEqual(await service.record({ eventName: "page_view", sessionId: "short", path: "/" }), { accepted: false });
+  assert.deepEqual(await service.record({
+    eventName: "page_view", sessionId: "a3f8b099-8e3d-4d8e-9612-127f629e4b19", path: "/",
+  }), { accepted: false });
   assert.equal(calls, 0);
 });
 

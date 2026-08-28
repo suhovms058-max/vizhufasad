@@ -2,6 +2,7 @@ import express from "express";
 import rateLimit from "express-rate-limit";
 import { createRequireSession } from "../auth/http.mjs";
 import { PaymentError } from "./contract.mjs";
+import { isCurrentLegalAcceptance, legalDocument } from "../legal/documents.mjs";
 
 function sendError(response, error) {
   if (error instanceof PaymentError || (error?.code && Number.isInteger(error?.status))) {
@@ -10,7 +11,7 @@ function sendError(response, error) {
   throw error;
 }
 
-export function createPaymentRouter({ authService, paymentService }) {
+export function createPaymentRouter({ authService, paymentService, legalAcceptanceRepository }) {
   const router = express.Router();
   router.use(createRequireSession(authService));
   router.get("/", async (request, response, next) => {
@@ -29,11 +30,20 @@ export function createPaymentRouter({ authService, paymentService }) {
   });
   router.post("/checkout", rateLimit({ windowMs: 60_000, limit: 10, standardHeaders: true }), async (request, response, next) => {
     try {
+      if (!isCurrentLegalAcceptance(request.body?.offer, "offer")) {
+        return response.status(422).json({ error: "OFFER_ACCEPTANCE_REQUIRED" });
+      }
       const result = await paymentService.createCheckout(
         request.auth,
         request.body,
         request.get("idempotency-key"),
       );
+      const offer = legalDocument("offer");
+      await legalAcceptanceRepository.record({
+        userId: request.auth.user_id, documentKey: offer.key,
+        documentVersion: offer.revision, documentHash: offer.hash,
+        context: "payment_checkout_api", paymentId: result.payment.id,
+      });
       return response.status(result.idempotent ? 200 : 201).json(result);
     } catch (error) {
       try { return sendError(response, error); } catch (unexpected) { return next(unexpected); }

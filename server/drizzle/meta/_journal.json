@@ -148,6 +148,13 @@
       "when": 1787616000000,
       "tag": "0020_incremental_credit_topups",
       "breakpoints": true
+    },
+    {
+      "idx": 21,
+      "version": "7",
+      "when": 1787884800000,
+      "tag": "0021_legal_acceptances",
+      "breakpoints": true
     }
   ]
 }

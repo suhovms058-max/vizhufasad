@@ -77,7 +77,8 @@ export function createAuthRouter({ service, config }) {
       if (!result.ok) {
         const status = result.reason === "ATTEMPTS_EXHAUSTED"
           ? 429
-          : result.reason === "ACCOUNT_UNAVAILABLE" ? 403 : 401;
+          : result.reason === "ACCOUNT_UNAVAILABLE" ? 403
+            : result.reason === "LEGAL_CONSENT_REQUIRED" ? 400 : 401;
         return authError(response, status, result.reason);
       }
       response.cookie(config.cookieName, result.token, service.cookieOptions());

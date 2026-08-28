@@ -1,7 +1,8 @@
 import { randomUUID } from "node:crypto";
 import { normalizeGenerationInput } from "../generation/contract.mjs";
 import {
-  isCurrentPhotoConsent, PHOTO_PROCESSING_CONSENT_VERSION,
+  isCurrentPhotoConsent, isCurrentPhotoRights, PHOTO_PROCESSING_CONSENT_HASH,
+  PHOTO_PROCESSING_CONSENT_VERSION, PHOTO_USAGE_RIGHTS_HASH, PHOTO_USAGE_RIGHTS_VERSION,
 } from "../legal/photo-consent.mjs";
 import {
   allowedUploadMimeTypes, hasReliableHeifDecoder, HEIF_MIME_TYPES, MAX_UPLOAD_BYTES,
@@ -127,6 +128,9 @@ export class ProjectService {
     if (!isCurrentPhotoConsent(input.consent)) {
       throw new ProjectError("PHOTO_PROCESSING_CONSENT_REQUIRED", 422);
     }
+    if (!isCurrentPhotoRights(input.rights)) {
+      throw new ProjectError("PHOTO_USAGE_RIGHTS_REQUIRED", 422);
+    }
     const declaredMimeType = String(input.mimeType || "").toLowerCase();
     if (!allowedUploadMimeTypes().includes(declaredMimeType)) {
       if (HEIF_MIME_TYPES.has(declaredMimeType) && !hasReliableHeifDecoder()) {
@@ -152,7 +156,11 @@ export class ProjectService {
       byteSize,
       uploadExpiresAt,
       consentVersion: PHOTO_PROCESSING_CONSENT_VERSION,
+      consentHash: PHOTO_PROCESSING_CONSENT_HASH,
       consentedAt: this.clock(),
+      rightsVersion: PHOTO_USAGE_RIGHTS_VERSION,
+      rightsHash: PHOTO_USAGE_RIGHTS_HASH,
+      rightsConfirmedAt: this.clock(),
     });
     if (!image) throw new ProjectError("PROJECT_NOT_FOUND", 404);
     try {

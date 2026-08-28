@@ -47,6 +47,11 @@ import { analyzeTechnicalPhoto } from "./src/photo-assessment/technical.mjs";
 import { loadPaymentConfig } from "./src/payments/config.mjs";
 import { createPaymentRouter, createPaymentWebhookRouter } from "./src/payments/http.mjs";
 import { createPaymentPagesRouter } from "./src/payments/pages.mjs";
+import { createLegalPagesRouter } from "./src/legal/pages.mjs";
+import { LegalAcceptanceRepository } from "./src/legal/repository.mjs";
+import {
+  AccountDeletionProcessor, PersonalDataRetentionRepository,
+} from "./src/legal/retention.mjs";
 import { RobokassaPaymentProvider } from "./src/payments/providers/robokassa.mjs";
 import { PaymentRepository } from "./src/payments/repository.mjs";
 import { PaymentService } from "./src/payments/service.mjs";
@@ -129,10 +134,12 @@ const generationMetrics = new GenerationMetrics({
   qualityRepository: generationQualityRepository,
 });
 const authRepository = new AuthRepository(undefined, walletConfig);
+const legalAcceptanceRepository = new LegalAcceptanceRepository();
 const authService = new AuthService({
   repository: authRepository,
   mailer: createAuthMailer(authConfig),
   config: authConfig,
+  legalAcceptanceRepository,
 });
 const projectConfig = loadProjectConfig();
 const productAnalyticsRepository = new ProductAnalyticsRepository();
@@ -157,6 +164,12 @@ const projectService = new ProjectService({
   storage,
   config: projectConfig,
   assessmentService: photoAssessmentService,
+});
+const personalDataRetentionRepository = new PersonalDataRetentionRepository();
+const accountDeletionProcessor = new AccountDeletionProcessor({
+  authRepository,
+  projectRepository,
+  storage,
 });
 const maxApi = "https://platform-api2.max.ru";
 const allowedImages = new Set(["image/jpeg", "image/png", "image/webp"]);
@@ -224,7 +237,7 @@ app.use(
 );
 app.use("/api/wallet", createWalletRouter({ authService, walletService }));
 app.use("/api/catalog", createCatalogRouter({ authService, walletService }));
-app.use("/api/payments", createPaymentRouter({ authService, paymentService }));
+app.use("/api/payments", createPaymentRouter({ authService, paymentService, legalAcceptanceRepository }));
 app.use(createProjectPagesRouter({
   authService, projectService, generationService, walletService,
   generationConfig, upscaleConfig, comparisonService,
@@ -232,7 +245,8 @@ app.use(createProjectPagesRouter({
 app.use(createWalletPagesRouter({
   authService, walletService, paymentService, paymentConfig,
 }));
-app.use(createPaymentPagesRouter({ authService, paymentService, config: paymentConfig }));
+app.use(createPaymentPagesRouter({ authService, paymentService, legalAcceptanceRepository, config: paymentConfig }));
+app.use(createLegalPagesRouter());
 app.use(createAuthPagesRouter({ service: authService, config: authConfig }));
 const legacyLeadsMode = String(process.env.LEGACY_LEADS_MODE || "deprecated").toLowerCase();
 if (!["deprecated", "disabled"].includes(legacyLeadsMode)) {
@@ -490,10 +504,30 @@ const httpServer = app.listen(
   () => console.log(`VIZHUFASAD API listening on ${host}:${port}`),
 );
 
+const configuredPersonalDataCleanupInterval = Number(process.env.PERSONAL_DATA_CLEANUP_INTERVAL_MS);
+const personalDataCleanupIntervalMs = Number.isFinite(configuredPersonalDataCleanupInterval)
+  ? Math.max(5 * 60 * 1000, configuredPersonalDataCleanupInterval)
+  : 6 * 60 * 60 * 1000;
+async function runPersonalDataCleanup() {
+  const retention = await personalDataRetentionRepository.cleanup();
+  const deletions = await accountDeletionProcessor.run();
+  console.log("Personal data cleanup completed", { retention, deletions });
+}
+const initialPersonalDataCleanup = setTimeout(() => {
+  runPersonalDataCleanup().catch((error) => console.error("Personal data cleanup failed", error));
+}, 30_000);
+initialPersonalDataCleanup.unref();
+const personalDataCleanupTimer = setInterval(() => {
+  runPersonalDataCleanup().catch((error) => console.error("Personal data cleanup failed", error));
+}, personalDataCleanupIntervalMs);
+personalDataCleanupTimer.unref();
+
 let closing = false;
 async function shutdown(signal) {
   if (closing) return;
   closing = true;
+  clearTimeout(initialPersonalDataCleanup);
+  clearInterval(personalDataCleanupTimer);
   console.log("VIZHUFASAD API graceful shutdown", { signal });
   httpServer.close(async () => {
     await Promise.allSettled([

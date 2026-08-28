@@ -2,12 +2,14 @@ import {
   createChallengeId, createLoginCode, createSessionToken, hashAuthValue,
   normalizeEmail, parseCookies,
 } from "./crypto.mjs";
+import { accountConsentsFromInput } from "../legal/documents.mjs";
 
 export class AuthService {
-  constructor({ repository, mailer, config, clock = () => new Date() }) {
+  constructor({ repository, mailer, config, legalAcceptanceRepository, clock = () => new Date() }) {
     this.repository = repository;
     this.mailer = mailer;
     this.config = config;
+    this.legalAcceptanceRepository = legalAcceptanceRepository;
     this.clock = clock;
   }
 
@@ -38,8 +40,11 @@ export class AuthService {
     return { challengeId, expiresInSeconds: this.config.codeTtlSeconds };
   }
 
-  async verifyCode({ challengeId, code }, context = {}) {
+  async verifyCode(input, context = {}) {
+    const { challengeId, code } = input || {};
     if (!/^[0-9]{6}$/u.test(String(code || ""))) return { ok: false, reason: "INVALID_CODE" };
+    const consents = accountConsentsFromInput(input);
+    if (!consents.every((consent) => consent.valid)) return { ok: false, reason: "LEGAL_CONSENT_REQUIRED" };
     const token = createSessionToken();
     const result = await this.repository.authenticateWithCode({
       challengeId,
@@ -50,7 +55,18 @@ export class AuthService {
       expiresAt: new Date(this.clock().getTime() + this.config.sessionTtlSeconds * 1000),
       now: this.clock(),
     });
-    return result.ok ? { ...result, token } : result;
+    if (!result.ok) return result;
+    if (!this.legalAcceptanceRepository) throw new Error("LEGAL_ACCEPTANCE_REPOSITORY_REQUIRED");
+    for (const consent of consents) {
+      await this.legalAcceptanceRepository.record({
+        userId: result.user.id,
+        documentKey: consent.document.key,
+        documentVersion: consent.document.revision,
+        documentHash: consent.document.hash,
+        context: "account_login",
+      });
+    }
+    return { ...result, token };
   }
 
   cookieOptions() {

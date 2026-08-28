@@ -1,6 +1,9 @@
 import assert from "node:assert/strict";
 import test from "node:test";
-import { PHOTO_PROCESSING_CONSENT_VERSION } from "../src/legal/photo-consent.mjs";
+import {
+  PHOTO_PROCESSING_CONSENT_HASH, PHOTO_PROCESSING_CONSENT_VERSION,
+  PHOTO_USAGE_RIGHTS_HASH, PHOTO_USAGE_RIGHTS_VERSION,
+} from "../src/legal/photo-consent.mjs";
 import { ProjectError, ProjectService } from "../src/projects/service.mjs";
 
 function setup() {
@@ -34,6 +37,8 @@ const uploadInput = {
   mimeType: "image/jpeg",
   byteSize: 1024,
 };
+const validConsent = { accepted: true, version: PHOTO_PROCESSING_CONSENT_VERSION, hash: PHOTO_PROCESSING_CONSENT_HASH };
+const validRights = { accepted: true, version: PHOTO_USAGE_RIGHTS_VERSION, hash: PHOTO_USAGE_RIGHTS_HASH };
 
 test("photo upload intent requires the current standalone consent", async () => {
   const { service, createdImages } = setup();
@@ -46,20 +51,28 @@ test("photo upload intent requires the current standalone consent", async () => 
   await assert.rejects(
     service.createUploadIntent("user-1", "project-1", {
       ...uploadInput,
-      consent: { accepted: true, version: "outdated" },
+      consent: { accepted: true, version: "outdated", hash: "outdated" }, rights: validRights,
     }),
     (error) => error instanceof ProjectError && error.code === "PHOTO_PROCESSING_CONSENT_REQUIRED",
   );
   assert.equal(createdImages.length, 0);
 });
 
-test("photo upload intent records consent version and time", async () => {
+test("photo upload intent requires rights confirmation and records both proofs", async () => {
   const { service, createdImages, now } = setup();
+  await assert.rejects(service.createUploadIntent("user-1", "project-1", {
+    ...uploadInput, consent: validConsent,
+  }), (error) => error instanceof ProjectError && error.code === "PHOTO_USAGE_RIGHTS_REQUIRED");
   await service.createUploadIntent("user-1", "project-1", {
     ...uploadInput,
-    consent: { accepted: true, version: PHOTO_PROCESSING_CONSENT_VERSION },
+    consent: validConsent,
+    rights: validRights,
   });
   assert.equal(createdImages.length, 1);
   assert.equal(createdImages[0].consentVersion, PHOTO_PROCESSING_CONSENT_VERSION);
   assert.equal(createdImages[0].consentedAt, now);
+  assert.equal(createdImages[0].consentHash, PHOTO_PROCESSING_CONSENT_HASH);
+  assert.equal(createdImages[0].rightsVersion, PHOTO_USAGE_RIGHTS_VERSION);
+  assert.equal(createdImages[0].rightsHash, PHOTO_USAGE_RIGHTS_HASH);
+  assert.equal(createdImages[0].rightsConfirmedAt, now);
 });

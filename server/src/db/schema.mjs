@@ -139,7 +139,11 @@ export const sourceImages = pgTable("source_images", {
   recommendedSize: boolean("recommended_size").default(false).notNull(),
   qualityAssessment: jsonb("quality_assessment"),
   consentVersion: text("consent_version").notNull(),
+  consentHash: text("consent_hash"),
   consentedAt: timestamp("consented_at", { withTimezone: true }).notNull(),
+  rightsVersion: text("rights_version"),
+  rightsHash: text("rights_hash"),
+  rightsConfirmedAt: timestamp("rights_confirmed_at", { withTimezone: true }),
   ...timestamps,
   uploadExpiresAt: timestamp("upload_expires_at", { withTimezone: true }),
   processedAt: timestamp("processed_at", { withTimezone: true }),
@@ -673,4 +677,34 @@ export const productEvents = pgTable("product_events", {
   index("product_events_name_created_idx").on(table.eventName, table.createdAt),
   index("product_events_session_created_idx").on(table.sessionHash, table.createdAt),
   check("product_events_path_length_chk", sql`length(${table.path}) BETWEEN 1 AND 240`),
+]);
+
+export const legalAcceptances = pgTable("legal_acceptances", {
+  id: uuid("id").defaultRandom().primaryKey(),
+  userId: uuid("user_id").references(() => users.id, { onDelete: "set null" }),
+  documentKey: text("document_key").notNull(),
+  documentVersion: text("document_version").notNull(),
+  documentHash: text("document_hash").notNull(),
+  action: text("action").default("accepted").notNull(),
+  context: text("context").notNull(),
+  projectId: uuid("project_id").references(() => projects.id, { onDelete: "set null" }),
+  paymentId: uuid("payment_id").references(() => payments.id, { onDelete: "set null" }),
+  createdAt: timestamp("created_at", { withTimezone: true }).defaultNow().notNull(),
+}, (table) => [
+  index("legal_acceptances_user_document_idx").on(table.userId, table.documentKey, table.createdAt),
+  index("legal_acceptances_payment_idx").on(table.paymentId),
+  index("legal_acceptances_project_idx").on(table.projectId),
+  check("legal_acceptances_action_chk", sql`${table.action} IN ('accepted', 'revoked')`),
+]);
+
+export const dataCleanupRuns = pgTable("data_cleanup_runs", {
+  id: uuid("id").defaultRandom().primaryKey(),
+  status: text("status").notNull(),
+  deletedCounts: jsonb("deleted_counts").default({}).notNull(),
+  errorCode: text("error_code"),
+  startedAt: timestamp("started_at", { withTimezone: true }).defaultNow().notNull(),
+  completedAt: timestamp("completed_at", { withTimezone: true }),
+}, (table) => [
+  index("data_cleanup_runs_completed_idx").on(table.completedAt),
+  check("data_cleanup_runs_status_chk", sql`${table.status} IN ('succeeded', 'failed')`),
 ]);

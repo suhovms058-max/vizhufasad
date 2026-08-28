@@ -5,6 +5,7 @@ const EVENT_NAMES = new Set([
   "photo_upload_completed", "settings_opened", "generation_started", "payment_checkout_started",
 ]);
 const PROPERTY_KEYS = new Set(["placement", "plan", "generationKind", "outcome"]);
+export const ANALYTICS_CONSENT_VERSION = "2026-08-28";
 
 function cleanProperties(value) {
   if (!value || typeof value !== "object" || Array.isArray(value)) return {};
@@ -26,6 +27,9 @@ export class ProductAnalyticsService {
   }
 
   async record(input) {
+    if (input?.consent?.accepted !== true || input?.consent?.version !== ANALYTICS_CONSENT_VERSION) {
+      return { accepted: false };
+    }
     const eventName = String(input?.eventName || "");
     if (!EVENT_NAMES.has(eventName)) return { accepted: false };
     const sessionId = String(input?.sessionId || "");

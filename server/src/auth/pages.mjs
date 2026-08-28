@@ -1,6 +1,7 @@
 import express from "express";
 import rateLimit from "express-rate-limit";
 import { createRequireSession } from "./http.mjs";
+import { AGE_CONFIRMATION, legalDocument } from "../legal/documents.mjs";
 
 function escapeHtml(value) {
   return String(value ?? "")
@@ -23,7 +24,7 @@ function page(title, body, { cabinet = false, narrow = false } = {}) {
     <title>${escapeHtml(title)} — ВИЖУФАСАД</title><link rel="stylesheet" href="/assets/app-ui.css"></head><body>
     <a class="skip-link" href="#main">К содержанию</a><header class="app-header"><a class="brand brand-home" href="/" aria-label="Вернуться на главную страницу"><svg viewBox="0 0 24 24" aria-hidden="true"><path d="M3 11.5 12 4l9 7.5M5.5 10v9h13v-9M9.5 19v-5h5v5"/></svg><span>ВИЖУФАСАД</span></a>${navigation}</header>
     <main id="main" class="app-main${narrow ? " app-main-narrow" : ""}">${body}</main>
-    <footer class="app-footer"><a href="/legal/offer">Условия оплаты</a><a href="/legal/privacy">Конфиденциальность</a><a href="/legal/refunds">Возвраты</a></footer>
+    <footer class="app-footer"><a href="/legal">Правовая информация</a><a href="/legal/offer">Оплата</a><a href="/legal/privacy">Конфиденциальность</a><button type="button" class="link-button" data-privacy-settings>Настройки конфиденциальности</button></footer>
     <script src="/assets/product-analytics.js" defer></script>
     </body></html>`;
 }
@@ -72,14 +73,26 @@ export function createAuthPagesRouter({ service, config }) {
     }
   });
 
+  const verificationPage = (challenge, next, message = "") => {
+    const agreement = legalDocument("user-agreement");
+    const personalData = legalDocument("personal-data-consent");
+    return page("Подтверждение входа", `<section class="panel auth-card">
+      <p class="eyebrow">Безопасный вход</p><h1>Введите код</h1><p class="muted">Шестизначный код отправлен на ваш email.</p>
+      ${message ? `<p class="notice error" role="alert">${escapeHtml(message)}</p>` : ""}
+      <form class="form-stack" method="post" action="/auth/verify"><input type="hidden" name="challengeId" value="${escapeHtml(challenge)}"><input type="hidden" name="next" value="${escapeHtml(next)}">
+      <label>Код <input class="code-input" name="code" inputmode="numeric" autocomplete="one-time-code" pattern="[0-9]{6}" maxlength="6" required></label>
+      <input type="hidden" name="agreementVersion" value="${agreement.revision}"><input type="hidden" name="agreementHash" value="${agreement.hash}">
+      <input type="hidden" name="personalDataVersion" value="${personalData.revision}"><input type="hidden" name="personalDataHash" value="${personalData.hash}">
+      <input type="hidden" name="ageVersion" value="${AGE_CONFIRMATION.revision}"><input type="hidden" name="ageHash" value="${AGE_CONFIRMATION.hash}">
+      <label class="confirm consent-confirm"><input type="checkbox" name="agreementAccepted" value="yes" required> Принимаю <a href="/legal/user-agreement" target="_blank" rel="noopener">Пользовательское соглашение</a></label>
+      <label class="confirm consent-confirm"><input type="checkbox" name="ageConfirmed" value="yes" required> Подтверждаю, что мне исполнилось 18 лет</label>
+      <label class="confirm consent-confirm"><input type="checkbox" name="personalDataAccepted" value="yes" required> Даю отдельное <a href="/legal/personal-data-consent" target="_blank" rel="noopener">согласие на обработку персональных данных</a></label>
+      <button type="submit">Войти</button></form><p><a href="/auth/login">Запросить новый код</a></p></section>`, { narrow: true });
+  };
   router.get("/auth/verify", (request, response) => {
     const challenge = String(request.query.challenge || "");
     const next = safeNext(request.query.next);
-    response.type("html").send(page("Подтверждение входа", `<section class="panel auth-card">
-      <p class="eyebrow">Безопасный вход</p><h1>Введите код</h1><p class="muted">Шестизначный код отправлен на ваш email.</p>
-      <form class="form-stack" method="post" action="/auth/verify"><input type="hidden" name="challengeId" value="${escapeHtml(challenge)}"><input type="hidden" name="next" value="${escapeHtml(next)}">
-      <label>Код <input class="code-input" name="code" inputmode="numeric" autocomplete="one-time-code" pattern="[0-9]{6}" maxlength="6" required></label>
-      <button type="submit">Войти</button></form><p><a href="/auth/login">Запросить новый код</a></p></section>`, { narrow: true }));
+    response.type("html").send(verificationPage(challenge, next));
   });
   router.post("/auth/verify", verifyLimiter, async (request, response, next) => {
     try {
@@ -87,6 +100,12 @@ export function createAuthPagesRouter({ service, config }) {
         ip: request.ip, userAgent: request.get("user-agent"),
       });
       if (!result.ok) {
+        if (result.reason === "LEGAL_CONSENT_REQUIRED") {
+          return response.status(400).type("html").send(verificationPage(
+            String(request.body?.challengeId || ""), safeNext(request.body?.next),
+            "Для создания аккаунта и входа нужны три отдельные подтверждения ниже.",
+          ));
+        }
         if (result.reason === "ACCOUNT_UNAVAILABLE") {
           return response.status(403).type("html").send(page("Вход недоступен", "<p>Аккаунт недоступен.</p>"));
         }
@@ -112,7 +131,7 @@ export function createAuthPagesRouter({ service, config }) {
     `<section class="page-heading"><div><p class="eyebrow">Аккаунт</p><h1>Настройки</h1></div></section>
      <section class="panel settings-panel"><p class="muted">Email</p><p><strong>${escapeHtml(request.auth.email)}</strong></p>
      <div class="actions"><form method="post" action="/app/logout"><button type="submit">Выйти</button></form>
-     <form method="post" action="/app/account/delete"><button class="danger" type="submit">Запросить удаление аккаунта</button></form></div></section>`,
+     <form method="post" action="/app/account/delete" onsubmit="return confirm('Удалить аккаунт, проекты и файлы? Восстановить их будет невозможно.')"><button class="danger" type="submit">Удалить аккаунт и данные</button></form></div></section>`,
     { cabinet: true },
   )));
   router.post("/app/logout", async (request, response, next) => {
@@ -129,8 +148,8 @@ export function createAuthPagesRouter({ service, config }) {
       await service.repository.requestAccountDeletion(request.auth.user_id);
       response.clearCookie(config.cookieName, service.clearCookieOptions());
       return response.status(202).type("html").send(page(
-        "Удаление запланировано",
-        "<p>Запрос сохранён, все сессии отозваны. Физическое удаление будет выполнено отдельным фоновым процессом после обязательного срока хранения.</p>",
+        "Запрос на удаление принят",
+        `<p>Запрос сохранён, все сессии отозваны. Проекты и их файлы поставлены на автоматическое удаление, а email аккаунта будет обезличен. Сведения о платежах, чеках, юридических акцептах и требованиях сохраняются только в объёме и на срок, необходимые по закону.</p><p>Если требуется уточнить запрос, напишите на <a href="mailto:vizhufasad0058@bk.ru">vizhufasad0058@bk.ru</a>.</p>`,
       ));
     } catch (error) {
       return next(error);
