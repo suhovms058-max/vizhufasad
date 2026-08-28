@@ -13,6 +13,20 @@ function requiredText(value, name, max = 160) {
   return normalized;
 }
 
+function latestActionVersions(actions) {
+  const latest = new Map();
+  for (const action of actions) {
+    const current = latest.get(action.code);
+    if (!current || new Date(action.valid_from).getTime() > new Date(current.valid_from).getTime()) {
+      latest.set(action.code, action);
+    }
+  }
+  return [...latest.values()].sort((left, right) => (
+    Number(left.credits) - Number(right.credits)
+    || String(left.code).localeCompare(String(right.code))
+  ));
+}
+
 export class WalletService {
   constructor({ repository, config, clock = () => new Date() }) {
     this.repository = repository;
@@ -66,7 +80,7 @@ export class WalletService {
         credits: Number(tariff.credits),
         validFrom: tariff.valid_from,
       })),
-      actions: actions.map((action) => ({
+      actions: latestActionVersions(actions).map((action) => ({
         code: action.code,
         name: action.name,
         credits: Number(action.credits),
