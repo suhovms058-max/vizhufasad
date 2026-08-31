@@ -134,6 +134,7 @@ export const sourceImages = pgTable("source_images", {
   width: integer("width"),
   height: integer("height"),
   sha256: text("sha256"),
+  perceptualHash: text("perceptual_hash"),
   status: imageStatus("status").default("uploading").notNull(),
   invalidReason: text("invalid_reason"),
   recommendedSize: boolean("recommended_size").default(false).notNull(),
@@ -152,6 +153,7 @@ export const sourceImages = pgTable("source_images", {
   uniqueIndex("source_images_storage_object_uidx").on(table.storageBucket, table.storageKey),
   index("source_images_project_created_idx").on(table.projectId, table.createdAt),
   index("source_images_sha256_idx").on(table.sha256),
+  index("source_images_perceptual_hash_idx").on(table.perceptualHash),
   check("source_images_byte_size_positive_chk", sql`${table.byteSize} > 0`),
   check("source_images_dimensions_positive_chk", sql`(${table.width} IS NULL OR ${table.width} > 0) AND (${table.height} IS NULL OR ${table.height} > 0)`),
 ]);
@@ -291,6 +293,51 @@ export const generationAttempts = pgTable("generation_attempts", {
     (${table.estimatedCostMinor} IS NULL OR ${table.estimatedCostMinor} >= 0)
     AND (${table.actualCostMinor} IS NULL OR ${table.actualCostMinor} >= 0)
   `),
+]);
+
+export const freeTrialEntitlements = pgTable("free_trial_entitlements", {
+  id: uuid("id").defaultRandom().primaryKey(),
+  userId: uuid("user_id").references(() => users.id, { onDelete: "set null" }),
+  status: text("status").default("pending").notNull(),
+  reasonCode: text("reason_code"),
+  deviceHash: text("device_hash"),
+  ipHash: text("ip_hash"),
+  networkHash: text("network_hash"),
+  photoPerceptualHash: text("photo_perceptual_hash"),
+  generationId: uuid("generation_id").references(() => generations.id, { onDelete: "set null" }),
+  policyVersion: text("policy_version").default("free-trial-v1").notNull(),
+  grantedAt: timestamp("granted_at", { withTimezone: true }),
+  consumedAt: timestamp("consumed_at", { withTimezone: true }),
+  expiresAt: timestamp("expires_at", { withTimezone: true }).notNull(),
+  ...timestamps,
+}, (table) => [
+  uniqueIndex("free_trial_entitlements_user_uidx").on(table.userId)
+    .where(sql`${table.userId} IS NOT NULL`),
+  index("free_trial_entitlements_device_idx").on(table.deviceHash, table.createdAt),
+  index("free_trial_entitlements_photo_idx").on(table.photoPerceptualHash, table.createdAt),
+  index("free_trial_entitlements_expiry_idx").on(table.expiresAt),
+  check("free_trial_entitlements_status_chk", sql`${table.status} IN ('pending', 'granted', 'consumed', 'denied', 'review_required')`),
+]);
+
+export const freeTrialRiskEvents = pgTable("free_trial_risk_events", {
+  id: uuid("id").defaultRandom().primaryKey(),
+  userId: uuid("user_id").references(() => users.id, { onDelete: "set null" }),
+  eventType: text("event_type").notNull(),
+  decision: text("decision").notNull(),
+  reasonCode: text("reason_code"),
+  deviceHash: text("device_hash"),
+  ipHash: text("ip_hash"),
+  networkHash: text("network_hash"),
+  photoPerceptualHash: text("photo_perceptual_hash"),
+  policyVersion: text("policy_version").default("free-trial-v1").notNull(),
+  createdAt: timestamp("created_at", { withTimezone: true }).defaultNow().notNull(),
+  expiresAt: timestamp("expires_at", { withTimezone: true }).notNull(),
+}, (table) => [
+  index("free_trial_risk_events_device_created_idx").on(table.deviceHash, table.createdAt),
+  index("free_trial_risk_events_network_created_idx").on(table.networkHash, table.createdAt),
+  index("free_trial_risk_events_photo_created_idx").on(table.photoPerceptualHash, table.createdAt),
+  index("free_trial_risk_events_expiry_idx").on(table.expiresAt),
+  check("free_trial_risk_events_decision_chk", sql`${table.decision} IN ('allowed', 'denied', 'review_required')`),
 ]);
 
 export const generationQualityAssessments = pgTable("generation_quality_assessments", {
@@ -689,11 +736,15 @@ export const legalAcceptances = pgTable("legal_acceptances", {
   context: text("context").notNull(),
   projectId: uuid("project_id").references(() => projects.id, { onDelete: "set null" }),
   paymentId: uuid("payment_id").references(() => payments.id, { onDelete: "set null" }),
+  challengeId: uuid("challenge_id").references(() => emailLoginCodes.id, { onDelete: "set null" }),
+  requestIpHash: text("request_ip_hash"),
+  userAgent: text("user_agent"),
   createdAt: timestamp("created_at", { withTimezone: true }).defaultNow().notNull(),
 }, (table) => [
   index("legal_acceptances_user_document_idx").on(table.userId, table.documentKey, table.createdAt),
   index("legal_acceptances_payment_idx").on(table.paymentId),
   index("legal_acceptances_project_idx").on(table.projectId),
+  index("legal_acceptances_challenge_idx").on(table.challengeId),
   check("legal_acceptances_action_chk", sql`${table.action} IN ('accepted', 'revoked')`),
 ]);
 

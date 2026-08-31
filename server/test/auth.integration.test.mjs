@@ -11,15 +11,17 @@ import { AGE_CONFIRMATION, legalDocument } from "../src/legal/documents.mjs";
 const enabled = Boolean(process.env.DATABASE_URL);
 const agreement = legalDocument("user-agreement");
 const personalData = legalDocument("personal-data-consent");
+const requestConsent = {
+  personalDataAccepted: true, personalDataVersion: personalData.revision, personalDataHash: personalData.hash,
+};
 const accountConsents = {
   agreementAccepted: true, agreementVersion: agreement.revision, agreementHash: agreement.hash,
-  personalDataAccepted: true, personalDataVersion: personalData.revision, personalDataHash: personalData.hash,
   ageConfirmed: true, ageVersion: AGE_CONFIRMATION.revision, ageHash: AGE_CONFIRMATION.hash,
 };
 
 test("login code is one-time and creates user, wallet and revocable session", { skip: !enabled }, async () => {
   const pool = getPool();
-  const repository = new AuthRepository(pool);
+  const repository = new AuthRepository(pool, { freeBonusEnabled: true, freeBonusCredits: 2 });
   const email = `auth-${randomUUID()}@example.test`;
   let deliveredCode;
   const config = {
@@ -38,7 +40,7 @@ test("login code is one-time and creates user, wallet and revocable session", { 
   });
 
   try {
-    const exhausted = await service.requestCode(email, { ip: "127.0.0.1" });
+    const exhausted = await service.requestCode({ email, ...requestConsent }, { ip: "127.0.0.1" });
     for (let attempt = 2; attempt >= 0; attempt -= 1) {
       const rejected = await service.verifyCode({
         ...accountConsents,
@@ -57,13 +59,27 @@ test("login code is one-time and creates user, wallet and revocable session", { 
     assert.equal(afterExhaustion.ok, false);
     assert.equal(afterExhaustion.reason, "INVALID_OR_EXPIRED");
 
-    const requested = await service.requestCode(email, { ip: "127.0.0.1" });
+    const requested = await service.requestCode({ email, ...requestConsent }, { ip: "127.0.0.1" });
+    const preAuthConsent = await pool.query(
+      `select user_id, challenge_id, document_version, document_hash
+       from legal_acceptances where challenge_id = $1 and document_key = 'personal-data-consent'`,
+      [requested.challengeId],
+    );
+    assert.equal(preAuthConsent.rowCount, 1);
+    assert.equal(preAuthConsent.rows[0].user_id, null);
+    assert.equal(preAuthConsent.rows[0].document_version, personalData.revision);
+    assert.equal(preAuthConsent.rows[0].document_hash, personalData.hash);
     const first = await service.verifyCode({
       ...accountConsents,
       challengeId: requested.challengeId,
       code: deliveredCode,
     }, { ip: "127.0.0.1", userAgent: "node-test" });
     assert.equal(first.ok, true);
+    const linkedConsent = await pool.query(
+      "select user_id from legal_acceptances where challenge_id = $1 and document_key = 'personal-data-consent'",
+      [requested.challengeId],
+    );
+    assert.equal(linkedConsent.rows[0].user_id, first.user.id);
 
     const repeated = await service.verifyCode({
       ...accountConsents,
@@ -88,14 +104,19 @@ test("login code is one-time and creates user, wallet and revocable session", { 
        where w.user_id = $1 group by w.id`,
       [first.user.id],
     );
-    assert.equal(bonusState.rows[0].balance, "2");
-    assert.equal(bonusState.rows[0].bonus_count, 1);
+    assert.equal(bonusState.rows[0].balance, "0");
+    assert.equal(bonusState.rows[0].bonus_count, 0);
+    const entitlement = await pool.query(
+      "select status from free_trial_entitlements where user_id = $1",
+      [first.user.id],
+    );
+    assert.equal(entitlement.rows[0]?.status, "pending");
 
     assert.ok(await service.sessionFromRequest({ headers: { cookie: `session=${first.token}` } }));
     assert.equal(await repository.revokeSession(first.user.id, first.session.id, "auth.logout"), true);
     assert.equal(await service.sessionFromRequest({ headers: { cookie: `session=${first.token}` } }), null);
 
-    const repeatRequest = await service.requestCode(email, { ip: "127.0.0.1" });
+    const repeatRequest = await service.requestCode({ email, ...requestConsent }, { ip: "127.0.0.1" });
     const repeatLogin = await service.verifyCode({
       ...accountConsents,
       challengeId: repeatRequest.challengeId,
@@ -112,11 +133,11 @@ test("login code is one-time and creates user, wallet and revocable session", { 
       [first.user.id],
     );
     assert.equal(repeatWalletState.rows[0].wallet_count, 1);
-    assert.equal(repeatWalletState.rows[0].bonus_count, 1);
+    assert.equal(repeatWalletState.rows[0].bonus_count, 0);
 
     await repository.requestAccountDeletion(first.user.id);
     assert.equal(await service.sessionFromRequest({ headers: { cookie: `session=${repeatLogin.token}` } }), null);
-    const deletionLogin = await service.requestCode(email, { ip: "127.0.0.1" });
+    const deletionLogin = await service.requestCode({ email, ...requestConsent }, { ip: "127.0.0.1" });
     const rejectedDeletionLogin = await service.verifyCode({
       ...accountConsents,
       challengeId: deletionLogin.challengeId,

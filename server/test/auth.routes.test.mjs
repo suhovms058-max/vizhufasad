@@ -5,6 +5,10 @@ import test from "node:test";
 import express from "express";
 import { createAuthRouter } from "../src/auth/http.mjs";
 import { createAuthPagesRouter } from "../src/auth/pages.mjs";
+import { AGE_CONFIRMATION, legalDocument } from "../src/legal/documents.mjs";
+
+const personalData = legalDocument("personal-data-consent");
+const agreement = legalDocument("user-agreement");
 
 async function withServer(app, callback) {
   const server = http.createServer(app);
@@ -28,7 +32,12 @@ function fixture(overrides = {}) {
   };
   const service = {
     repository,
-    async requestCode() { return { challengeId: "challenge", expiresInSeconds: 600 }; },
+    async requestCode(input) {
+      if (input?.personalDataAccepted !== "yes" && input?.personalDataAccepted !== true) {
+        return { ok: false, reason: "PERSONAL_DATA_CONSENT_REQUIRED" };
+      }
+      return { ok: true, challengeId: "challenge", expiresInSeconds: 600 };
+    },
     async verifyCode() {
       return {
         ok: true,
@@ -89,6 +98,10 @@ test("email login and verification pages use the responsive cabinet design", asy
     assert.match(loginHtml, /\/assets\/app-ui\.css/u);
     assert.match(loginHtml, /class="panel auth-card"/u);
     assert.match(loginHtml, /autocomplete="email"/u);
+    assert.match(loginHtml, /name="personalDataAccepted" value="yes" required/u);
+    assert.match(loginHtml, /\/legal\/personal-data-consent/u);
+    assert.match(loginHtml, /\/legal\/privacy/u);
+    assert.doesNotMatch(loginHtml, /name="personalDataAccepted"[^>]*checked/u);
     assert.doesNotMatch(loginHtml, /телефон[^<]*обязателен/iu);
 
     const verify = await fetch(`${baseUrl}/auth/verify?challenge=challenge`);
@@ -97,8 +110,8 @@ test("email login and verification pages use the responsive cabinet design", asy
     assert.match(verifyHtml, /class="code-input"/u);
     assert.match(verifyHtml, /name="agreementAccepted" value="yes" required/u);
     assert.match(verifyHtml, /name="ageConfirmed" value="yes" required/u);
-    assert.match(verifyHtml, /name="personalDataAccepted" value="yes" required/u);
-    assert.doesNotMatch(verifyHtml, /name="(?:agreementAccepted|ageConfirmed|personalDataAccepted)"[^>]*checked/u);
+    assert.doesNotMatch(verifyHtml, /name="personalDataAccepted"/u);
+    assert.doesNotMatch(verifyHtml, /name="(?:agreementAccepted|ageConfirmed)"[^>]*checked/u);
   });
 });
 
@@ -111,7 +124,11 @@ test("email login preserves a safe cabinet destination and rejects open redirect
     const requested = await fetch(`${baseUrl}/auth/login`, {
       method: "POST",
       headers: { "content-type": "application/x-www-form-urlencoded" },
-      body: new URLSearchParams({ email: "user@example.com", next: "/app/new?from=landing" }),
+      body: new URLSearchParams({
+        email: "user@example.com", next: "/app/new?from=landing",
+        personalDataAccepted: "yes", personalDataVersion: personalData.revision,
+        personalDataHash: personalData.hash,
+      }),
       redirect: "manual",
     });
     assert.equal(requested.headers.get("location"), "/auth/verify?challenge=challenge&next=%2Fapp%2Fnew%3Ffrom%3Dlanding");
@@ -119,13 +136,45 @@ test("email login preserves a safe cabinet destination and rejects open redirect
     const confirmed = await fetch(`${baseUrl}/auth/verify`, {
       method: "POST",
       headers: { "content-type": "application/x-www-form-urlencoded" },
-      body: new URLSearchParams({ challengeId: "challenge", code: "123456", next: "/app/new?from=landing" }),
+      body: new URLSearchParams({
+        challengeId: "challenge", code: "123456", next: "/app/new?from=landing",
+        agreementAccepted: "yes", agreementVersion: agreement.revision, agreementHash: agreement.hash,
+        ageConfirmed: "yes", ageVersion: AGE_CONFIRMATION.revision, ageHash: AGE_CONFIRMATION.hash,
+      }),
       redirect: "manual",
     });
     assert.equal(confirmed.headers.get("location"), "/app/new?from=landing");
 
     const unsafe = await fetch(`${baseUrl}/auth/login?next=${encodeURIComponent("https://example.com")}`);
     assert.match(await unsafe.text(), /name="next" value="\/app"/u);
+  });
+});
+
+test("email is not submitted without prior personal-data consent", async () => {
+  let requestInput;
+  const { app } = fixture({
+    async requestCode(input) {
+      requestInput = input;
+      return { ok: false, reason: "PERSONAL_DATA_CONSENT_REQUIRED" };
+    },
+  });
+  await withServer(app, async (baseUrl) => {
+    const response = await fetch(`${baseUrl}/auth/login`, {
+      method: "POST",
+      headers: { "content-type": "application/x-www-form-urlencoded" },
+      body: new URLSearchParams({ email: "user@example.com" }),
+    });
+    assert.equal(response.status, 400);
+    assert.match(await response.text(), /До отправки кода подтвердите согласие/u);
+    assert.equal(requestInput.email, "user@example.com");
+
+    const api = await fetch(`${baseUrl}/api/auth/code/request`, {
+      method: "POST",
+      headers: { "content-type": "application/json" },
+      body: JSON.stringify({ email: "user@example.com" }),
+    });
+    assert.equal(api.status, 400);
+    assert.equal((await api.json()).error, "PERSONAL_DATA_CONSENT_REQUIRED");
   });
 });
 
@@ -160,7 +209,10 @@ test("code request route is rate limited", async () => {
       const response = await fetch(`${baseUrl}/api/auth/code/request`, {
         method: "POST",
         headers: { "content-type": "application/json" },
-        body: JSON.stringify({ email: "user@example.com" }),
+        body: JSON.stringify({
+          email: "user@example.com", personalDataAccepted: true,
+          personalDataVersion: personalData.revision, personalDataHash: personalData.hash,
+        }),
       });
       statuses.push(response.status);
     }

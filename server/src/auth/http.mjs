@@ -2,8 +2,12 @@ import express from "express";
 import rateLimit from "express-rate-limit";
 import { hashAuthValue, normalizeEmail } from "./crypto.mjs";
 
-function context(request) {
-  return { ip: request.ip, userAgent: request.get("user-agent") };
+function context(request, service) {
+  return {
+    ip: request.ip,
+    userAgent: request.get("user-agent"),
+    deviceHash: service.deviceHashFromRequest?.(request) || null,
+  };
 }
 
 function authError(response, status, code) {
@@ -21,6 +25,9 @@ export function createRequireSession(service, { html = false } = {}) {
           return response.redirect(303, `/auth/login?next=${encodeURIComponent(nextPath)}`);
         }
         return authError(response, 401, "AUTH_REQUIRED");
+      }
+      if (!session.device_hash && service.ensureDeviceCookie) {
+        session.device_hash = service.ensureDeviceCookie(request, response);
       }
       request.auth = session;
       return next();
@@ -63,7 +70,8 @@ export function createAuthRouter({ service, config }) {
 
   router.post("/code/request", requestIpLimiter, requestEmailLimiter, async (request, response, next) => {
     try {
-      const result = await service.requestCode(request.body?.email, context(request));
+      const result = await service.requestCode(request.body || {}, context(request, service));
+      if (!result.ok) return authError(response, 400, result.reason);
       return response.status(202).json(result);
     } catch (error) {
       if (error.message === "INVALID_EMAIL") return authError(response, 400, "INVALID_EMAIL");
@@ -73,7 +81,7 @@ export function createAuthRouter({ service, config }) {
 
   router.post("/code/confirm", verifyLimiter, async (request, response, next) => {
     try {
-      const result = await service.verifyCode(request.body || {}, context(request));
+      const result = await service.verifyCode(request.body || {}, context(request, service));
       if (!result.ok) {
         const status = result.reason === "ATTEMPTS_EXHAUSTED"
           ? 429
@@ -82,6 +90,7 @@ export function createAuthRouter({ service, config }) {
         return authError(response, status, result.reason);
       }
       response.cookie(config.cookieName, result.token, service.cookieOptions());
+      service.ensureDeviceCookie?.(request, response);
       return response.json({
         user: { id: result.user.id, email: result.user.email },
         session: { id: result.session.id, expiresAt: result.session.expires_at },

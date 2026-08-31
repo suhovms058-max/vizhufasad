@@ -5,6 +5,9 @@ import { createComparisonRouter } from "../src/comparison/http.mjs";
 import { createProjectsRouter } from "../src/projects/http.mjs";
 import { createProjectPagesRouter } from "../src/projects/pages.mjs";
 import { createUpscaleRouter } from "../src/upscale/http.mjs";
+import { createAuthPagesRouter } from "../src/auth/pages.mjs";
+import { createLegalPagesRouter } from "../src/legal/pages.mjs";
+import { createWalletPagesRouter } from "../src/wallet/pages.mjs";
 
 const baseUrl = "http://127.0.0.1:4173";
 const statuses = ["queued", "preprocessing", "generating", "quality_check_pending", "completed"];
@@ -13,6 +16,7 @@ let favorite = false;
 let configuration = null;
 let editGeneration = null;
 let comparisonWinner = null;
+let analyticsEvents = [];
 
 const project = () => ({
   id: "project-e2e", title: "Дом для e2e", status: statuses[statusIndex] === "completed" ? "ready" : "configuration_required",
@@ -35,6 +39,23 @@ const alternative = () => ({
   config_snapshot: { style: "шале", materials: ["камень"], palette: ["земляная"], transformationLevel: "gentle" },
 });
 const authService = { async sessionFromRequest() { return { id: "session-e2e", user_id: "owner-e2e" }; } };
+const authPagesService = {
+  async requestCode(input) {
+    if (input.personalDataAccepted !== "yes") {
+      return { ok: false, reason: "PERSONAL_DATA_CONSENT_REQUIRED" };
+    }
+    return { ok: true, challengeId: "challenge-e2e" };
+  },
+  async sessionFromRequest() { return { id: "session-e2e", user_id: "owner-e2e", email: "owner@example.test" }; },
+  cookieOptions() { return {}; },
+  clearCookieOptions() { return {}; },
+};
+const authPagesConfig = {
+  rateWindowMs: 60_000,
+  requestLimit: 100,
+  verifyLimit: 100,
+  cookieName: "vizhufasad_e2e",
+};
 const projectService = {
   async list() { return [project()]; }, async open() { return project(); },
   async imageUrl() { return `${baseUrl}/fixture/source.svg`; },
@@ -42,7 +63,15 @@ const projectService = {
   async rename() { return project(); }, async remove() { return project(); },
 };
 const generationService = {
-  async create(_userId, _projectId, _imageId, value) { configuration = value; statusIndex = 0; return generation(); },
+  async create(_userId, _projectId, _imageId, value) {
+    if (value.wishes === "E2E_DENY_FREE_TRIAL") {
+      throw Object.assign(new Error("Пробный запуск уже использован для этого устройства."), {
+        code: "FREE_TRIAL_ALREADY_USED",
+        status: 403,
+      });
+    }
+    configuration = value; statusIndex = 0; return generation();
+  },
   async createPro(_userId, _projectId, _imageId, value) { configuration = value; return alternative(); },
   async createEdit(_userId, _projectId, parentId, value) {
     editGeneration = {
@@ -65,11 +94,26 @@ const generationService = {
 };
 const walletService = {
   async summary() { return { balance: 10 }; },
-  async catalog() { return { actions: [
-    { code: "standard_generation", credits: 1 }, { code: "pro_generation", credits: 2 },
-    { code: "text_revision", credits: 1 }, { code: "upscale_4k", credits: 1 },
-  ] }; },
+  async history() { return []; },
+  async catalog() { return {
+    tariffs: [
+      { id: "free-e2e", code: "FREE", name: "Бесплатный", priceMinor: 0, credits: 1 },
+      { id: "topup-1-e2e", code: "TOPUP_1", name: "1 ВФ-коин", priceMinor: 24_900, credits: 1 },
+      { id: "topup-2-e2e", code: "TOPUP_2", name: "2 ВФ-коина", priceMinor: 49_800, credits: 2 },
+      { id: "topup-3-e2e", code: "TOPUP_3", name: "3 ВФ-коина", priceMinor: 74_700, credits: 3 },
+      { id: "start-e2e", code: "START", name: "Старт", priceMinor: 79_000, credits: 4 },
+      { id: "optimum-e2e", code: "OPTIMUM", name: "Оптимум", priceMinor: 129_000, credits: 8 },
+      { id: "maximum-e2e", code: "MAXIMUM", name: "Максимум", priceMinor: 349_000, credits: 25 },
+    ],
+    actions: [
+      { code: "standard_generation", name: "Генерация фасада", credits: 1 },
+      { code: "pro_generation", name: "Pro-генерация", credits: 2 },
+      { code: "text_revision", name: "Текстовая доработка", credits: 1 },
+      { code: "upscale_4k", name: "4K", credits: 1 },
+    ],
+  }; },
 };
+const paymentService = { async history() { return []; } };
 const upscaleService = {
   async create() { return { id: "upscale-e2e", status: "queued", cancellable: true }; },
   async view() { return { id: "upscale-e2e", status: "completed", output_width: 4096, output_height: 2732, resultAvailable: true }; },
@@ -94,17 +138,33 @@ const comparisonService = {
 
 const app = express();
 app.get("/__health", (_request, response) => response.send("ok"));
-app.post("/__reset", (_request, response) => { statusIndex = 0; favorite = false; configuration = null; editGeneration = null; comparisonWinner = null; response.sendStatus(204); });
+app.post("/__reset", (_request, response) => {
+  statusIndex = 0; favorite = false; configuration = null; editGeneration = null;
+  comparisonWinner = null; analyticsEvents = []; response.sendStatus(204);
+});
+app.get("/__analytics-events", (_request, response) => response.json({ events: analyticsEvents }));
 app.get("/fixture/source.svg", (_request, response) => response.type("svg").send('<svg xmlns="http://www.w3.org/2000/svg" width="1200" height="800"><rect width="1200" height="800" fill="#d7d0c2"/><path d="M180 690V310L600 110l420 200v380z" fill="#9a8068"/><rect x="300" y="390" width="180" height="170" fill="#7eb0cc"/><rect x="720" y="390" width="180" height="170" fill="#7eb0cc"/></svg>'));
 app.get("/fixture/result.svg", (_request, response) => response.type("svg").send('<svg xmlns="http://www.w3.org/2000/svg" width="1200" height="800"><rect width="1200" height="800" fill="#d9dfd7"/><path d="M180 690V310L600 110l420 200v380z" fill="#eee9df"/><path d="M180 310L600 110l420 200" stroke="#313a35" stroke-width="34" fill="none"/><rect x="300" y="390" width="180" height="170" fill="#567c91"/><rect x="720" y="390" width="180" height="170" fill="#567c91"/></svg>'));
 app.use(express.json());
+app.post("/api/analytics/events", (request, response) => {
+  analyticsEvents.push(request.body);
+  response.sendStatus(202);
+});
 app.use("/assets", express.static(path.resolve("public")));
 app.use("/api/projects", createProjectsRouter({ authService, projectService }));
-app.use("/api/projects", createGenerationRouter({ authService, generationService }));
+app.use("/api/projects", createGenerationRouter({
+  authService, generationService, mutationLimit: 1_000,
+}));
 app.use("/api/projects", createUpscaleRouter({ authService, upscaleService }));
 app.use("/api/projects", createComparisonRouter({ authService, comparisonService }));
 app.use(createProjectPagesRouter({
   authService, projectService, generationService, walletService, comparisonService,
   generationConfig: { proEnabled: true, editorEnabled: true }, upscaleConfig: { enabled: true },
+}));
+app.use(createLegalPagesRouter());
+app.use(createAuthPagesRouter({ service: authPagesService, config: authPagesConfig }));
+app.use(createWalletPagesRouter({
+  authService, walletService, paymentService,
+  paymentConfig: { enabled: true, password3: null },
 }));
 app.listen(4173, "127.0.0.1");

@@ -2,7 +2,12 @@ import AxeBuilder from "@axe-core/playwright";
 import { expect, test } from "@playwright/test";
 import path from "node:path";
 
-test.beforeEach(async ({ request }) => { await request.post("/__reset"); });
+test.beforeEach(async ({ page, request }) => {
+  await request.post("/__reset");
+  await page.addInitScript(() => localStorage.setItem("vizhufasad:privacy:v1", JSON.stringify({
+    version: "2026-08-28", analytics: false, decidedAt: "2026-08-30T00:00:00.000Z",
+  })));
+});
 
 test("upload step is understandable, responsive and rejects a tiny image before network upload", async ({ page }) => {
   await page.goto("/app/new");
@@ -54,15 +59,19 @@ test("photo settings to checked Standard result survives navigation and fits vie
   await page.goto("/app/new?project=project-e2e");
   await expect(page.getByRole("heading", { name: "Настройте фасад" })).toBeVisible();
   await expect(page.getByText("Фото подходит")).toBeVisible();
-  await page.getByLabel("Все направления").selectOption("скандинавский");
+  await page.getByLabel("Выбранный стиль").selectOption("скандинавский");
   await page.getByRole("button", { name: "Продолжить" }).click();
-  await page.getByLabel("дерево").check();
+  const woodMaterial = page.getByLabel("дерево");
+  await expect(woodMaterial).toBeVisible();
+  await woodMaterial.scrollIntoViewIfNeeded();
+  await woodMaterial.check({ force: true });
+  await expect(woodMaterial).toBeChecked();
   await page.getByLabel("Описание цветов").fill("молочный, графит");
   await page.getByRole("button", { name: "Продолжить" }).click();
   await page.getByLabel("Что важно учесть").fill("Отделать карниз и существующие опоры");
-  await page.getByLabel(/Подтверждаю списание 1 ВФ-коина/u).check();
+  await page.getByLabel(/с баланса будет списан 1 ВФ-коин/u).check();
   await expect.poll(() => page.evaluate(() => document.documentElement.scrollWidth <= document.documentElement.clientWidth)).toBe(true);
-  await page.getByRole("button", { name: "Запустить Standard" }).click();
+  await page.getByRole("button", { name: "Запустить генерацию" }).click();
   await expect(page).toHaveURL(/\/app\/projects\/project-e2e\/generations\/[0-9a-f-]{36}$/u);
   await expect(page.getByRole("heading", { name: "Фасад готов" })).toBeVisible({ timeout: 15_000 });
   await expect(page.getByText("скандинавский")).toBeVisible();
@@ -75,5 +84,25 @@ test("photo settings to checked Standard result survives navigation and fits vie
   await page.reload();
   await expect(page.getByRole("heading", { name: "Фасад готов" })).toBeVisible();
   await expect(page.getByRole("button", { name: "Убрать из избранного" })).toBeVisible();
+  await expect.poll(() => page.evaluate(() => document.documentElement.scrollWidth <= document.documentElement.clientWidth)).toBe(true);
+});
+
+test("free-trial denial offers payment and support without opening a generation", async ({ page }) => {
+  await page.goto("/app/new?project=project-e2e");
+  await expect(page.getByRole("heading", { name: "Настройте фасад" })).toBeVisible();
+  await page.getByLabel("Выбранный стиль").selectOption("современный");
+  await page.getByRole("button", { name: "Продолжить" }).click();
+  await page.getByLabel("штукатурка").check();
+  await page.getByRole("button", { name: "Продолжить" }).click();
+  await page.getByLabel("Что важно учесть").fill("E2E_DENY_FREE_TRIAL");
+  await page.getByLabel(/с баланса будет списан 1 ВФ-коин/u).check();
+  await page.getByRole("button", { name: "Запустить генерацию" }).click();
+
+  await expect(page.getByText(/Пробный запуск уже использован/u)).toBeVisible();
+  await expect(page.getByRole("link", { name: "Выбрать пакет" })).toHaveAttribute("href", "/app/balance");
+  await expect(page.getByRole("link", { name: "Написать в поддержку" })).toHaveAttribute(
+    "href", "mailto:vizhufasad0058@bk.ru",
+  );
+  await expect(page).toHaveURL(/\/app\/new\?project=project-e2e$/u);
   await expect.poll(() => page.evaluate(() => document.documentElement.scrollWidth <= document.documentElement.clientWidth)).toBe(true);
 });

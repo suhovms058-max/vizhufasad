@@ -49,7 +49,7 @@ const faqs = [
   ["Нужно ли знать названия материалов?", "Нет. Можно выбрать автоподбор или отметить желаемые материалы и цвета самостоятельно."],
   ["Изменится ли форма дома?", "Наша задача — сохранить геометрию, окна, двери и кровлю. Визуализация показывает отделку, а не придумывает другое здание."],
   ["Какое фото подойдёт?", "Снимите дом днём и постарайтесь показать фасад целиком. Временные предметы, стройматериалы и незначительные препятствия допустимы, если хорошо видны стены, окна, двери и кровля."],
-  ["Где хранится загруженная фотография?", "После отдельного согласия исходник передаётся в приватное объектное хранилище. Файлы доступны владельцу проекта только по временным ссылкам и удаляются вместе с проектом или аккаунтом."],
+  ["Где хранится загруженная фотография?", "После отдельного согласия исходник хранится приватно в российском хранилище. На сервере удаляются метаданные и маскируются найденные лица, номера и текстовые данные. Документ или снимок с большим количеством текста отклоняется. Только отдельная очищенная копия передаётся AI через GenAPI. Если защита завершилась ошибкой, передача и генерация блокируются. Файлы удаляются вместе с проектом или аккаунтом с учётом технического срока очистки."],
   ["Что произойдёт, если генерация исказит дом?", "Результат проходит автоматическую проверку. При грубом изменении выполняется одна бесплатная повторная попытка, а после второй неудачи ВФ-коин возвращается и брак не показывается."],
   ["Что может отличаться от будущей отделки?", "Оттенок и фактура реального материала зависят от производителя, освещения и экрана. Мелкий декор и детали участка тоже могут отличаться: сервис помогает выбрать визуальное направление, а не фиксирует строительную спецификацию."],
   ["Когда списывается ВФ-коин и что будет при технической ошибке?", "Перед запуском действия ВФ-коин резервируется один раз. После успешного результата списание подтверждается, а при технической неудаче или окончательном отклонении автоматической проверкой ВФ-коин возвращается автоматически. Повторный запрос не создаёт двойного списания или возврата."],
@@ -388,26 +388,26 @@ export default function App() {
           <article className="priceCard freePlanCard">
             <div><span className="planNum">00</span><h3>Бесплатно</h3><p>Посмотрите свой дом с новой отделкой</p></div>
             <div className="price">{rubles(freePlan.priceMinor)}</div>
-            <ul><li><Check /> {vfCoinsLabel(freePlan.credits)} на пробную генерацию</li><li><Check /> Автоматическая проверка результата</li><li><Check /> Водяной знак на изображении</li></ul>
+            <ul><li><Check /> {vfCoinsLabel(freePlan.credits)} на пробную генерацию</li><li><Check /> 4 популярных стиля и автоподбор</li><li><Check /> Автоматическая проверка результата</li><li><Check /> Водяной знак на изображении</li></ul>
             <a className="button ghost" href="#photo-check" data-analytics-event="pricing_cta" data-analytics-plan="FREE">Создать фасад бесплатно <Arrow /></a>
           </article>
           <article className="priceCard featured">
             <div className="popular">ПОПУЛЯРНЫЙ ТАРИФ</div>
             <div><span className="planNum">01</span><h3>Старт</h3><p>Для нескольких вариантов одного дома</p></div>
             <div className="price">{rubles(startPlan.priceMinor)}</div>
-            <ul><li><Check /> До {generationLimitLabel(ordinaryGenerations(startPlan))}</li><li><Check /> {vfCoinsLabel(startPlan.credits)} в пакете</li><li><Check /> Можно использовать для Pro и доработок</li></ul>
+            <ul><li><Check /> До {generationLimitLabel(ordinaryGenerations(startPlan))}</li><li><Check /> 4 популярных стиля и подходящие материалы</li><li><Check /> Обычные генерации с автопроверкой</li></ul>
             <button className="button primary" data-analytics-event="pricing_cta" data-analytics-plan="START" onClick={() => startOrder("visual")}>Выбрать пакет <Arrow /></button>
           </article>
           <article className="priceCard">
             <div><span className="planNum">02</span><h3>Оптимум</h3><p>Для исследования нескольких стилей</p></div>
             <div className="price">{rubles(optimumPlan.priceMinor)}</div>
-            <ul><li><Check /> До {generationLimitLabel(ordinaryGenerations(optimumPlan))}</li><li><Check /> {vfCoinsLabel(optimumPlan.credits)} в пакете</li><li><Check /> Сравнение до четырёх решений</li></ul>
+            <ul><li><Check /> До {generationLimitLabel(ordinaryGenerations(optimumPlan))}</li><li><Check /> 7 стилей и расширенный выбор материалов</li><li><Check /> Pro-генерация и сравнение до четырёх решений</li></ul>
             <button className="button ghost" data-analytics-event="pricing_cta" data-analytics-plan="OPTIMUM" onClick={() => startOrder("selection")}>Выбрать пакет <Arrow /></button>
           </article>
           <article className="priceCard premium">
             <div><span className="planNum">03</span><h3>Максимум</h3><p>Для большого числа концепций</p></div>
             <div className="price">{rubles(maximumPlan.priceMinor)}</div>
-            <ul><li><Check /> До {generationLimitLabel(ordinaryGenerations(maximumPlan))}</li><li><Check /> {vfCoinsLabel(maximumPlan.credits)} в пакете</li><li><Check /> Для нескольких домов и серий решений</li></ul>
+            <ul><li><Check /> До {generationLimitLabel(ordinaryGenerations(maximumPlan))}</li><li><Check /> Все 10 стилей и все материалы</li><li><Check /> Pro, точечные доработки готового варианта, сравнение и 4K</li></ul>
             <button className="button copper" data-analytics-event="pricing_cta" data-analytics-plan="MAXIMUM" onClick={() => startOrder("realization")}>Выбрать пакет <Arrow /></button>
           </article>
         </div>

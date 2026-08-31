@@ -36,6 +36,7 @@ function harness({
   resumableRequestId = null,
   providerSubmits = false,
   persistProviderRequestFails = false,
+  workingImage = null,
 } = {}) {
   const events = [];
   let status = "queued";
@@ -47,6 +48,7 @@ function harness({
     user_id: "33333333-3333-4333-8333-333333333333",
     wallet_reservation_id: "44444444-4444-4444-8444-444444444444",
     working_storage_key: "working.jpg",
+    provider_source_key: "working.jpg",
     source_width: 1600,
     source_height: 1000,
     config_snapshot: { style: "modern", promptVersion: "standard-facade-v3" },
@@ -114,7 +116,10 @@ function harness({
     },
   };
   const storage = {
-    async getPrivateObjectBuffer() { return jpeg(); },
+    async getPrivateObjectBuffer(key) {
+      if (key === "working.jpg" && workingImage) return workingImage;
+      return jpeg();
+    },
     async putPrivateObject({ key }) { events.push(["stored", key]); },
     async deletePrivateObject() { events.push(["deleted"]); },
     getStorageBucket() { return "private"; },
@@ -133,6 +138,7 @@ function harness({
       const event = ["provider", Boolean(input.maskImage)];
       if (input.resumeRequestId) event.push(input.resumeRequestId);
       events.push(event);
+      events.push(["provider-source", input.sourceImage]);
       if (providerSubmits) await input.onSubmitted("paid-request-not-persisted");
       if (providerError) throw providerError;
       return {
@@ -151,6 +157,10 @@ function harness({
     providers: [provider],
     config: { timeoutMs: 1_000, workerLockDurationMs: 60_000, resultMaxBytes: 25_000_000 },
     qualityConfig: { enabled: true, diagnosticRetentionHours: 72 },
+    freeTrialService: {
+      async consume() { events.push(["free-trial-consume"]); },
+      async release() { events.push(["free-trial-release"]); },
+    },
     seedFactory: () => 7,
   });
   const job = {
@@ -170,6 +180,17 @@ test("a passing candidate is published only after quality assessment and commits
     events.filter((event) => ["quality-complete", "commit", "completed"].includes(event[0])),
     [["quality-complete", "passed"], ["commit"], ["completed"]],
   );
+  assert.equal(events.filter((event) => event[0] === "free-trial-consume").length, 1);
+});
+
+test("generation provider receives the sanitized working copy, never the private source", async () => {
+  const privateSource = await jpeg("#ffffff");
+  const sanitizedWorking = await jpeg("#262626");
+  const { processor, job, events } = harness({ workingImage: sanitizedWorking });
+  await processor.process(job);
+  const delivered = events.find((event) => event[0] === "provider-source")?.[1];
+  assert.deepEqual(delivered, sanitizedWorking);
+  assert.notDeepEqual(delivered, privateSource);
 });
 
 test("Pro generation uses a Pro-capable provider and stores a distinct result", async () => {
@@ -212,6 +233,7 @@ test("a paid request whose recovery id cannot be persisted is never submitted ag
   assert.equal(getStatus(), "failed_refunded");
   assert.equal(events.filter((event) => event[0] === "provider").length, 1);
   assert.equal(events.filter((event) => event[0] === "refund").length, 1);
+  assert.equal(events.filter((event) => event[0] === "free-trial-release").length, 1);
   assert.equal(events.some((event) => event[0] === "retrying"), false);
 });
 

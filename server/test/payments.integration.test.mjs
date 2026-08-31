@@ -3,6 +3,7 @@ import assert from "node:assert/strict";
 import { randomUUID } from "node:crypto";
 import test from "node:test";
 import { closeDatabase, getPool } from "../src/db/client.mjs";
+import { PlanAccessRepository } from "../src/access/repository.mjs";
 import { PaymentRepository } from "../src/payments/repository.mjs";
 import { PaymentService } from "../src/payments/service.mjs";
 
@@ -176,6 +177,90 @@ test("active promo checkout is reused and a failed checkout releases its reserva
     assert.notEqual(replacement.payment.id, first.payment.id);
   } finally {
     await cleanup(pool, fixture.userId, fixture.promoId);
+    await closeDatabase();
+  }
+});
+
+test("every published package and top-up can create a server-priced checkout", { skip: !enabled }, async () => {
+  const pool = getPool();
+  const repository = new PaymentRepository(pool);
+  const userId = randomUUID();
+  await pool.query("insert into users (id, email, status) values ($1, $2, 'active')", [userId, `catalog-${userId}@example.test`]);
+  await pool.query("insert into wallets (user_id, currency) values ($1, 'CREDIT')", [userId]);
+  try {
+    const tariffs = await pool.query(
+      `select * from tariff_plans where is_active = true and is_public = true and price_minor > 0
+       and valid_from <= now() and (valid_until is null or valid_until > now()) order by code`,
+    );
+    assert.deepEqual(tariffs.rows.map((row) => row.code), [
+      "MAXIMUM", "OPTIMUM", "START", "TOPUP_1", "TOPUP_2", "TOPUP_3",
+    ]);
+    for (const tariff of tariffs.rows) {
+      const created = await repository.create({
+        userId,
+        tariffPlanId: tariff.id,
+        promoCode: null,
+        idempotencyKey: `catalog:${tariff.code}:${randomUUID()}`,
+        expiresAt: new Date(Date.now() + 30 * 60_000),
+      });
+      assert.equal(Number(created.payment.amount_minor), Number(tariff.price_minor));
+      assert.equal(Number(created.payment.credits), Number(tariff.credits));
+      await repository.cancel(userId, created.payment.id);
+    }
+  } finally {
+    await pool.query("delete from payments where user_id = $1", [userId]);
+    await pool.query("delete from wallets where user_id = $1", [userId]);
+    await pool.query("delete from users where id = $1", [userId]);
+    await closeDatabase();
+  }
+});
+
+test("top-ups preserve Start access while paid packages unlock the highest tier", { skip: !enabled }, async () => {
+  const pool = getPool();
+  const payments = new PaymentRepository(pool);
+  const access = new PlanAccessRepository(pool);
+  const userId = randomUUID();
+  await pool.query("insert into users (id, email, status) values ($1, $2, 'active')", [userId, `access-${userId}@example.test`]);
+  await pool.query("insert into wallets (user_id, currency) values ($1, 'CREDIT')", [userId]);
+  const buy = async (code) => {
+    const tariff = (await pool.query(
+      `select * from tariff_plans where code = $1 and is_active = true
+       and valid_from <= now() and (valid_until is null or valid_until > now())
+       order by valid_from desc limit 1`,
+      [code],
+    )).rows[0];
+    assert.ok(tariff, `${code} tariff seed is required`);
+    const created = await payments.create({
+      userId, tariffPlanId: tariff.id, promoCode: null,
+      idempotencyKey: `access:${code}:${randomUUID()}`,
+      expiresAt: new Date(Date.now() + 30 * 60_000),
+    });
+    await payments.markPending(created.payment.id);
+    await payments.processPaid({
+      eventKey: `access-paid:${created.payment.provider_payment_id}:${randomUUID()}`,
+      paymentId: created.payment.id,
+      providerPaymentId: created.payment.provider_payment_id,
+      amountMinor: Number(created.payment.amount_minor),
+      paymentMethod: "BankCard",
+      raw: { test: true },
+    });
+  };
+  try {
+    assert.equal(await access.highestPaidPackage(userId), "START");
+    await buy("TOPUP_3");
+    assert.equal(await access.highestPaidPackage(userId), "START");
+    await buy("OPTIMUM");
+    assert.equal(await access.highestPaidPackage(userId), "OPTIMUM");
+    await buy("MAXIMUM");
+    assert.equal(await access.highestPaidPackage(userId), "MAXIMUM");
+  } finally {
+    await pool.query("delete from payment_receipts where payment_id in (select id from payments where user_id = $1)", [userId]);
+    await pool.query("delete from payment_refunds where payment_id in (select id from payments where user_id = $1)", [userId]);
+    await pool.query("delete from payment_webhook_events where payment_id in (select id from payments where user_id = $1)", [userId]);
+    await pool.query("delete from payments where user_id = $1", [userId]);
+    await pool.query("delete from wallet_transactions where wallet_id in (select id from wallets where user_id = $1)", [userId]);
+    await pool.query("delete from wallets where user_id = $1", [userId]);
+    await pool.query("delete from users where id = $1", [userId]);
     await closeDatabase();
   }
 });

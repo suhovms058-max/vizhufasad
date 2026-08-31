@@ -11,12 +11,12 @@ function respondError(response, error) {
   throw error;
 }
 
-export function createGenerationRouter({ authService, generationService }) {
+export function createGenerationRouter({ authService, generationService, mutationLimit = 10 }) {
   const router = express.Router();
   router.use(createRequireSession(authService));
   const limiter = rateLimit({
     windowMs: 15 * 60 * 1000,
-    limit: 10,
+    limit: mutationLimit,
     standardHeaders: "draft-8",
     legacyHeaders: false,
   });
@@ -29,6 +29,7 @@ export function createGenerationRouter({ authService, generationService }) {
         request.body?.sourceImageId,
         request.body?.input,
         idempotencyKey,
+        authService.riskContextFromRequest?.(request) || {},
       );
       return response.status(202).json({ generation });
     } catch (error) {

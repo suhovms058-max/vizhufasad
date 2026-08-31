@@ -6,7 +6,7 @@ import {
 
 test("personal data retention uses fixed cutoffs and records deleted counts", async () => {
   const calls = [];
-  const counts = [2, 3, 4, 5];
+  const counts = [2, 3, 4, 5, 6, 7];
   const client = {
     async query(sql, params = []) {
       calls.push({ sql: String(sql), params });
@@ -19,7 +19,10 @@ test("personal data retention uses fixed cutoffs and records deleted counts", as
   const now = new Date("2026-08-28T12:00:00.000Z");
   const result = await new PersonalDataRetentionRepository(pool).cleanup({ now });
 
-  assert.deepEqual(result, { loginCodes: 2, sessions: 3, productEvents: 4, auditLogs: 5 });
+  assert.deepEqual(result, {
+    loginCodes: 2, sessions: 3, productEvents: 4,
+    freeTrialRiskEvents: 5, freeTrialEntitlements: 6, auditLogs: 7,
+  });
   assert.equal(calls[1].params[0].getTime(), now.getTime() - DEFAULT_RETENTION.loginCodesMs);
   assert.equal(calls[2].params[0].getTime(), now.getTime() - DEFAULT_RETENTION.sessionsMs);
   assert.match(calls.at(-2).sql, /insert into data_cleanup_runs/u);

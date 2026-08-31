@@ -50,6 +50,8 @@ export function loadAuthConfig(environment = process.env) {
     rateWindowMs: integer(environment.AUTH_RATE_WINDOW_MS, 15 * 60 * 1000, "AUTH_RATE_WINDOW_MS"),
     sessionTtlSeconds: integer(environment.AUTH_SESSION_TTL_SECONDS, 30 * 24 * 60 * 60, "AUTH_SESSION_TTL_SECONDS"),
     cookieName: environment.AUTH_COOKIE_NAME || "vizhufasad_session",
+    deviceCookieName: environment.FREE_TRIAL_DEVICE_COOKIE_NAME || "vizhufasad_device",
+    deviceTtlSeconds: integer(environment.FREE_TRIAL_DEVICE_TTL_SECONDS, 180 * 24 * 60 * 60, "FREE_TRIAL_DEVICE_TTL_SECONDS"),
     cookieSecure,
   };
 }

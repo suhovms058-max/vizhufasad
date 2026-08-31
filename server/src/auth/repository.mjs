@@ -1,5 +1,4 @@
 import { getPool } from "../db/client.mjs";
-import { grantFreeBonusWithClient } from "../wallet/repository.mjs";
 import { hashesEqual } from "./crypto.mjs";
 
 export class AuthRepository {
@@ -23,6 +22,14 @@ export class AuthRepository {
           (id, email, code_hash, request_ip_hash, attempts_remaining, expires_at)
          values ($1, $2, $3, $4, $5, $6)`,
         [input.id, input.email, input.codeHash, input.requestIpHash, input.attemptsRemaining, input.expiresAt],
+      );
+      await client.query(
+        `insert into legal_acceptances
+          (document_key, document_version, document_hash, action, context, challenge_id,
+           request_ip_hash, user_agent)
+         values ($1, $2, $3, 'accepted', 'account_email_submission', $4, $5, $6)`,
+        [input.consent.document.key, input.consent.document.revision, input.consent.document.hash,
+          input.id, input.requestIpHash, input.userAgent],
       );
       await client.query(
         `insert into audit_logs (action, entity_type, entity_id, details)
@@ -101,11 +108,12 @@ export class AuthRepository {
           [user.id],
         );
         if (this.walletConfig.freeBonusEnabled) {
-          await grantFreeBonusWithClient(client, {
-            userId: user.id,
-            credits: this.walletConfig.freeBonusCredits,
-            source: "account_created",
-          });
+          await client.query(
+            `insert into free_trial_entitlements (user_id, device_hash, expires_at)
+             values ($1, $2, now() + interval '180 days')
+             on conflict (user_id) where user_id is not null do nothing`,
+            [user.id, input.deviceHash || null],
+          );
         }
       } else if (
         user.status === "blocked"
@@ -133,6 +141,18 @@ export class AuthRepository {
          values ($1, $2, $3, $4, $5, now())
          returning id, created_at, expires_at`,
         [user.id, input.tokenHash, input.requestIpHash, input.userAgent, input.expiresAt],
+      );
+      if (input.deviceHash) {
+        await client.query(
+          `update free_trial_entitlements set device_hash = coalesce(device_hash, $2), updated_at = now()
+           where user_id = $1`,
+          [user.id, input.deviceHash],
+        );
+      }
+      await client.query(
+        `update legal_acceptances set user_id = $1
+         where challenge_id = $2 and user_id is null and document_key = 'personal-data-consent'`,
+        [user.id, input.challengeId],
       );
       await client.query(
         `insert into audit_logs (actor_user_id, action, entity_type, entity_id, details)

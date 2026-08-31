@@ -37,6 +37,18 @@ test("project ownership, direct upload, sanitization, cleanup and deletion work"
         return { status: "completed", decision: "accepted" };
       },
     },
+    anonymizer: {
+      async anonymize(image) {
+        const metadata = await sharp(image).metadata();
+        const mask = await sharp({
+          create: { width: 120, height: 80, channels: 3, background: "#262626" },
+        }).jpeg().toBuffer();
+        return {
+          image: await sharp(image).composite([{ input: mask, left: 20, top: 20 }]).jpeg().toBuffer(),
+          report: { version: "test", detectors: { face: "ok", text: "ok", plate: "ok" }, width: metadata.width },
+        };
+      },
+    },
   });
   const userA = randomUUID();
   const userB = randomUUID();
@@ -92,9 +104,12 @@ test("project ownership, direct upload, sanitization, cleanup and deletion work"
     );
 
     const source = await getPrivateObjectBuffer(ready.storage_key, 25 * 1024 * 1024);
+    const working = await getPrivateObjectBuffer(ready.working_storage_key, 25 * 1024 * 1024);
     const sourceMetadata = await sharp(source).metadata();
     assert.equal(sourceMetadata.exif, undefined);
     assert.equal(sourceMetadata.space, "srgb");
+    assert.notDeepEqual(source, working);
+    assert.deepEqual(automaticAssessmentCalls[0].image, working);
     assert.equal((await headPrivateObject(ready.thumbnail_storage_key)).contentType, "image/webp");
 
     const mismatchProject = await service.create(userA, "Проверка MIME");

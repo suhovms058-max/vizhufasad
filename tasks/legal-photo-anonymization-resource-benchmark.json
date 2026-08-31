@@ -1,0 +1,105 @@
+{
+  "date": "2026-08-31",
+  "scope": "local pre-GenAPI anonymization, concurrency 1",
+  "networkRequests": 0,
+  "paidRequests": 0,
+  "environment": {
+    "os": "Windows 10 Pro 10.0.19045",
+    "cpu": "Intel Core i3-7020U 2.30 GHz",
+    "physicalCores": 2,
+    "logicalProcessors": 4,
+    "ramGb": 7.9,
+    "pythonDependencies": {
+      "opencvPythonHeadless": "4.12.0.88",
+      "onnxruntime": "1.23.2"
+    }
+  },
+  "modelHashesMatched": 4,
+  "modelHashesExpected": 4,
+  "source": {
+    "description": "clean facade negative control resized to target megapixels",
+    "containsExpectedSensitiveRegions": false
+  },
+  "runs": [
+    {"megapixels": 12, "width": 4000, "height": 3000, "round": 1, "elapsedSeconds": 7.512, "peakWorkingSetMb": 656.4, "exitCode": 0},
+    {"megapixels": 12, "width": 4000, "height": 3000, "round": 2, "elapsedSeconds": 6.696, "peakWorkingSetMb": 657.3, "exitCode": 0},
+    {"megapixels": 12, "width": 4000, "height": 3000, "round": 3, "elapsedSeconds": 5.470, "peakWorkingSetMb": 657.7, "exitCode": 0},
+    {"megapixels": 24, "width": 6000, "height": 4000, "round": 1, "elapsedSeconds": 4.720, "peakWorkingSetMb": 631.9, "exitCode": 0},
+    {"megapixels": 24, "width": 6000, "height": 4000, "round": 2, "elapsedSeconds": 4.871, "peakWorkingSetMb": 631.1, "exitCode": 0},
+    {"megapixels": 24, "width": 6000, "height": 4000, "round": 3, "elapsedSeconds": 4.710, "peakWorkingSetMb": 630.7, "exitCode": 0}
+  ],
+  "summary": {
+    "runs": 6,
+    "successfulRuns": 6,
+    "p50Seconds": 4.871,
+    "p95Seconds": 7.308,
+    "maxSeconds": 7.512,
+    "maxPeakWorkingSetMb": 657.7,
+    "detectorsOkEveryRun": true,
+    "documentSuspectedEveryRun": false,
+    "unexpectedRegionsEveryRun": 0
+  },
+  "controls": {
+    "missingRequiredModel": {
+      "exitCode": 2,
+      "outputBytes": 0,
+      "failClosed": true
+    },
+    "metadata": {
+      "checkedOutputs": 2,
+      "exifItemsEveryOutput": 0,
+      "xmpOrIptcFound": false
+    },
+    "nodeBoundary": {
+      "clean12MegapixelAccepted": true,
+      "clean12MegapixelElapsedMs": 4524,
+      "realDocumentBlocked": true,
+      "realDocumentErrorCode": "PHOTO_ANONYMIZATION_DOCUMENT_SUSPECTED",
+      "realDocumentTextAreaRatio": 0.414944
+    }
+  },
+  "interpretation": {
+    "recommendedMinimumWorkerRamGb": 2,
+    "recommendedInitialConcurrency": 1,
+    "productionBenchmarkStillRequired": false,
+    "note": "Detection is capped at a 1920-pixel longest side, so full-resolution decode and output encoding dominate memory while detector time depends on aspect ratio. Keep concurrency at 1 for the initial release."
+  },
+  "timeweb": {
+    "date": "2026-08-31",
+    "host": {
+      "cpuCount": 4,
+      "ramMiB": 7941,
+      "swapMiB": 4095,
+      "python": "3.12.3",
+      "activeReleaseChanged": false
+    },
+    "isolation": {
+      "directory": "/opt/vizhufasad-anonymizer-check-20260831",
+      "serviceRestarted": false,
+      "genApiRequests": 0,
+      "paidRequests": 0,
+      "nicePriority": 10
+    },
+    "runs": [
+      {"megapixels": 12, "round": 1, "elapsedSeconds": 2.24, "maxRssKiB": 707176, "exitCode": 0},
+      {"megapixels": 12, "round": 2, "elapsedSeconds": 2.12, "maxRssKiB": 706848, "exitCode": 0},
+      {"megapixels": 12, "round": 3, "elapsedSeconds": 2.20, "maxRssKiB": 707176, "exitCode": 0},
+      {"megapixels": 24, "round": 1, "elapsedSeconds": 2.14, "maxRssKiB": 677060, "exitCode": 0},
+      {"megapixels": 24, "round": 2, "elapsedSeconds": 2.20, "maxRssKiB": 677176, "exitCode": 0},
+      {"megapixels": 24, "round": 3, "elapsedSeconds": 2.17, "maxRssKiB": 677216, "exitCode": 0}
+    ],
+    "summary": {
+      "runs": 6,
+      "successfulRuns": 6,
+      "p50Seconds": 2.185,
+      "p95Seconds": 2.230,
+      "maxSeconds": 2.240,
+      "maxRssMiB": 690.6,
+      "missingModelExitCode": 2,
+      "missingModelOutputBytes": 0,
+      "apiAfterBenchmark": "active",
+      "workerAfterBenchmark": "active",
+      "readinessAfterBenchmark": "ready"
+    }
+  }
+}

@@ -11,6 +11,7 @@ const expected = new Set([
   "action_costs",
   "payment_webhook_events", "payment_receipts", "payment_refunds",
   "promo_codes", "promo_redemptions",
+  "legal_acceptances", "free_trial_entitlements", "free_trial_risk_events",
 ]);
 
 test("applied migration exposes all required PostgreSQL tables", { skip: !enabled }, async () => {
@@ -20,6 +21,21 @@ test("applied migration exposes all required PostgreSQL tables", { skip: !enable
     );
     const actual = new Set(result.rows.map(({ table_name }) => table_name));
     for (const table of expected) assert.ok(actual.has(table), `missing migrated table ${table}`);
+  } finally {
+    await closeDatabase();
+  }
+});
+
+test("pre-auth legal proof columns are migrated", { skip: !enabled }, async () => {
+  try {
+    const result = await getPool().query(
+      `select column_name from information_schema.columns
+       where table_schema = 'public' and table_name = 'legal_acceptances'`,
+    );
+    const columns = new Set(result.rows.map(({ column_name }) => column_name));
+    for (const column of ["challenge_id", "request_ip_hash", "user_agent"]) {
+      assert.ok(columns.has(column), `missing legal_acceptances.${column}`);
+    }
   } finally {
     await closeDatabase();
   }

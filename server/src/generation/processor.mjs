@@ -55,6 +55,7 @@ export class GenerationProcessor {
     providers,
     config,
     qualityConfig,
+    freeTrialService = null,
     seedFactory = () => randomInt(1, 2_147_483_647),
   }) {
     this.repository = repository;
@@ -65,6 +66,7 @@ export class GenerationProcessor {
     this.providers = providers.map(assertGenerationProvider);
     this.config = config;
     this.qualityConfig = qualityConfig;
+    this.freeTrialService = freeTrialService;
     this.seedFactory = seedFactory;
   }
 
@@ -77,6 +79,7 @@ export class GenerationProcessor {
         failureCode || "technical_failure",
       );
     }
+    await this.freeTrialService?.release(generation.id);
     await this.repository.markFailedRefunded(
       generation.id,
       generation.project_id,
@@ -206,6 +209,7 @@ export class GenerationProcessor {
       },
     });
     await this.walletService.commit(generation.user_id, generation.wallet_reservation_id);
+    await this.freeTrialService?.consume(generation.id);
     await this.repository.markCompleted({
       generationId: generation.id,
       projectId: generation.project_id,

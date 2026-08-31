@@ -67,6 +67,8 @@ test("enabled balance page offers checkout only for paid tariffs and shows owner
           { id: "free-id", name: "Бесплатный", priceMinor: 0, credits: 1 },
           { id: "topup-id", code: "TOPUP_1", name: "1 кредит", priceMinor: 24_900, credits: 1 },
           { id: "start-id", code: "START", name: "Старт", priceMinor: 79_000, credits: 4 },
+          { id: "optimum-id", code: "OPTIMUM", name: "Оптимум", priceMinor: 129_000, credits: 8 },
+          { id: "maximum-id", code: "MAXIMUM", name: "Максимум", priceMinor: 349_000, credits: 25 },
         ],
         actions: [],
       };
@@ -91,8 +93,16 @@ test("enabled balance page offers checkout only for paid tariffs and shows owner
     const response = await fetch(`http://127.0.0.1:${server.address().port}/app/balance?plan=START`);
     const html = await response.text();
     assert.equal(response.status, 200);
-    assert.equal((html.match(/action="\/app\/payments\/checkout"/g) || []).length, 2);
-    assert.equal((html.match(/name="offerAccepted" value="yes" required/g) || []).length, 2);
+    assert.equal((html.match(/action="\/app\/payments\/checkout"/g) || []).length, 4);
+    assert.equal((html.match(/name="offerAccepted" value="yes" required/g) || []).length, 4);
+    assert.equal((html.match(/required><span>Принимаю <a href="\/legal\/offer"/g) || []).length, 4);
+    assert.equal((html.match(/<details class="promo-disclosure"><summary>Есть промокод\?<\/summary>/g) || []).length, 4);
+    assert.match(html, /Промокоды предназначены для партнёров ресурса/u);
+    assert.match(html, /4 популярных стиля и автоподбор/u);
+    assert.match(html, /7 стилей и расширенный выбор материалов/u);
+    assert.match(html, /Все 10 стилей и все материалы/u);
+    assert.match(html, /Пополнение не меняет доступный набор стилей и инструментов/u);
+    assert.match(html, /vizhufasad0058@bk\.ru/u);
     assert.doesNotMatch(html, /name="offerAccepted"[^>]*checked/u);
     assert.match(html, /name="offerHash" value="[a-f0-9]{64}"/u);
     assert.match(html, /value="start-id"/);

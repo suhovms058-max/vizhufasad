@@ -31,11 +31,15 @@ function page(title, body, { cabinet = false, narrow = false } = {}) {
 
 function loginForm(message = "", nextPath = "/app") {
   const next = safeNext(nextPath);
+  const personalData = legalDocument("personal-data-consent");
   return page("Вход", `<section class="panel auth-card"><p class="eyebrow">Личный кабинет</p><h1>Вход по email</h1>
     ${message ? `<p class="notice error" role="alert">${escapeHtml(message)}</p>` : ""}
     <p class="muted">Получите одноразовый код. Пароль и телефон не требуются.</p>
     <form class="form-stack" method="post" action="/auth/login"><input type="hidden" name="next" value="${escapeHtml(next)}"><label>Email
       <input name="email" type="email" autocomplete="email" inputmode="email" required maxlength="254" placeholder="name@example.ru"></label>
+      <input type="hidden" name="personalDataVersion" value="${personalData.revision}">
+      <input type="hidden" name="personalDataHash" value="${personalData.hash}">
+      <label class="confirm consent-confirm"><input type="checkbox" name="personalDataAccepted" value="yes" required><span>Я даю <a href="/legal/personal-data-consent" target="_blank" rel="noopener">согласие</a> на обработку персональных данных для создания аккаунта и входа в сервис и ознакомился с <a href="/legal/privacy" target="_blank" rel="noopener">Политикой обработки персональных данных</a></span></label>
       <button type="submit">Получить код</button></form></section>`, { narrow: true });
 }
 
@@ -60,9 +64,14 @@ export function createAuthPagesRouter({ service, config }) {
   router.get("/auth/login", (request, response) => response.type("html").send(loginForm("", request.query.next)));
   router.post("/auth/login", requestLimiter, async (request, response, next) => {
     try {
-      const result = await service.requestCode(request.body?.email, {
+      const result = await service.requestCode(request.body || {}, {
         ip: request.ip, userAgent: request.get("user-agent"),
       });
+      if (!result.ok && result.reason === "PERSONAL_DATA_CONSENT_REQUIRED") {
+        return response.status(400).type("html").send(loginForm(
+          "До отправки кода подтвердите согласие на обработку персональных данных.", request.body?.next,
+        ));
+      }
       const next = safeNext(request.body?.next);
       return response.redirect(303, `/auth/verify?challenge=${encodeURIComponent(result.challengeId)}&next=${encodeURIComponent(next)}`);
     } catch (error) {
@@ -75,18 +84,15 @@ export function createAuthPagesRouter({ service, config }) {
 
   const verificationPage = (challenge, next, message = "") => {
     const agreement = legalDocument("user-agreement");
-    const personalData = legalDocument("personal-data-consent");
     return page("Подтверждение входа", `<section class="panel auth-card">
       <p class="eyebrow">Безопасный вход</p><h1>Введите код</h1><p class="muted">Шестизначный код отправлен на ваш email.</p>
       ${message ? `<p class="notice error" role="alert">${escapeHtml(message)}</p>` : ""}
       <form class="form-stack" method="post" action="/auth/verify"><input type="hidden" name="challengeId" value="${escapeHtml(challenge)}"><input type="hidden" name="next" value="${escapeHtml(next)}">
       <label>Код <input class="code-input" name="code" inputmode="numeric" autocomplete="one-time-code" pattern="[0-9]{6}" maxlength="6" required></label>
       <input type="hidden" name="agreementVersion" value="${agreement.revision}"><input type="hidden" name="agreementHash" value="${agreement.hash}">
-      <input type="hidden" name="personalDataVersion" value="${personalData.revision}"><input type="hidden" name="personalDataHash" value="${personalData.hash}">
       <input type="hidden" name="ageVersion" value="${AGE_CONFIRMATION.revision}"><input type="hidden" name="ageHash" value="${AGE_CONFIRMATION.hash}">
       <label class="confirm consent-confirm"><input type="checkbox" name="agreementAccepted" value="yes" required> Принимаю <a href="/legal/user-agreement" target="_blank" rel="noopener">Пользовательское соглашение</a></label>
       <label class="confirm consent-confirm"><input type="checkbox" name="ageConfirmed" value="yes" required> Подтверждаю, что мне исполнилось 18 лет</label>
-      <label class="confirm consent-confirm"><input type="checkbox" name="personalDataAccepted" value="yes" required> Даю отдельное <a href="/legal/personal-data-consent" target="_blank" rel="noopener">согласие на обработку персональных данных</a></label>
       <button type="submit">Войти</button></form><p><a href="/auth/login">Запросить новый код</a></p></section>`, { narrow: true });
   };
   router.get("/auth/verify", (request, response) => {
@@ -98,12 +104,13 @@ export function createAuthPagesRouter({ service, config }) {
     try {
       const result = await service.verifyCode(request.body || {}, {
         ip: request.ip, userAgent: request.get("user-agent"),
+        deviceHash: service.deviceHashFromRequest?.(request) || null,
       });
       if (!result.ok) {
         if (result.reason === "LEGAL_CONSENT_REQUIRED") {
           return response.status(400).type("html").send(verificationPage(
             String(request.body?.challengeId || ""), safeNext(request.body?.next),
-            "Для создания аккаунта и входа нужны три отдельные подтверждения ниже.",
+            "Для входа нужны два отдельных подтверждения ниже.",
           ));
         }
         if (result.reason === "ACCOUNT_UNAVAILABLE") {
@@ -112,6 +119,7 @@ export function createAuthPagesRouter({ service, config }) {
         return response.status(401).type("html").send(page("Код не принят", '<p role="alert">Код неверен, истёк или уже использован.</p><p><a href="/auth/login">Запросить новый код</a></p>'));
       }
       response.cookie(config.cookieName, result.token, service.cookieOptions());
+      service.ensureDeviceCookie?.(request, response);
       return response.redirect(303, safeNext(request.body?.next));
     } catch (error) {
       return next(error);

@@ -37,6 +37,7 @@ try {
           name = excluded.name, description = excluded.description,
           price_minor = excluded.price_minor, credits = excluded.credits,
           is_active = excluded.is_active, is_public = excluded.is_public,
+          valid_until = null,
           updated_at = now()`,
         plan,
       );

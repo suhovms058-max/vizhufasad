@@ -49,10 +49,17 @@
     PIXEL_LIMIT_EXCEEDED: "У изображения слишком большое число пикселей.",
     MIME_DECODER_MISMATCH: "Содержимое файла не соответствует его формату.",
     IMAGE_DECODE_FAILED: "Файл повреждён или не декодируется.",
+    PHOTO_ANONYMIZATION_UNAVAILABLE: "Не удалось безопасно подготовить фотографию. Скройте лица, номера и адресные данные вручную либо загрузите другой снимок.",
+    PHOTO_ANONYMIZATION_MODELS_MISSING: "Не удалось безопасно подготовить фотографию. Скройте лица, номера и адресные данные вручную либо загрузите другой снимок.",
+    PHOTO_ANONYMIZATION_DETECTOR_FAILED: "Автоматическая защита данных не завершилась. Скройте лица, номера и адресные данные вручную либо загрузите другой снимок.",
+    PHOTO_ANONYMIZATION_TIMEOUT: "Автоматическая защита данных не завершилась вовремя. Скройте лица, номера и адресные данные вручную либо загрузите другой снимок.",
+    PHOTO_ANONYMIZATION_DOCUMENT_SUSPECTED: "На фотографии обнаружен документ или много читаемого текста. Скройте данные вручную либо загрузите снимок фасада без документов и адресных табличек.",
     INSUFFICIENT_BALANCE: "Недостаточно ВФ-коинов для генерации.",
     STANDARD_GENERATION_DISABLED: "Генерация фасада пока не включена на этом сервере.",
     PRO_GENERATION_DISABLED: "Pro пока не включён: модель должна пройти реальную проверку качества.",
     PHOTO_PROCESSING_CONSENT_REQUIRED: "Подтвердите отдельное согласие на обработку фотографии.",
+    FREE_TRIAL_ALREADY_USED: "Пробный запуск уже использован на этом устройстве или для этого объекта.",
+    FREE_TRIAL_REVIEW_REQUIRED: "Не удалось подтвердить право на пробный запуск. ВФ-коин не списан.",
   };
 
   const vfCoinsLabel = (value) => {
@@ -369,8 +376,11 @@
       const buttonLabel = kind === "pro" ? "Запустить Pro-генерацию" : "Запустить генерацию";
       const chargeLabel = kind === "pro" ? "Pro-генерацию" : "обычную генерацию";
       const cost = kind === "pro" ? root.dataset.proCost : root.dataset.standardCost;
+      const balance = Number(root.dataset.balance || 0);
       start.textContent = buttonLabel;
-      costText.textContent = `Подтверждаю списание ${vfCoinsLabel(cost)} за ${chargeLabel}. Проверка фото и скачивание бесплатны.`;
+      costText.textContent = kind === "standard" && balance < Number(cost)
+        ? "Подтверждаю запуск: сервис проверит право на первую бесплатную генерацию. При отказе ВФ-коин не списывается."
+        : `Подтверждаю: с баланса будет списан ${vfCoinsLabel(cost)} за ${chargeLabel}. Проверка фото и скачивание бесплатны.`;
     };
     updateCount();
     updateGenerationKind();
@@ -404,7 +414,18 @@
       } catch (error) {
         start.disabled = false;
         message.className = "form-message error";
-        message.textContent = errors[error.code] || "Не удалось запустить генерацию. ВФ-коин не списан или будет автоматически возвращён.";
+        if (["FREE_TRIAL_ALREADY_USED", "FREE_TRIAL_REVIEW_REQUIRED"].includes(error.code)) {
+          message.replaceChildren(document.createTextNode(`${errors[error.code]} `));
+          const pricing = document.createElement("a");
+          pricing.href = "/app/balance";
+          pricing.textContent = "Выбрать пакет";
+          const support = document.createElement("a");
+          support.href = "mailto:vizhufasad0058@bk.ru";
+          support.textContent = "написать в поддержку";
+          message.append(pricing, document.createTextNode(" или "), support, document.createTextNode("."));
+        } else {
+          message.textContent = errors[error.code] || "Не удалось запустить генерацию. ВФ-коин не списан или будет автоматически возвращён.";
+        }
       }
     });
   }

@@ -1,0 +1,34 @@
+{
+  "checkedAt": "2026-08-31",
+  "dataset": {
+    "name": "FUNSD testing_data",
+    "source": "https://github.com/crcresearch/FUNSD",
+    "archiveSha256": "F9BBF6A94357E6DB900CE023F8CBFA7B1E0462B440A59D372A905FDE33D1E46A",
+    "seed": 20260831,
+    "selectedImages": 50,
+    "groundTruthWords": 8707
+  },
+  "result": {
+    "processedImages": 50,
+    "processErrors": 0,
+    "suspectedDocuments": 50,
+    "documentDetectionRecall": 1.0,
+    "maskedWords": 8018,
+    "wordRecall": 0.9209,
+    "acceptedStrategy": "fail-closed document rejection",
+    "directWordMaskingAccepted": false,
+    "seconds": {
+      "p50": 2.281,
+      "p95": 2.434,
+      "max": 2.601
+    }
+  },
+  "negativeControl": {
+    "input": "clean 4000x3000 facade",
+    "documentSuspected": false,
+    "faces": 0,
+    "text": 0,
+    "plates": 0
+  },
+  "evaluator": "server/python/evaluate_document_text.py"
+}

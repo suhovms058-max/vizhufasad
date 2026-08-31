@@ -1,7 +1,12 @@
 import AxeBuilder from "@axe-core/playwright";
 import { expect, test } from "@playwright/test";
 
-test.beforeEach(async ({ request }) => { await request.post("/__reset"); });
+test.beforeEach(async ({ page, request }) => {
+  await request.post("/__reset");
+  await page.addInitScript(() => localStorage.setItem("vizhufasad:privacy:v1", JSON.stringify({
+    version: "2026-08-28", analytics: false, decidedAt: "2026-08-30T00:00:00.000Z",
+  })));
+});
 
 test("Pro, edit, 4K and comparison remain usable without horizontal overflow", async ({ page }) => {
   await page.goto("/app/new?project=project-e2e");

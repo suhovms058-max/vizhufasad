@@ -8,12 +8,13 @@ function idempotencyKey(value, userId) {
 }
 
 export class UpscaleService {
-  constructor({ repository, queue, walletService, storage, config }) {
+  constructor({ repository, queue, walletService, storage, config, planAccessService = null }) {
     this.repository = repository;
     this.queue = queue;
     this.walletService = walletService;
     this.storage = storage;
     this.config = config;
+    this.planAccessService = planAccessService;
   }
 
   assertEnabled() {
@@ -22,6 +23,9 @@ export class UpscaleService {
 
   async create(userId, projectId, generationId, requestedKey) {
     this.assertEnabled();
+    if (this.planAccessService && !(await this.planAccessService.forUser(userId)).upscale) {
+      throw new UpscaleError("UPSCALE_PLAN_REQUIRED", 403);
+    }
     const created = await this.repository.createOwned({
       userId, projectId, generationId,
       idempotencyKey: idempotencyKey(requestedKey, userId),

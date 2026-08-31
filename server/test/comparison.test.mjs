@@ -15,6 +15,17 @@ const ids = [
   "44444444-4444-4444-8444-444444444444",
 ];
 
+function post(url, { headers = {}, body } = {}) {
+  return new Promise((resolve, reject) => {
+    const request = http.request(url, { method: "POST", headers }, (response) => {
+      response.resume();
+      response.once("end", () => resolve(response));
+    });
+    request.once("error", reject);
+    request.end(body);
+  });
+}
+
 test("comparison accepts two to four unique generation ids", () => {
   assert.deepEqual(normalizeComparisonGenerationIds(ids.slice(0, 2)), ids.slice(0, 2));
   assert.equal(normalizeComparisonGenerationIds(ids).length, 4);
@@ -92,14 +103,15 @@ test("comparison HTTP endpoint delegates only after authentication", async () =>
   await once(server, "listening");
   try {
     const url = `http://127.0.0.1:${server.address().port}/api/projects/project-1/comparisons`;
-    assert.equal((await fetch(url, { method: "POST" })).status, 401);
-    const response = await fetch(url, {
-      method: "POST", headers: { "content-type": "application/json", "x-user": "yes" },
+    assert.equal((await post(url)).statusCode, 401);
+    const response = await post(url, {
+      headers: { "content-type": "application/json", "x-user": "yes" },
       body: JSON.stringify({ generationIds: ids.slice(0, 2) }),
     });
-    assert.equal(response.status, 201);
+    assert.equal(response.statusCode, 201);
     assert.equal(calls[0][0], "owner");
   } finally {
+    server.closeAllConnections();
     server.close();
     await once(server, "close");
   }

@@ -17,6 +17,8 @@ import { AuthService } from "./src/auth/service.mjs";
 import { createEconomicsMetricsRouter, createProductAnalyticsRouter } from "./src/analytics/http.mjs";
 import { ProductAnalyticsRepository } from "./src/analytics/repository.mjs";
 import { ProductAnalyticsService } from "./src/analytics/service.mjs";
+import { PlanAccessRepository } from "./src/access/repository.mjs";
+import { PlanAccessService } from "./src/access/plans.mjs";
 import { closeDatabase } from "./src/db/client.mjs";
 import { liveness, readiness } from "./src/health.mjs";
 import { ensurePrivateBucket } from "./src/infra/storage.mjs";
@@ -33,7 +35,10 @@ import { GenerationMetrics } from "./src/generation/metrics.mjs";
 import { createGenerationQueue } from "./src/generation/queue.mjs";
 import { GenerationRepository } from "./src/generation/repository.mjs";
 import { GenerationService } from "./src/generation/service.mjs";
+import { FreeTrialRepository } from "./src/free-trial/repository.mjs";
+import { FreeTrialService } from "./src/free-trial/service.mjs";
 import { loadProjectConfig } from "./src/projects/config.mjs";
+import { LocalImageAnonymizer, loadAnonymizationConfig } from "./src/projects/anonymization.mjs";
 import { createProjectsRouter } from "./src/projects/http.mjs";
 import { createProjectPagesRouter } from "./src/projects/pages.mjs";
 import { ProjectRepository } from "./src/projects/repository.mjs";
@@ -94,6 +99,11 @@ const walletService = new WalletService({
   repository: walletRepository,
   config: walletConfig,
 });
+const freeTrialService = new FreeTrialService({
+  repository: new FreeTrialRepository(),
+  walletService,
+  freeBonusCredits: walletConfig.freeBonusCredits,
+});
 const paymentRepository = new PaymentRepository();
 const paymentProvider = new RobokassaPaymentProvider(paymentConfig);
 const paymentService = new PaymentService({
@@ -107,12 +117,15 @@ const generationQualityConfig = loadGenerationQualityConfig();
 const generationRepository = new GenerationRepository();
 const generationQualityRepository = new GenerationQualityRepository();
 const generationQueue = createGenerationQueue(generationConfig);
+const planAccessService = new PlanAccessService(new PlanAccessRepository());
 const generationService = new GenerationService({
   repository: generationRepository,
   storage,
   walletService,
   queue: generationQueue,
   config: generationConfig,
+  planAccessService,
+  freeTrialService,
 });
 const upscaleRepository = new UpscaleRepository();
 const upscaleQueue = createUpscaleQueue(upscaleConfig);
@@ -122,6 +135,7 @@ const upscaleService = new UpscaleService({
   walletService,
   storage,
   config: upscaleConfig,
+  planAccessService,
 });
 const comparisonService = new ComparisonService({
   repository: new ComparisonRepository(),
@@ -164,6 +178,7 @@ const projectService = new ProjectService({
   storage,
   config: projectConfig,
   assessmentService: photoAssessmentService,
+  anonymizer: new LocalImageAnonymizer(loadAnonymizationConfig()),
 });
 const personalDataRetentionRepository = new PersonalDataRetentionRepository();
 const accountDeletionProcessor = new AccountDeletionProcessor({
@@ -240,7 +255,7 @@ app.use("/api/catalog", createCatalogRouter({ authService, walletService }));
 app.use("/api/payments", createPaymentRouter({ authService, paymentService, legalAcceptanceRepository }));
 app.use(createProjectPagesRouter({
   authService, projectService, generationService, walletService,
-  generationConfig, upscaleConfig, comparisonService,
+  generationConfig, upscaleConfig, comparisonService, planAccessService,
 }));
 app.use(createWalletPagesRouter({
   authService, walletService, paymentService, paymentConfig,

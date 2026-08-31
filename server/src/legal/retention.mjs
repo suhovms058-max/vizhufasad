@@ -37,6 +37,15 @@ export class PersonalDataRetentionRepository {
         "delete from product_events where created_at < $1",
         [cutoffs.productEvents],
       );
+      const freeTrialRiskEvents = await client.query(
+        "delete from free_trial_risk_events where expires_at <= $1",
+        [now],
+      );
+      const freeTrialEntitlements = await client.query(
+        `delete from free_trial_entitlements where expires_at <= $1
+         and status in ('consumed', 'denied', 'review_required')`,
+        [now],
+      );
       const auditLogs = await client.query(
         `delete from audit_logs where created_at < $1
          and action not like 'account.%'
@@ -48,6 +57,8 @@ export class PersonalDataRetentionRepository {
         loginCodes: loginCodes.rowCount,
         sessions: sessions.rowCount,
         productEvents: productEvents.rowCount,
+        freeTrialRiskEvents: freeTrialRiskEvents.rowCount,
+        freeTrialEntitlements: freeTrialEntitlements.rowCount,
         auditLogs: auditLogs.rowCount,
       };
       await client.query(

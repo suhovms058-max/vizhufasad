@@ -6,6 +6,8 @@ import { createGenerationQualityProviders } from "./src/generation-quality/provi
 import { GenerationQualityRepository } from "./src/generation-quality/repository.mjs";
 import { GenerationMetrics } from "./src/generation/metrics.mjs";
 import { GenerationProcessor } from "./src/generation/processor.mjs";
+import { FreeTrialRepository } from "./src/free-trial/repository.mjs";
+import { FreeTrialService } from "./src/free-trial/service.mjs";
 import { createGenerationProviders } from "./src/generation/providers-factory.mjs";
 import { createGenerationQueue } from "./src/generation/queue.mjs";
 import { GenerationRepository } from "./src/generation/repository.mjs";
@@ -38,9 +40,15 @@ if (!config.enabled && !config.proEnabled && !config.editorEnabled) {
 const repository = new GenerationRepository();
 const qualityRepository = new GenerationQualityRepository();
 const queue = createGenerationQueue(config);
+const walletConfig = loadWalletConfig();
 const walletService = new WalletService({
   repository: new WalletRepository(),
-  config: loadWalletConfig(),
+  config: walletConfig,
+});
+const freeTrialService = new FreeTrialService({
+  repository: new FreeTrialRepository(),
+  walletService,
+  freeBonusCredits: walletConfig.freeBonusCredits,
 });
 const processor = new GenerationProcessor({
   repository,
@@ -54,6 +62,7 @@ const processor = new GenerationProcessor({
   providers: createGenerationProviders(config),
   config,
   qualityConfig,
+  freeTrialService,
 });
 const metrics = new GenerationMetrics({ repository, queue, qualityRepository });
 const runtime = createGenerationWorker({

@@ -4,6 +4,10 @@ import { randomUUID } from "node:crypto";
 import test from "node:test";
 import { closeDatabase, getPool } from "../src/db/client.mjs";
 import { GenerationQualityRepository } from "../src/generation-quality/repository.mjs";
+import {
+  PHOTO_PROCESSING_CONSENT_HASH, PHOTO_PROCESSING_CONSENT_VERSION,
+  PHOTO_USAGE_RIGHTS_HASH, PHOTO_USAGE_RIGHTS_VERSION,
+} from "../src/legal/photo-consent.mjs";
 
 const enabled = Boolean(process.env.DATABASE_URL);
 
@@ -22,9 +26,16 @@ async function fixture(pool) {
   await pool.query(
     `insert into source_images (
       id, project_id, storage_bucket, storage_key, declared_mime_type,
-      mime_type, byte_size, status, recommended_size
-    ) values ($1, $2, 'private', $3, 'image/jpeg', 'image/jpeg', 1000, 'ready', true)`,
-    [imageId, projectId, `source-${imageId}.jpg`],
+      mime_type, byte_size, status, recommended_size,
+      consent_version, consent_hash, consented_at,
+      rights_version, rights_hash, rights_confirmed_at
+    ) values ($1, $2, 'private', $3, 'image/jpeg', 'image/jpeg', 1000, 'ready', true,
+      $4, $5, now(), $6, $7, now())`,
+    [
+      imageId, projectId, `source-${imageId}.jpg`,
+      PHOTO_PROCESSING_CONSENT_VERSION, PHOTO_PROCESSING_CONSENT_HASH,
+      PHOTO_USAGE_RIGHTS_VERSION, PHOTO_USAGE_RIGHTS_HASH,
+    ],
   );
   await pool.query(
     `insert into generations (

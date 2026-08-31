@@ -23,12 +23,14 @@ const actionCodeByKind = Object.freeze({
 const MAX_EDIT_MASK_BYTES = 5 * 1024 * 1024;
 
 export class GenerationService {
-  constructor({ repository, storage, walletService, queue, config }) {
+  constructor({ repository, storage, walletService, queue, config, planAccessService = null, freeTrialService = null }) {
     this.repository = repository;
     this.storage = storage;
     this.walletService = walletService;
     this.queue = queue;
     this.config = config;
+    this.planAccessService = planAccessService;
+    this.freeTrialService = freeTrialService;
   }
 
   assertEnabled(kind) {
@@ -43,18 +45,22 @@ export class GenerationService {
     }
   }
 
-  async create(userId, projectId, sourceImageId, value, requestedIdempotencyKey) {
-    return this.createKind("standard", userId, projectId, sourceImageId, value, requestedIdempotencyKey);
+  async create(userId, projectId, sourceImageId, value, requestedIdempotencyKey, riskContext = {}) {
+    return this.createKind("standard", userId, projectId, sourceImageId, value, requestedIdempotencyKey, riskContext);
   }
 
   async createPro(userId, projectId, sourceImageId, value, requestedIdempotencyKey) {
     return this.createKind("pro", userId, projectId, sourceImageId, value, requestedIdempotencyKey);
   }
 
-  async createKind(requestedKind, userId, projectId, sourceImageId, value, requestedIdempotencyKey) {
+  async createKind(requestedKind, userId, projectId, sourceImageId, value, requestedIdempotencyKey, riskContext = {}) {
     const kind = normalizeGenerationKind(requestedKind);
     this.assertEnabled(kind);
     const input = normalizeGenerationInput(value);
+    if (this.planAccessService) {
+      const decision = await this.planAccessService.assertGeneration(userId, kind, input);
+      if (!decision.allowed) throw new GenerationError(decision.code, 403);
+    }
     const idempotencyKey = cleanIdempotencyKey(requestedIdempotencyKey, userId, kind);
     const prompt = composeGenerationPrompt(input);
     const created = await this.repository.createOwned({
@@ -67,7 +73,7 @@ export class GenerationService {
       geometryPolicySnapshot: input.preserve,
     });
     if (!created) throw new GenerationError("GENERATION_SOURCE_NOT_ELIGIBLE", 409);
-    return this.queueCreated(kind, userId, projectId, created);
+    return this.queueCreated(kind, userId, projectId, created, { sourceImageId, riskContext });
   }
 
   async createEditMaskUpload(userId, projectId, parentGenerationId, value = {}) {
@@ -126,6 +132,10 @@ export class GenerationService {
     }
     if (edit.maskKey) await this.validateEditMask(userId, projectId, parent, edit.maskKey);
     const input = normalizeGenerationInput(parent.config_snapshot);
+    if (this.planAccessService) {
+      const decision = await this.planAccessService.assertGeneration(userId, "edit", input);
+      if (!decision.allowed) throw new GenerationError(decision.code, 403);
+    }
     const prompt = composeGenerationPrompt(input, { edit });
     const created = await this.repository.createEditOwned({
       userId,
@@ -150,7 +160,7 @@ export class GenerationService {
     return this.queueCreated("edit", userId, projectId, created);
   }
 
-  async queueCreated(kind, userId, projectId, created) {
+  async queueCreated(kind, userId, projectId, created, { sourceImageId = null, riskContext = {} } = {}) {
     if (!created.created && created.generation.status !== "created") {
       if (["queued", "retrying"].includes(created.generation.status)) {
         await this.queue.enqueue(
@@ -167,12 +177,16 @@ export class GenerationService {
     const generation = created.generation;
     let reservation;
     try {
-      reservation = await this.walletService.reserve(userId, {
+      const reservationInput = {
         actionCode: actionCodeByKind[kind],
         idempotencyKey: `generation:${generation.id}:reserve`,
         referenceType: "generation",
         referenceId: generation.id,
-      });
+        sourceImageId,
+      };
+      reservation = kind === "standard" && this.freeTrialService
+        ? await this.freeTrialService.reserveStandard(userId, reservationInput, riskContext)
+        : await this.walletService.reserve(userId, reservationInput);
       const paid = await this.repository.hasPaidCredits(userId);
       const priority = paid ? this.config.queuePaidPriority : this.config.queueFreePriority;
       const queued = await this.repository.attachReservationAndQueue(
@@ -198,6 +212,7 @@ export class GenerationService {
           `generation:${generation.id}:refund`,
           error.code || "enqueue_failed",
         ).catch(() => {});
+        await this.freeTrialService?.release(generation.id).catch(() => {});
       }
       await this.repository.markFailedRefunded(
         generation.id,
@@ -309,6 +324,7 @@ export class GenerationService {
         `generation:${generationId}:cancel-refund`,
         "user_cancelled",
       );
+      await this.freeTrialService?.release(generationId).catch(() => {});
     }
     return this.view(userId, projectId, generationId);
   }

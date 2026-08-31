@@ -99,6 +99,23 @@ test("upscale service reserves one credit and enqueues idempotently", async () =
   assert.deepEqual(events, ["upscale_4k", "enqueue"]);
 });
 
+test("upscale rejects a non-Maximum package before task creation and coin reservation", async () => {
+  const events = [];
+  const service = new UpscaleService({
+    repository: { async createOwned() { events.push("created"); } },
+    queue: {},
+    walletService: { async reserve() { events.push("reserved"); } },
+    storage: {},
+    config: { enabled: true },
+    planAccessService: { async forUser() { return { upscale: false }; } },
+  });
+  await assert.rejects(
+    service.create("owner", "project-1", "generation-1", "upscale-request-12345"),
+    (error) => error.code === "UPSCALE_PLAN_REQUIRED" && error.status === 403,
+  );
+  assert.deepEqual(events, []);
+});
+
 test("an accepted upscale request remains non-cancellable after a local retry state", async () => {
   const service = new UpscaleService({
     repository: { async findOwned() { return {

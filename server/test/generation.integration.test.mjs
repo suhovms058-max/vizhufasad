@@ -5,11 +5,16 @@ import test from "node:test";
 import sharp from "sharp";
 import { closeDatabase, getPool } from "../src/db/client.mjs";
 import { GenerationProcessor } from "../src/generation/processor.mjs";
+import { GENERATION_PROMPT_VERSION } from "../src/generation/contract.mjs";
 import { GenerationRepository } from "../src/generation/repository.mjs";
 import { GenerationService } from "../src/generation/service.mjs";
 import { GenerationQualityRepository } from "../src/generation-quality/repository.mjs";
 import { WalletRepository } from "../src/wallet/repository.mjs";
 import { WalletService } from "../src/wallet/service.mjs";
+import {
+  PHOTO_PROCESSING_CONSENT_HASH, PHOTO_PROCESSING_CONSENT_VERSION,
+  PHOTO_USAGE_RIGHTS_HASH, PHOTO_USAGE_RIGHTS_VERSION,
+} from "../src/legal/photo-consent.mjs";
 
 const enabled = Boolean(process.env.DATABASE_URL);
 
@@ -30,10 +35,17 @@ async function createFixture(pool) {
     `insert into source_images (
       id, project_id, storage_bucket, storage_key, working_storage_key,
       original_filename, declared_mime_type, mime_type, byte_size,
-      width, height, status, recommended_size, processed_at
+      width, height, status, recommended_size, processed_at,
+      consent_version, consent_hash, consented_at,
+      rights_version, rights_hash, rights_confirmed_at
     ) values ($1, $2, 'private', 'source.jpg', 'working.jpg', 'facade.jpg',
-      'image/jpeg', 'image/jpeg', 1000, 1600, 1000, 'ready', true, now())`,
-    [imageId, projectId],
+      'image/jpeg', 'image/jpeg', 1000, 1600, 1000, 'ready', true, now(),
+      $3, $4, now(), $5, $6, now())`,
+    [
+      imageId, projectId,
+      PHOTO_PROCESSING_CONSENT_VERSION, PHOTO_PROCESSING_CONSENT_HASH,
+      PHOTO_USAGE_RIGHTS_VERSION, PHOTO_USAGE_RIGHTS_HASH,
+    ],
   );
   await pool.query(
     `insert into photo_assessments (
@@ -72,7 +84,7 @@ test("queued generation is processed asynchronously with atomic wallet lifecycle
       freeBonusCredits: 2,
     },
   });
-  await walletService.summary(fixture.userId);
+  await walletService.repository.grantFreeBonus(fixture.userId, 2, "generation_integration_fixture");
   const source = await sharp({
     create: { width: 800, height: 600, channels: 3, background: "#dddddd" },
   }).jpeg().toBuffer();
@@ -162,7 +174,7 @@ test("queued generation is processed asynchronously with atomic wallet lifecycle
     assert.equal(completed.resultAvailable, true);
     assert.equal(completed.attempts[0].jobId, "job-integration");
     assert.equal(completed.attempts[0].model, "mock-image-edit");
-    assert.equal(completed.attempts[0].promptVersion, "standard-facade-v4");
+    assert.equal(completed.attempts[0].promptVersion, GENERATION_PROMPT_VERSION);
     assert.equal(Number(completed.attempts[0].seed), 123);
     assert.equal(completed.attempts[0].actualCostMinor, 90);
     assert.equal(stored.size, 2);

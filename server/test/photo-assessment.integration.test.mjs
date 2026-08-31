@@ -7,6 +7,10 @@ import { PhotoAssessmentOrchestrator } from "../src/photo-assessment/orchestrato
 import { PhotoAssessmentProviderError } from "../src/photo-assessment/providers.mjs";
 import { PhotoAssessmentRepository } from "../src/photo-assessment/repository.mjs";
 import { PhotoAssessmentService } from "../src/photo-assessment/service.mjs";
+import {
+  PHOTO_PROCESSING_CONSENT_HASH, PHOTO_PROCESSING_CONSENT_VERSION,
+  PHOTO_USAGE_RIGHTS_HASH, PHOTO_USAGE_RIGHTS_VERSION,
+} from "../src/legal/photo-consent.mjs";
 
 const enabled = Boolean(process.env.DATABASE_URL);
 const technical = {
@@ -57,15 +61,22 @@ async function createReadyImage(pool, userId, suffix) {
     `insert into source_images (
       project_id, storage_bucket, storage_key, working_storage_key, thumbnail_storage_key,
       original_filename, declared_mime_type, mime_type, byte_size, width, height,
-      sha256, status, recommended_size, processed_at
+      sha256, status, recommended_size, processed_at,
+      consent_version, consent_hash, consented_at,
+      rights_version, rights_hash, rights_confirmed_at
     ) values ($1, 'test', $2, $3, $4, 'facade.jpg', 'image/jpeg', 'image/jpeg',
-      1024, 1600, 1000, $5, 'ready', true, now()) returning *`,
+      1024, 1600, 1000, $5, 'ready', true, now(),
+      $6, $7, now(), $8, $9, now()) returning *`,
     [
       project.rows[0].id,
       `source/${suffix}/${randomUUID()}`,
       `working/${suffix}/${randomUUID()}`,
       `thumbnail/${suffix}/${randomUUID()}`,
       randomUUID().replaceAll("-", ""),
+      PHOTO_PROCESSING_CONSENT_VERSION,
+      PHOTO_PROCESSING_CONSENT_HASH,
+      PHOTO_USAGE_RIGHTS_VERSION,
+      PHOTO_USAGE_RIGHTS_HASH,
     ],
   );
   return { project: project.rows[0], image: image.rows[0] };

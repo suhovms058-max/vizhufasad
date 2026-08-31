@@ -163,8 +163,10 @@ test("tariff changes are effective-dated and do not rewrite the current price", 
   const now = new Date();
   const validFrom = new Date(now.getTime() + 60_000);
   const service = new WalletService({ repository, config, clock: () => now });
+  let currentTariffId = null;
   try {
     const before = (await repository.listTariffs(now)).find((plan) => plan.code === "START");
+    currentTariffId = before.id;
     assert.equal(Number(before.price_minor), 79_000);
     const scheduled = await service.scheduleTariffVersion({
       code: "START",
@@ -187,10 +189,9 @@ test("tariff changes are effective-dated and do not rewrite the current price", 
       "delete from tariff_plans where code = 'START' and valid_from = $1",
       [validFrom],
     );
-    await pool.query(
-      `update tariff_plans set valid_until = null
-       where code = 'START' and valid_from = TIMESTAMPTZ '2026-07-28 21:00:00+00'`,
-    );
+    if (currentTariffId) {
+      await pool.query("update tariff_plans set valid_until = null where id = $1", [currentTariffId]);
+    }
     await closeDatabase();
   }
 });

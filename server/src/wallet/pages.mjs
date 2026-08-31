@@ -44,6 +44,12 @@ function actionLabel(action) {
   })[action.code] || action.name;
 }
 
+const PACKAGE_BENEFITS = Object.freeze({
+  START: ["4 популярных стиля и автоподбор", "Подходящие материалы", "Обычные генерации с автопроверкой"],
+  OPTIMUM: ["7 стилей и расширенный выбор материалов", "Pro-генерация", "Сравнение до четырёх решений"],
+  MAXIMUM: ["Все 10 стилей и все материалы", "Pro и точечные доработки готового варианта", "Сравнение и подготовка 4K"],
+});
+
 const statusLabels = {
   created: "Создан",
   pending: "Ожидает оплаты",
@@ -116,21 +122,25 @@ export function createWalletPagesRouter({ authService, walletService, paymentSer
           <input type="hidden" name="idempotencyKey" value="${randomUUID()}">
           <input type="hidden" name="offerVersion" value="${escapeHtml(offer.revision)}">
           <input type="hidden" name="offerHash" value="${escapeHtml(offer.hash)}">
-          <label for="promo-${escapeHtml(tariff.id)}">Промокод, если есть</label>
-          <input id="promo-${escapeHtml(tariff.id)}" name="promoCode" maxlength="32" autocomplete="off">
-          <label class="confirm consent-confirm"><input type="checkbox" name="offerAccepted" value="yes" required> Принимаю <a href="/legal/offer" target="_blank" rel="noopener">публичную оферту</a> редакции от 28 августа 2026 года</label>
+          <details class="promo-disclosure"><summary>Есть промокод?</summary>
+            <div class="promo-disclosure-body"><label for="promo-${escapeHtml(tariff.id)}">Введите промокод</label>
+            <input id="promo-${escapeHtml(tariff.id)}" name="promoCode" maxlength="32" autocomplete="off">
+            <p class="muted">Промокоды предназначены для партнёров ресурса. Чтобы получить код, свяжитесь с администрацией сайта: <a href="mailto:vizhufasad0058@bk.ru">vizhufasad0058@bk.ru</a>.</p></div>
+          </details>
+          <label class="confirm consent-confirm"><input type="checkbox" name="offerAccepted" value="yes" required><span>Принимаю <a href="/legal/offer" target="_blank" rel="noopener">публичную оферту</a> редакции от 28 августа 2026 года</span></label>
           <p><button type="submit" data-analytics-event="payment_checkout_started" data-analytics-plan="${escapeHtml(tariff.code)}">${escapeHtml(buttonLabel)}</button></p></form>` : "";
       const tariffs = packagePlans.map((tariff) => `<article id="plan-${escapeHtml(tariff.code)}" class="panel tariff-card${requestedPlan === tariff.code ? " selected-plan" : ""}">
         ${requestedPlan === tariff.code ? '<p class="selected-plan-label">Вы выбрали этот пакет</p>' : ""}
         <h3>${escapeHtml(tariff.name)}</h3><p><strong>${escapeHtml(rubles(tariff.priceMinor))}</strong></p>
         <p class="tariff-outcome"><strong>До ${escapeHtml(generationLimitLabel(Math.floor(tariff.credits / standardCost)))}</strong><br>
-        <span class="muted">${escapeHtml(vfCoinsLabel(tariff.credits))} можно распределить между генерациями, Pro, доработками и 4K</span></p>
+        <span class="muted">${escapeHtml(vfCoinsLabel(tariff.credits))} в пакете</span></p>
+        <ul class="tariff-benefits">${(PACKAGE_BENEFITS[tariff.code] || []).map((item) => `<li>${escapeHtml(item)}</li>`).join("")}</ul>
         ${checkoutForm(tariff)}
       </article>`).join("");
       const topups = topupPlans.map((tariff) => `<article class="panel tariff-card topup-card">
         <h3>${escapeHtml(vfCoinsLabel(tariff.credits))}</h3>
         <p><strong>${escapeHtml(rubles(tariff.priceMinor))}</strong></p>
-        <p class="muted">Когда до нужного действия не хватает нескольких ВФ-коинов.</p>
+        <p class="muted">Когда до нужного действия не хватает нескольких ВФ-коинов. Пополнение не меняет доступный набор стилей и инструментов.</p>
         ${checkoutForm(tariff, "Пополнить баланс")}
       </article>`).join("");
       const actions = catalog.actions.map((action) => `<tr><td>${escapeHtml(actionLabel(action))}</td>

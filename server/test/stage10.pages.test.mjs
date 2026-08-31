@@ -2,8 +2,9 @@ import assert from "node:assert/strict";
 import test from "node:test";
 import express from "express";
 import { createProjectPagesRouter } from "../src/projects/pages.mjs";
+import { accessForPlan } from "../src/access/plans.mjs";
 
-async function render(path, { status = "completed" } = {}) {
+async function render(path, { status = "completed", plan = null } = {}) {
   const authService = { async sessionFromRequest() { return { user_id: "owner" }; } };
   const project = {
     id: "project-1", title: "Дом у леса", status: "ready", image_id: "image-1",
@@ -31,7 +32,11 @@ async function render(path, { status = "completed" } = {}) {
     async catalog() { return { actions: [{ code: "standard_generation", credits: 1 }] }; },
   };
   const app = express();
-  app.use(createProjectPagesRouter({ authService, projectService, generationService, walletService }));
+  app.use(createProjectPagesRouter({
+    authService, projectService, generationService, walletService,
+    planAccessService: plan ? { async forUser() { return accessForPlan(plan); } } : null,
+    generationConfig: { proEnabled: true },
+  }));
   const server = app.listen(0, "127.0.0.1");
   await new Promise((resolve) => server.once("listening", resolve));
   try {
@@ -64,7 +69,7 @@ test("/app/new renders the complete generation settings path from catalog data",
 test("/app/new explains the private free photo check before upload", async () => {
   const { status, html } = await render("/app/new");
   assert.equal(status, 200);
-  for (const text of ["Загрузите фотографию дома", "бесплатно", "Дом целиком", "Минимум 640×420", "Как мы защищаем фотографии"]) {
+  for (const text of ["Загрузите фотографию дома", "бесплатно", "Дом целиком", "Минимум 640×420", "Как мы защищаем фотографии", "документоподобный снимок будет отклонён", "с большим количеством текста будет отклонён"]) {
     assert.match(html, new RegExp(text, "u"));
   }
   assert.match(html, /id="preview-shell"/u);
@@ -76,6 +81,21 @@ test("/app/new explains the private free photo check before upload", async () =>
   assert.match(html, /\/legal\/photo-processing-consent/u);
   assert.match(html, /id="remove-photo"/u);
   assert.doesNotMatch(html, /телефон|специалист|отправить заявку/iu);
+});
+
+test("/app/new shows only server-entitled Start styles and materials", async () => {
+  const { status, html } = await render("/app/new?project=project-1", { plan: "START" });
+  assert.equal(status, 200);
+  assert.equal((html.match(/class="style-card(?: active)?" type="button"/g) || []).length, 5);
+  assert.match(html, /4 стиля и автоподбор/u);
+  assert.match(html, /data-style="современный"/u);
+  assert.match(html, /data-style="скандинавский"/u);
+  assert.match(html, /data-style="неоклассический"/u);
+  assert.match(html, /data-style="минимализм"/u);
+  assert.doesNotMatch(html, /data-style="лофт"/u);
+  assert.doesNotMatch(html, /material-metal\.webp/u);
+  assert.match(html, /Доступно в пакетах «Оптимум» и «Максимум»/u);
+  assert.match(html, /data-pro-enabled="false"/u);
 });
 
 test("completed result renders owner-only before/after, configuration and free watermark", async () => {

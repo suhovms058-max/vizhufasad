@@ -182,13 +182,13 @@ export class ProjectRepository {
         `update source_images set status = 'ready', storage_key = $2,
           working_storage_key = $3, thumbnail_storage_key = $4, mime_type = $5,
           byte_size = $6, width = $7, height = $8, sha256 = $9,
-          recommended_size = $10, invalid_reason = null, processed_at = now(),
+          perceptual_hash = $10, recommended_size = $11, invalid_reason = null, processed_at = now(),
           upload_expires_at = null, updated_at = now()
          where id = $1 and status = 'processing' returning *`,
         [
           input.imageId, input.sourceKey, input.workingKey, input.thumbnailKey,
           input.detectedMimeType, input.byteSize, input.width, input.height,
-          input.sha256, input.recommendedSize,
+          input.sha256, input.perceptualHash, input.recommendedSize,
         ],
       );
       if (!ready.rowCount) throw new Error("IMAGE_STATE_CONFLICT");

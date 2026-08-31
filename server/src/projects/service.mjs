@@ -1,4 +1,5 @@
 import { randomUUID } from "node:crypto";
+import sharp from "sharp";
 import { normalizeGenerationInput } from "../generation/contract.mjs";
 import {
   isCurrentPhotoConsent, isCurrentPhotoRights, PHOTO_PROCESSING_CONSENT_HASH,
@@ -8,6 +9,7 @@ import {
   allowedUploadMimeTypes, hasReliableHeifDecoder, HEIF_MIME_TYPES, MAX_UPLOAD_BYTES,
 } from "./config.mjs";
 import { ImageValidationError, processSourceImage } from "./image-processing.mjs";
+import { computePerceptualHash } from "./anonymization.mjs";
 
 export class ProjectError extends Error {
   constructor(code, status = 400) {
@@ -34,6 +36,7 @@ export class ProjectService {
     storage,
     config,
     processor = processSourceImage,
+    anonymizer,
     assessmentService,
     clock = () => new Date(),
   }) {
@@ -41,6 +44,7 @@ export class ProjectService {
     this.storage = storage;
     this.config = config;
     this.processor = processor;
+    this.anonymizer = anonymizer;
     this.assessmentService = assessmentService;
     this.clock = clock;
   }
@@ -206,6 +210,13 @@ export class ProjectService {
       if (processed.detectedMimeType !== normalizedDeclaredMime) {
         throw new ImageValidationError("MIME_DECODER_MISMATCH");
       }
+      if (!this.anonymizer) throw new ImageValidationError("PHOTO_ANONYMIZATION_UNAVAILABLE");
+      const anonymized = await this.anonymizer.anonymize(processed.working);
+      const perceptualHash = await computePerceptualHash(anonymized.image);
+      const sanitizedThumbnail = await sharp(anonymized.image, { failOn: "error" })
+        .resize({ width: 480, height: 360, fit: "inside", withoutEnlargement: true })
+        .webp({ quality: 82 })
+        .toBuffer();
       const prefix = `users/${userId}/projects/${projectId}/images/${imageId}`;
       const sourceKey = `${prefix}/source.jpg`;
       const workingKey = `${prefix}/working.jpg`;
@@ -216,11 +227,11 @@ export class ProjectService {
         metadata: { imageId, variant: "source" },
       });
       await this.storage.putPrivateObject({
-        key: workingKey, body: processed.working, contentType: "image/jpeg",
-        metadata: { imageId, variant: "working" },
+        key: workingKey, body: anonymized.image, contentType: "image/jpeg",
+        metadata: { imageId, variant: "working", anonymizationVersion: String(anonymized.report.version) },
       });
       await this.storage.putPrivateObject({
-        key: thumbnailKey, body: processed.thumbnail, contentType: "image/webp",
+        key: thumbnailKey, body: sanitizedThumbnail, contentType: "image/webp",
         metadata: { imageId, variant: "thumbnail" },
       });
       await this.storage.deletePrivateObject(image.storage_key);
@@ -231,6 +242,7 @@ export class ProjectService {
         width: processed.width,
         height: processed.height,
         sha256: processed.sha256,
+        perceptualHash,
         recommendedSize: processed.recommendedSize,
       });
       await this.storage.deletePrivateObjects(ready.previousKeys).catch((error) => {
@@ -245,7 +257,7 @@ export class ProjectService {
           assessment = await this.assessmentService.assess({
             sourceImageId: imageId,
             projectId,
-            image: processed.working,
+            image: anonymized.image,
           });
         } catch (error) {
           console.error("Automatic photo assessment failed without deleting the ready image", {

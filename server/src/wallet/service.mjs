@@ -40,9 +40,6 @@ export class WalletService {
 
   async summary(userId) {
     this.assertWalletEnabled();
-    if (this.config.freeBonusEnabled) {
-      await this.repository.grantFreeBonus(userId, this.config.freeBonusCredits);
-    }
     const wallet = await this.repository.summary(userId);
     if (!wallet) throw new WalletRepositoryError("WALLET_NOT_FOUND", 404);
     return {

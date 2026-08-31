@@ -94,6 +94,12 @@ function vfCoinsLabel(value) {
   return `${amount} ${noun}`;
 }
 
+function stylesLabel(value) {
+  const amount = Number(value);
+  const noun = amount >= 2 && amount <= 4 ? "стиля" : "стилей";
+  return `${amount} ${noun}`;
+}
+
 function jsonData(value) {
   return JSON.stringify(value ?? {}).replaceAll("<", "\\u003c").replaceAll("&", "\\u0026");
 }
@@ -195,12 +201,12 @@ function uploadStep(project) {
         <div class="upload-consents" aria-labelledby="upload-consent-title">
           <h2 id="upload-consent-title">Перед безопасной загрузкой</h2>
           <label class="confirm consent-confirm"><input id="photo-processing-consent" type="checkbox">
-            <span>Я даю отдельное согласие на приватное хранение и автоматизированную обработку фотографии для проверки и создания новой визуализации, включая передачу настроенным AI-провайдерам. <a href="${PHOTO_PROCESSING_CONSENT_PATH}" target="_blank" rel="noopener">Текст согласия</a></span></label>
+            <span>Я даю отдельное согласие на приватное хранение и обработку фотографии. До передачи AI сервис локально удалит метаданные и замаскирует найденные лица, номера и текстовые данные; документоподобный снимок будет отклонён, а AI получит только очищенную копию. <a href="${PHOTO_PROCESSING_CONSENT_PATH}" target="_blank" rel="noopener">Текст согласия и ограничения распознавания</a></span></label>
           <label class="confirm consent-confirm"><input id="photo-usage-rights" type="checkbox">
             <span>Подтверждаю, что вправе использовать фотографию и её обработка не нарушает права других лиц.</span></label>
         </div>
         <button id="upload-button" type="button" data-analytics-event="photo_upload_started" disabled>${project ? "Заменить и проверить фото" : "Загрузить и проверить фото"}</button>
-        <p class="privacy-note">Файл хранится приватно, а ссылки действуют ограниченное время. <a href="/legal/privacy">Как мы защищаем фотографии</a>. Согласие можно отозвать по email Исполнителя.</p>
+        <p class="privacy-note">Исходник хранится приватно. Автоматическое распознавание может пропустить мелкие или нечёткие данные — по возможности заранее скройте лица, номера, документы и адресные таблички. Документ или снимок с большим количеством текста будет отклонён; при ошибке защиты передача AI и генерация также блокируются. <a href="/legal/privacy">Как мы защищаем фотографии</a>.</p>
       </div>
       <aside class="photo-guide" aria-labelledby="photo-guide-title">
         <p class="eyebrow">Хороший исходник</p><h2 id="photo-guide-title">Как снять фасад</h2>
@@ -235,16 +241,18 @@ function featuredStyleCard(style, selectedStyle) {
     <span class="style-card-action">Выбрать</span></button>`;
 }
 
-function settingsStep(project, balance, costs, features) {
+function settingsStep(project, balance, costs, features, access) {
   const config = project.configuration || {};
   const selectedMaterials = new Set(config.materials || []);
-  const selectedStyle = config.style || "автоподбор";
+  const allowedStyles = new Set(access.styles);
+  const allowedMaterials = new Set(access.materials);
+  const selectedStyle = allowedStyles.has(config.style) ? config.style : "автоподбор";
   const selectedPalette = config.palette?.[0] || "автоподбор";
   return `<section id="generation-app" class="flow" data-project-id="${escapeHtml(project.id)}" data-image-id="${escapeHtml(project.image_id)}"
-    data-standard-cost="${escapeHtml(costs.standard)}" data-pro-cost="${escapeHtml(costs.pro)}" data-pro-enabled="${features.pro}">
+    data-standard-cost="${escapeHtml(costs.standard)}" data-pro-cost="${escapeHtml(costs.pro)}" data-balance="${escapeHtml(balance)}" data-pro-enabled="${features.pro}">
     <script id="initial-configuration" type="application/json">${jsonData(config)}</script>
     <div class="flow-heading"><p class="eyebrow">Шаг 3 из 3</p><h1>Настройте фасад</h1>
-    <p>Баланс: <strong>${escapeHtml(vfCoinsLabel(balance))}</strong></p></div>
+    <p>Баланс: <strong>${escapeHtml(vfCoinsLabel(balance))}</strong>${Number(balance) < Number(costs.standard) ? " · право на первую бесплатную генерацию проверяется при запуске" : ""}</p></div>
     <form id="generation-form" class="settings-form panel" data-wizard-current="1">
       <ol class="settings-progress" aria-label="Шаги настройки фасада">
         <li aria-current="step"><span>1</span><strong>Задача и стиль</strong></li>
@@ -254,18 +262,18 @@ function settingsStep(project, balance, costs, features) {
       <div class="settings-step" data-wizard-step="1">
       <div class="settings-step-heading"><p class="eyebrow">Настройка 1 из 3</p><h2>Как должен измениться фасад</h2><p>Выберите глубину изменений, качество результата и архитектурное направление.</p></div>
       <fieldset><legend>Уровень изменений</legend><div class="mode-grid">${[["gentle", "Бережный", "Освежить отделку без изменения архитектуры"], ["balanced", "Сбалансированный", "Заметнее обновить сочетание материалов"], ["conceptual", "Концептуальный", "Создать выразительное решение в пределах ограничений"]].map(([value, label, description]) => `<label class="mode"><input type="radio" name="transformationLevel" value="${value}" ${(config.transformationLevel || "gentle") === value ? "checked" : ""}><span><strong>${label}</strong><small>${description}</small></span></label>`).join("")}</div></fieldset>
-      <fieldset><legend>Качество результата</legend><div class="generation-tier-grid">
+      <fieldset><legend>Качество результата</legend><p class="hint">Ваш пакет: <strong>${escapeHtml(access.label)}</strong>. Дополнительные возможности открываются с более старшими пакетами.</p><div class="generation-tier-grid">
         <label class="generation-tier"><input type="radio" name="generationKind" value="standard" checked><span><strong>Генерация · ${escapeHtml(vfCoinsLabel(costs.standard))}</strong><small>Быстрый способ подобрать отделку и цветовое решение.</small></span></label>
-        <label class="generation-tier ${features.pro ? "" : "is-disabled"}"><input type="radio" name="generationKind" value="pro" ${features.pro ? "" : "disabled"}><span><strong>Pro · ${escapeHtml(vfCoinsLabel(costs.pro))}</strong><small>${features.pro ? "Модель более высокого качества, больше деталей и реалистичности." : "Появится после подтверждения качества модели на реальных фасадах."}</small></span></label>
+        <label class="generation-tier ${features.pro ? "" : "is-disabled"}"><input type="radio" name="generationKind" value="pro" ${features.pro ? "" : "disabled"}><span><strong>Pro · ${escapeHtml(vfCoinsLabel(costs.pro))}</strong><small>${features.pro ? "Модель более высокого качества, больше деталей и реалистичности." : "Доступно в пакетах «Оптимум» и «Максимум»."}</small></span></label>
       </div></fieldset>
       <fieldset><legend>Стиль</legend><p class="hint">Сравните все направления на одном доме. Наведите курсор для акцента или нажмите карточку, чтобы выбрать стиль.</p>
-      <div class="style-card-grid" aria-label="Стили фасада">${STYLE_OPTIONS.map((item) => featuredStyleCard(item, selectedStyle)).join("")}</div>
-      <label class="visually-hidden" for="style">Выбранный стиль</label><select class="visually-hidden" id="style" name="style">${STYLES.map((item) => option(item, selectedStyle)).join("")}</select></fieldset>
+      <div class="style-card-grid" aria-label="Стили фасада">${STYLE_OPTIONS.filter((item) => allowedStyles.has(item.value)).map((item) => featuredStyleCard(item, selectedStyle)).join("")}</div>
+      <label class="visually-hidden" for="style">Выбранный стиль</label><select class="visually-hidden" id="style" name="style">${STYLES.filter((item) => allowedStyles.has(item)).map((item) => option(item, selectedStyle)).join("")}</select><p class="hint">В пакете «${escapeHtml(access.label)}» доступно ${escapeHtml(stylesLabel(access.styles.length - 1))} и автоподбор. <a href="/app/balance">Посмотреть старшие пакеты</a></p></fieldset>
       </div>
       <div class="settings-step hidden" data-wizard-step="2">
       <div class="settings-step-heading"><p class="eyebrow">Настройка 2 из 3</p><h2>Отделка и цветовое решение</h2><p>Материалы, палитра и ваши уточнения автоматически попадут в задание генератору.</p></div>
       <fieldset><legend>Отделка</legend><p class="hint">Можно сочетать несколько материалов. Финальная совместимость системы требует проверки основания.</p>
-      <div class="choice-grid material-grid">${MATERIALS.map(([value, description, image]) => `<label class="choice material-choice"><input type="checkbox" name="materials" value="${escapeHtml(value)}" ${selectedMaterials.has(value) ? "checked" : ""}><span><img class="material-photo" src="${escapeHtml(image)}?v=${SELECTION_ASSET_VERSION}" alt="Фактура материала: ${escapeHtml(value)}" width="480" height="480" loading="lazy" decoding="async"><i class="material-shade" aria-hidden="true"></i><b>${escapeHtml(value)}</b><small>${escapeHtml(description)}</small></span></label>`).join("")}</div></fieldset>
+      <div class="choice-grid material-grid">${MATERIALS.filter(([value]) => allowedMaterials.has(value)).map(([value, description, image]) => `<label class="choice material-choice"><input type="checkbox" name="materials" value="${escapeHtml(value)}" ${selectedMaterials.has(value) ? "checked" : ""}><span><img class="material-photo" src="${escapeHtml(image)}?v=${SELECTION_ASSET_VERSION}" alt="Фактура материала: ${escapeHtml(value)}" width="480" height="480" loading="lazy" decoding="async"><i class="material-shade" aria-hidden="true"></i><b>${escapeHtml(value)}</b><small>${escapeHtml(description)}</small></span></label>`).join("")}</div></fieldset>
       <fieldset><legend>Палитра</legend><p class="hint">Готовое сочетание задаёт настроение, а точные оттенки можно описать ниже.</p>
       <div class="palette-grid">${PALETTES.map(([value, label, colors]) => `<label class="palette-choice"><input type="radio" name="palettePreset" value="${escapeHtml(value)}" ${selectedPalette === value ? "checked" : ""}><span><i class="palette-chips" aria-hidden="true">${colors.map((color) => `<b style="background:${escapeHtml(color)}"></b>`).join("")}</i><strong>${escapeHtml(label)}</strong></span></label>`).join("")}</div>
       <label for="palette-description">Описание цветов</label><input id="palette-description" name="paletteDescription" maxlength="120" value="${escapeHtml(config.palette?.slice(1).join(", ") || "")}" placeholder="Например: молочный, натуральное дерево, графит"></fieldset>
@@ -274,7 +282,7 @@ function settingsStep(project, balance, costs, features) {
       <div class="settings-step-heading"><p class="eyebrow">Настройка 3 из 3</p><h2>Пожелания и запуск</h2><p>Дом останется тем же, а временный строительный беспорядок и участок сервис приведёт к аккуратному завершённому виду.</p></div>
       <section class="panel assessment system-preserve-note" aria-label="Что сервис сохранит автоматически"><h3>Архитектура дома защищена автоматически</h3><p>Сохраняются геометрия, этажность, кровля, окна, двери, балконы, террасы, положение дома и ракурс. Новые этажи не добавляются.</p><p>Строительный мусор и временные предметы перед фасадом можно убрать, а участок — аккуратно благоустроить.</p></section>
       <fieldset><legend>Пожелания</legend><label for="wishes">Что важно учесть</label><textarea id="wishes" name="wishes" maxlength="700" rows="5" placeholder="Материалы, цвета, отделка карниза, цоколя, существующих опор…">${escapeHtml(config.wishes || "")}</textarea><p class="hint">Пожелания автоматически попадут в задание генератору. Они не могут отменить защиту архитектуры дома.</p><p class="counter"><span id="wishes-count">0</span>/700</p></fieldset>
-      <label class="confirm"><input id="cost-confirm" type="checkbox" required><span id="cost-confirm-text">Подтверждаю списание ${escapeHtml(vfCoinsLabel(costs.standard))} за генерацию фасада. Проверка фото и скачивание бесплатны.</span></label>
+      <label class="confirm"><input id="cost-confirm" type="checkbox" required><span id="cost-confirm-text">${Number(balance) < Number(costs.standard) ? "Подтверждаю запуск: сервис проверит право на первую бесплатную генерацию. При отказе ВФ-коин не списывается." : `Подтверждаю: с баланса будет списан ${escapeHtml(vfCoinsLabel(costs.standard))} за генерацию фасада. Проверка фото и скачивание бесплатны.`}</span></label>
       </div>
       <p id="draft-status" class="muted" role="status" aria-live="polite"></p>
       <p id="generation-message" class="form-message" role="status" aria-live="polite"></p>
@@ -378,6 +386,7 @@ function comparisonPage(project, comparison) {
 export function createProjectPagesRouter({
   authService, projectService, generationService, walletService,
   generationConfig = {}, upscaleConfig = {}, comparisonService = null,
+  planAccessService = null,
 }) {
   const router = express.Router();
   const features = Object.freeze({
@@ -406,9 +415,13 @@ export function createProjectPagesRouter({
 
   router.get("/app/new", async (request, response, next) => {
     try {
-      const [projects, wallet, catalog] = await Promise.all([
+      const [projects, wallet, catalog, access] = await Promise.all([
         projectService.list(request.auth.user_id), walletService.summary(request.auth.user_id),
         typeof walletService.catalog === "function" ? walletService.catalog() : { actions: [] },
+        planAccessService ? planAccessService.forUser(request.auth.user_id) : Promise.resolve({
+          code: "MAXIMUM", label: "Максимум", styles: STYLES, materials: MATERIALS.map(([value]) => value),
+          pro: true, editor: true, upscale: true,
+        }),
       ]);
       let project = request.query.project
         ? await projectService.open(request.auth.user_id, String(request.query.project)) : null;
@@ -422,11 +435,16 @@ export function createProjectPagesRouter({
         standard: catalog.actions.find((item) => item.code === "standard_generation")?.credits ?? 1,
         pro: catalog.actions.find((item) => item.code === "pro_generation")?.credits ?? 2,
       };
+      const accessibleFeatures = {
+        pro: features.pro && access.pro,
+        editor: features.editor && access.editor,
+        upscale: features.upscale && access.upscale,
+      };
       const projectPicker = !project && projects.length ? `<section class="panel"><h2>Или выберите проект</h2><div class="compact-projects">${projects.map((item) => `<a href="/app/new?project=${escapeHtml(item.id)}">${escapeHtml(item.title)}</a>`).join("")}</div></section>` : "";
       const body = project && project.image_id && !forceReplace
         ? `<nav class="breadcrumbs"><a href="/app">Проекты</a><span>/</span><span>${escapeHtml(project.title)}</span></nav>
           <section class="source-summary"><img src="${escapeHtml(project.thumbnailUrl)}" alt="Исходное фото"><div><p class="eyebrow">Шаг 2 из 3</p><h1>Фото проекта</h1><a href="/app/new?project=${escapeHtml(project.id)}&replace=1">Заменить фото</a></div></section>
-          ${assessmentBlock(project)}${accepted ? settingsStep(project, wallet.balance, costs, features) : uploadStep(project)}`
+          ${assessmentBlock(project)}${accepted ? settingsStep(project, wallet.balance, costs, accessibleFeatures, access) : uploadStep(project)}`
         : `${uploadStep(project)}${projectPicker}`;
       return response.type("html").send(page("Новый проект", body, { scripts: ["/assets/app-new.js", "/assets/app-generation.js"] }));
     } catch (error) {
@@ -449,13 +467,14 @@ export function createProjectPagesRouter({
 
   router.get("/app/projects/:projectId/generations/:generationId", async (request, response, next) => {
     try {
-      const [project, generation, history, wallet, catalog, comparisonAccess] = await Promise.all([
+      const [project, generation, history, wallet, catalog, comparisonAccess, access] = await Promise.all([
         projectService.open(request.auth.user_id, request.params.projectId),
         generationService.view(request.auth.user_id, request.params.projectId, request.params.generationId),
         generationService.list(request.auth.user_id, request.params.projectId),
         walletService.summary(request.auth.user_id),
         typeof walletService.catalog === "function" ? walletService.catalog() : { actions: [] },
         comparisonService ? comparisonService.access(request.auth.user_id) : { allowed: false, minimumPlan: "OPTIMUM" },
+        planAccessService ? planAccessService.forUser(request.auth.user_id) : Promise.resolve({ pro: true, editor: true, upscale: true }),
       ]);
       const sourceUrl = project.image_id ? await projectService.imageUrl(request.auth.user_id, project.id, project.image_id, "working") : null;
       const resultUrl = generation.status === "completed" ? await generationService.resultUrl(request.auth.user_id, project.id, generation.id) : null;
@@ -463,8 +482,13 @@ export function createProjectPagesRouter({
         edit: catalog.actions.find((item) => item.code === "text_revision")?.credits ?? 1,
         upscale: catalog.actions.find((item) => item.code === "upscale_4k")?.credits ?? 1,
       };
+      const accessibleFeatures = {
+        pro: features.pro && access.pro,
+        editor: features.editor && access.editor,
+        upscale: features.upscale && access.upscale,
+      };
       return response.type("html").send(page(`Вариант ${generation.revision}`, resultPage(
-        project, generation, history, sourceUrl, resultUrl, wallet.balance, costs, features, comparisonAccess,
+        project, generation, history, sourceUrl, resultUrl, wallet.balance, costs, accessibleFeatures, comparisonAccess,
       ), { scripts: ["/assets/app-generation.js", "/assets/app-result.js"] }));
     } catch (error) { return next(error); }
   });

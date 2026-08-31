@@ -22,6 +22,13 @@ function documentCard(document) {
   return `<a class="panel legal-card" href="/legal/${document.key}"><span>${escapeHtml(document.short)}</span><strong>${escapeHtml(document.title)}</strong><small>Редакция ${escapeHtml(document.revision)}</small></a>`;
 }
 
+function revisionDate(revision) {
+  const [year, month, day] = String(revision).split("-").map(Number);
+  if (!year || !month || !day) return revision;
+  return new Intl.DateTimeFormat("ru-RU", { day: "numeric", month: "long", year: "numeric", timeZone: "UTC" })
+    .format(new Date(Date.UTC(year, month - 1, day)));
+}
+
 export function createLegalPagesRouter() {
   const router = express.Router();
   router.get("/legal", (_request, response) => response.type("html").send(shell("Правовая информация", `<section class="page-heading"><div><p class="eyebrow">Документы сервиса</p><h1>Правовая информация</h1><p class="muted">Условия работы, обработки данных, оплаты и обращений собраны в одном месте.</p></div></section><section class="legal-grid">${LEGAL_DOCUMENTS.map(documentCard).join("")}</section><section class="panel legal-operator"><h2>Оператор ВИЖУФАСАД</h2><p>${escapeHtml(LEGAL_OPERATOR.name)}, ${escapeHtml(LEGAL_OPERATOR.status)}, ИНН ${escapeHtml(LEGAL_OPERATOR.inn)}.</p><p><a href="mailto:${escapeHtml(LEGAL_OPERATOR.email)}">${escapeHtml(LEGAL_OPERATOR.email)}</a></p></section>`)));
@@ -29,7 +36,7 @@ export function createLegalPagesRouter() {
     const document = legalDocument(request.params.key);
     if (!document) return response.status(404).type("html").send(shell("Документ не найден", '<article class="panel legal-content"><h1>Документ не найден</h1><p><a href="/legal">Вернуться к правовой информации</a></p></article>'));
     const content = document.sections.map(([heading, html]) => `<section><h2>${escapeHtml(heading)}</h2>${html}</section>`).join("");
-    return response.type("html").send(shell(document.title, `${legalNavigation(document.key)}<article class="panel legal-content"><p class="eyebrow">Правовая информация</p><h1>${escapeHtml(document.title)}</h1><p class="legal-revision">Редакция от 28 августа 2026 года · версия ${escapeHtml(document.revision)}</p>${content}<details class="legal-hash"><summary>Контрольная версия документа</summary><code>SHA-256: ${escapeHtml(document.hash)}</code></details></article>`, document.key));
+    return response.type("html").send(shell(document.title, `${legalNavigation(document.key)}<article class="panel legal-content"><p class="eyebrow">Правовая информация</p><h1>${escapeHtml(document.title)}</h1><p class="legal-revision">Редакция от ${escapeHtml(revisionDate(document.revision))} · версия ${escapeHtml(document.revision)}</p>${content}<details class="legal-hash"><summary>Контрольная версия документа</summary><code>SHA-256: ${escapeHtml(document.hash)}</code></details></article>`, document.key));
   });
   return router;
 }

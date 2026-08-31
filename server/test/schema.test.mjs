@@ -16,12 +16,12 @@ const requiredTables = [
   "action_costs",
   "generation_upscales", "generation_comparisons", "generation_comparison_items",
   "project_generation_selections",
-  "product_events",
+  "product_events", "free_trial_entitlements", "free_trial_risk_events",
 ];
 
 test("migrations create every required table", () => {
   for (const table of requiredTables) {
-    assert.match(migration, new RegExp(`CREATE TABLE "${table}"`), `missing table ${table}`);
+    assert.match(migration, new RegExp(`CREATE TABLE (?:IF NOT EXISTS )?"${table}"`), `missing table ${table}`);
   }
 });
 
@@ -58,6 +58,14 @@ test("migrations include foreign keys, indexes, invariants and timestamp default
   assert.match(migration, /generation_comparison_items_position_chk/);
   assert.match(migration, /product_events_name_created_idx/);
   assert.match(migration, /product_events_path_length_chk/);
+  assert.match(migration, /CREATE TABLE IF NOT EXISTS "legal_acceptances"/);
+  assert.match(migration, /legal_acceptances_challenge_idx/);
+  assert.match(migration, /"challenge_id" uuid REFERENCES "email_login_codes"/);
+  assert.match(migration, /"request_ip_hash" text/);
+  assert.match(migration, /"perceptual_hash" text/);
+  assert.match(migration, /free_trial_entitlements_user_uidx/);
+  assert.match(migration, /free_trial_risk_events_expiry_idx/);
+  assert.match(migration, /'pending', 'granted', 'consumed', 'denied', 'review_required'/);
   assert.match(migration, /'START'.*79000.*25/s);
   assert.match(migration, /'OPTIMUM'.*129000.*60/s);
   assert.match(migration, /'MAXIMUM'.*349000.*240/s);

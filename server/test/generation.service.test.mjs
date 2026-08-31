@@ -10,6 +10,8 @@ function harness({
   paid = false,
   allowCancel = false,
   remoteRequestId = null,
+  accessDecision = null,
+  freeTrialError = null,
 } = {}) {
   const events = [];
   let createdInput;
@@ -87,6 +89,11 @@ function harness({
         resultSignedUrlTtlSeconds: 300,
         resultMaxBytes: 25 * 1024 * 1024,
       },
+      planAccessService: accessDecision ? { async assertGeneration() { return accessDecision; } } : null,
+      freeTrialService: freeTrialError ? {
+        async reserveStandard() { events.push(["free-trial-check"]); throw freeTrialError; },
+        async release() { events.push(["free-trial-release"]); },
+      } : null,
     }),
   };
 }
@@ -112,6 +119,36 @@ test("Pro generation persists its kind and reserves the two-credit action", asyn
   assert.equal(getCreatedInput().kind, "pro");
   assert.equal(getCreatedInput().configSnapshot.generationKind, "pro");
   assert.deepEqual(events.find((event) => event[0] === "reserve"), ["reserve", "pro_generation"]);
+});
+
+test("generation rejects a package-restricted selection before DB creation or wallet reservation", async () => {
+  const { service, events, getCreatedInput } = harness({
+    accessDecision: { allowed: false, code: "PLAN_STYLE_REQUIRED" },
+  });
+  await assert.rejects(
+    service.create("user-1", "project-1", "image-1", input, "request-12345"),
+    (error) => error.code === "PLAN_STYLE_REQUIRED" && error.status === 403,
+  );
+  assert.equal(getCreatedInput(), undefined);
+  assert.deepEqual(events, []);
+});
+
+test("free-trial denial fails before queue and provider work without charging the wallet", async () => {
+  const error = Object.assign(new Error("FREE_TRIAL_ALREADY_USED"), {
+    code: "FREE_TRIAL_ALREADY_USED", status: 403,
+  });
+  const { service, events } = harness({ freeTrialError: error });
+  await assert.rejects(
+    service.create("user-1", "project-1", "image-1", input, "request-12345", {
+      deviceHash: "device-hash",
+    }),
+    (caught) => caught.code === "FREE_TRIAL_ALREADY_USED" && caught.status === 403,
+  );
+  assert.deepEqual(events.map((event) => event[0]), [
+    "free-trial-check", "failed",
+  ]);
+  assert.equal(events.some((event) => event[0] === "reserve"), false);
+  assert.equal(events.some((event) => event[0] === "enqueue"), false);
 });
 
 test("duplicate request returns existing generation without another charge", async () => {
