@@ -1,0 +1,18 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 64 64" role="img" aria-label="ВИЖУФАСАД">
+  <defs>
+    <linearGradient id="copper" x1="8" y1="4" x2="56" y2="60" gradientUnits="userSpaceOnUse">
+      <stop stop-color="#D87552"/>
+      <stop offset="0.55" stop-color="#B95032"/>
+      <stop offset="1" stop-color="#7F2D1E"/>
+    </linearGradient>
+    <linearGradient id="shine" x1="13" y1="9" x2="48" y2="52" gradientUnits="userSpaceOnUse">
+      <stop stop-color="#FFF4E3"/>
+      <stop offset="0.48" stop-color="#F4E7D5"/>
+      <stop offset="1" stop-color="#D8B28E"/>
+    </linearGradient>
+  </defs>
+  <rect x="2" y="2" width="60" height="60" rx="12" fill="#111512"/>
+  <path d="M12 4H52C56.4 4 60 7.6 60 12V52C60 56.4 56.4 60 52 60H12C7.6 60 4 56.4 4 52V12C4 7.6 7.6 4 12 4Z" fill="url(#copper)"/>
+  <path d="M11 10H53M10 11V29" stroke="#F6C8A5" stroke-width="1.5" stroke-linecap="round" opacity="0.8"/>
+  <text x="32" y="42" fill="url(#shine)" font-family="Georgia, 'Times New Roman', serif" font-size="27" font-weight="700" text-anchor="middle" letter-spacing="-2">ВФ</text>
+</svg>

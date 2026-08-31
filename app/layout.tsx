@@ -25,6 +25,13 @@ export const metadata = {
   title: "Визуализация фасада дома по фото — ВИЖУФАСАД",
   description:
     "Загрузите фото дома, настройте стиль и материалы и получите автоматически проверенную концепцию фасада.",
+  icons: {
+    icon: [
+      { url: "/favicon.svg", type: "image/svg+xml" },
+      { url: "/favicon-32x32.png", type: "image/png", sizes: "32x32" },
+    ],
+    shortcut: "/favicon-32x32.png",
+  },
   alternates: { canonical: "/" },
   openGraph: {
     type: "website",
