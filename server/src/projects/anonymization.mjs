@@ -36,12 +36,17 @@ export class ImageAnonymizationError extends Error {
 export function loadAnonymizationConfig(environment = process.env) {
   const enabled = String(environment.PHOTO_ANONYMIZATION_ENABLED || "false").toLowerCase() === "true";
   const timeoutMs = Number(environment.PHOTO_ANONYMIZATION_TIMEOUT_MS || 30_000);
+  const concurrency = Number(environment.PHOTO_ANONYMIZATION_CONCURRENCY || 1);
   if (!Number.isInteger(timeoutMs) || timeoutMs < 5_000 || timeoutMs > 120_000) {
     throw new Error("PHOTO_ANONYMIZATION_TIMEOUT_MS must be between 5000 and 120000");
+  }
+  if (!Number.isInteger(concurrency) || concurrency < 1 || concurrency > 4) {
+    throw new Error("PHOTO_ANONYMIZATION_CONCURRENCY must be between 1 and 4");
   }
   return {
     enabled,
     timeoutMs,
+    concurrency,
     pythonBin: environment.PHOTO_ANONYMIZATION_PYTHON_BIN || "python3",
     scriptPath: environment.PHOTO_ANONYMIZATION_SCRIPT_PATH || defaultScript,
     faceModelPath: environment.PHOTO_ANONYMIZATION_FACE_MODEL_PATH || "",
@@ -54,6 +59,23 @@ export function loadAnonymizationConfig(environment = process.env) {
 export class LocalImageAnonymizer {
   constructor(config = loadAnonymizationConfig()) {
     this.config = config;
+    this.active = 0;
+    this.waiters = [];
+  }
+
+  async acquire() {
+    const concurrency = this.config.concurrency || 1;
+    if (this.active < concurrency) {
+      this.active += 1;
+      return;
+    }
+    await new Promise((resolve) => this.waiters.push(resolve));
+  }
+
+  release() {
+    const next = this.waiters.shift();
+    if (next) next();
+    else this.active -= 1;
   }
 
   async assertReady() {
@@ -76,6 +98,15 @@ export class LocalImageAnonymizer {
     if (!Buffer.isBuffer(buffer) || buffer.length < 16 || buffer.length > MAX_UPLOAD_BYTES) {
       throw new ImageAnonymizationError("PHOTO_ANONYMIZATION_INVALID_INPUT");
     }
+    await this.acquire();
+    try {
+      return await this.anonymizeExclusive(buffer);
+    } finally {
+      this.release();
+    }
+  }
+
+  async anonymizeExclusive(buffer) {
     await this.assertReady();
     const args = [
       this.config.scriptPath,
