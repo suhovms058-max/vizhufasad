@@ -87,9 +87,9 @@
 
 ## Production-выпуск и сквозной canary
 
-- Опубликованы commits `6f60a32` (согласия, обезличивание и антифрод), `2114388` (сериализация процесса) и `39c54df` (favicon).
-- Активный release: `/opt/vizhufasad-releases/prod-20260831-2140-39c54df`; предыдущий release сохранён для отката.
+- Опубликованы commits `6f60a32` (согласия, обезличивание и антифрод), `2114388` (сериализация процесса), `39c54df` (favicon) и `5e8a109` (favicon на серверных внутренних страницах).
+- Активный release: `/opt/vizhufasad-releases/prod-20260901-5e8a109`; предыдущий release сохранён для отката.
 - После выявленного fail-closed `PHOTO_ANONYMIZATION_MODELS_MISSING` исправлены только права shared-runtime и моделей: сервис `www-data` получил чтение/исполнение без права записи.
 - Повторный полный цикл production: upload → очищенная копия → photo assessment `accepted` → Seedream V5 Pro → QC `passed` → результат. Одна отправка, один attempt, стоимость 1 688 копеек, баланс 16 → 15 ВФ-коинов.
 - Исходный приватный объект не передавался в GenAPI. При предварительном тесте с недоступными моделями сработал fail closed до GenAPI и до списания.
-- После выпуска API/worker активны, readiness PostgreSQL/Redis/storage — `up`; публичные маршруты и favicon возвращают HTTP 200.
+- После выпуска API/worker активны, readiness PostgreSQL/Redis/storage — `up`; favicon проверен во встроенном браузере на стилях, галерее, правовых страницах, входе, проектах, мастере и балансе.
