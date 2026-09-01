@@ -380,10 +380,11 @@
       const chargeLabel = kind === "pro" ? "Pro-генерацию" : "обычную генерацию";
       const cost = kind === "pro" ? root.dataset.proCost : root.dataset.standardCost;
       const balance = Number(root.dataset.balance || 0);
+      const debitLabel = Number(cost) === 1 ? `списан ${vfCoinsLabel(cost)}` : `списано ${vfCoinsLabel(cost)}`;
       start.textContent = buttonLabel;
       costText.textContent = kind === "standard" && balance < Number(cost)
         ? "Подтверждаю запуск: сервис проверит право на первую бесплатную генерацию. При отказе ВФ-коин не списывается."
-        : `Подтверждаю: с баланса будет списан ${vfCoinsLabel(cost)} за ${chargeLabel}. Проверка фото и скачивание бесплатны.`;
+        : `Подтверждаю: с баланса будет ${debitLabel} за ${chargeLabel}. Проверка фото и скачивание бесплатны.`;
     };
     updateCount();
     updateGenerationKind();

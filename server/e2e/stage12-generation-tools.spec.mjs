@@ -15,6 +15,7 @@ test("Pro, edit, 4K and comparison remain usable without horizontal overflow", a
   await page.getByRole("button", { name: "Продолжить" }).click();
   await page.getByRole("button", { name: "Продолжить" }).click();
   await expect(page.getByRole("button", { name: "Запустить Pro" })).toBeVisible();
+  await expect(page.getByText(/будет списано 2 ВФ-коина/u)).toBeVisible();
 
   await page.goto("/app/projects/project-e2e/generations/22222222-2222-4222-8222-222222222222");
   await expect(page.getByRole("heading", { name: "Доработать результат" })).toBeVisible();
