@@ -88,6 +88,7 @@ test("enabled balance page offers checkout only for paid tariffs and shows owner
   app.use(createWalletPagesRouter({
     authService, walletService, paymentService,
     paymentConfig: { enabled: true, password3: null },
+    ownerAccessService: { async status() { return { eligible: true, activated: false }; } },
   }));
   const server = app.listen(0, "127.0.0.1");
   await new Promise((resolve) => server.once("listening", resolve));
@@ -98,8 +99,10 @@ test("enabled balance page offers checkout only for paid tariffs and shows owner
     assert.equal((html.match(/action="\/app\/payments\/checkout"/g) || []).length, 4);
     assert.equal((html.match(/name="offerAccepted" value="yes" required/g) || []).length, 4);
     assert.equal((html.match(/required><span>Принимаю <a href="\/legal\/offer"/g) || []).length, 4);
-    assert.equal((html.match(/<details class="promo-disclosure"><summary>Есть промокод\?<\/summary>/g) || []).length, 4);
-    assert.match(html, /Промокоды предназначены для партнёров ресурса/u);
+    assert.doesNotMatch(html, /name="promoCode"/u);
+    assert.match(html, /Для партнёров по договору/u);
+    assert.match(html, /action="\/app\/partner-code\/redeem"/u);
+    assert.match(html, /пополняет баланс без покупки пакета/u);
     assert.match(html, /4 популярных стиля и автоподбор/u);
     assert.match(html, /7 стилей и расширенный выбор материалов/u);
     assert.match(html, /Все 10 стилей и все материалы/u);
@@ -118,6 +121,11 @@ test("enabled balance page offers checkout only for paid tariffs and shows owner
     assert.match(html, /Чек формирует Robokassa/);
     assert.match(html, /Запросить частичный или иной возврат/);
     assert.match(html, /payment-id/);
+    assert.match(html, /Служебный доступ владельца/u);
+    assert.match(html, /action="\/app\/owner-access\/redeem"/u);
+    assert.match(html, /href="\/app\/admin"/u);
+    assert.match(html, /type="password"/u);
+    assert.doesNotMatch(html, /VF-OWNER-/u);
   } finally {
     await new Promise((resolve) => server.close(resolve));
   }

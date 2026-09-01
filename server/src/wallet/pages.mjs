@@ -70,6 +70,32 @@ function page(body) {
 }
 
 function returnNotice(query) {
+  if (query.partner_code_error) {
+    const messages = {
+      PARTNER_CODE_INVALID: "Проверьте формат партнёрского кода.",
+      PARTNER_CODE_NOT_AVAILABLE: "Код не активирован, отключён или срок его действия закончился.",
+      PARTNER_CODE_ALREADY_REDEEMED: "Этот партнёрский код уже был погашен.",
+      PARTNER_CODE_EMAIL_MISMATCH: "Код выпущен для другого email. Войдите в кабинет с адресом, указанным в договоре.",
+      PARTNER_CODE_NOT_CONFIGURED: "Для кода ещё не задан номинал ВФ-коинов.",
+    };
+    return `<div class="notice error" role="alert">${escapeHtml(messages[query.partner_code_error] || "Партнёрский код не применён.")}</div>`;
+  }
+  if (query.partner_credits) {
+    return `<div class="notice success" role="status">Партнёрский код применён: начислено ${escapeHtml(vfCoinsLabel(query.partner_credits))}. Тарифный уровень не изменён.</div>`;
+  }
+  if (query.owner_access_error) {
+    const messages = {
+      OWNER_CODE_INVALID: "Проверьте служебный код владельца.",
+      OWNER_CODE_NOT_AVAILABLE: "Код не зарегистрирован для этого аккаунта или отключён.",
+      OWNER_PACKAGE_INVALID: "Выберите один из действующих пакетов.",
+      OWNER_PACKAGE_NOT_AVAILABLE: "Выбранный пакет сейчас недоступен.",
+      OWNER_IDEMPOTENCY_CONFLICT: "Запрос с таким идентификатором уже использован для другого пакета.",
+    };
+    return `<div class="notice error" role="alert">${escapeHtml(messages[query.owner_access_error] || "Служебное начисление не выполнено.")}</div>`;
+  }
+  if (query.owner_access) {
+    return '<div class="notice success" role="status">ВФ-коины начислены. Для аккаунта активирован доступ «Максимум».</div>';
+  }
   if (query.payment_error) {
     const messages = {
       PROMO_NOT_AVAILABLE: "Промокод недействителен или срок его действия закончился.",
@@ -96,7 +122,9 @@ function returnNotice(query) {
   </div>`;
 }
 
-export function createWalletPagesRouter({ authService, walletService, paymentService, paymentConfig }) {
+export function createWalletPagesRouter({
+  authService, walletService, paymentService, paymentConfig, ownerAccessService,
+}) {
   const router = express.Router();
   router.use("/app", createRequireSession(authService, { html: true }));
   router.get("/app/balance", async (request, response, next) => {
@@ -104,11 +132,14 @@ export function createWalletPagesRouter({ authService, walletService, paymentSer
       const paymentHistoryPromise = paymentConfig?.enabled
         ? paymentService.history(request.auth.user_id, 30)
         : Promise.resolve([]);
-      const [wallet, catalog, history, payments] = await Promise.all([
+      const [wallet, catalog, history, payments, ownerAccess] = await Promise.all([
         walletService.summary(request.auth.user_id),
         walletService.catalog(),
         walletService.history(request.auth.user_id, 20),
         paymentHistoryPromise,
+        ownerAccessService?.status
+          ? ownerAccessService.status(request.auth.user_id)
+          : Promise.resolve({ eligible: false, activated: false }),
       ]);
       const standardCost = Number(catalog.actions.find((action) => action.code === "standard_generation")?.credits || 1);
       const requestedPlan = ["START", "OPTIMUM", "MAXIMUM"].includes(String(request.query.plan || "").toUpperCase())
@@ -122,11 +153,6 @@ export function createWalletPagesRouter({ authService, walletService, paymentSer
           <input type="hidden" name="idempotencyKey" value="${randomUUID()}">
           <input type="hidden" name="offerVersion" value="${escapeHtml(offer.revision)}">
           <input type="hidden" name="offerHash" value="${escapeHtml(offer.hash)}">
-          <details class="promo-disclosure"><summary>Есть промокод?</summary>
-            <div class="promo-disclosure-body"><label for="promo-${escapeHtml(tariff.id)}">Введите промокод</label>
-            <input id="promo-${escapeHtml(tariff.id)}" name="promoCode" maxlength="32" autocomplete="off">
-            <p class="muted">Промокоды предназначены для партнёров ресурса. Чтобы получить код, свяжитесь с администрацией сайта: <a href="mailto:vizhufasad0058@bk.ru">vizhufasad0058@bk.ru</a>.</p></div>
-          </details>
           <label class="confirm consent-confirm"><input type="checkbox" name="offerAccepted" value="yes" required><span>Принимаю <a href="/legal/offer" target="_blank" rel="noopener">публичную оферту</a> редакции от 28 августа 2026 года</span></label>
           <p><button type="submit" data-analytics-event="payment_checkout_started" data-analytics-plan="${escapeHtml(tariff.code)}">${escapeHtml(buttonLabel)}</button></p></form>` : "";
       const tariffs = packagePlans.map((tariff) => `<article id="plan-${escapeHtml(tariff.code)}" class="panel tariff-card${requestedPlan === tariff.code ? " selected-plan" : ""}">
@@ -173,10 +199,38 @@ export function createWalletPagesRouter({ authService, walletService, paymentSer
           return actions.length ? actions.join(" ") : "";
         })()}</td>
       </tr>`).join("");
+      const ownerAccessPanel = ownerAccess.eligible ? `<section class="panel owner-access-panel">
+        <p class="eyebrow">Служебный доступ владельца</p>
+        <h2>Начислить пакет без оплаты</h2>
+        <p class="muted">Инструмент виден только зарегистрированному аккаунту владельца. Начисление не создаёт платёж и фиксируется в журнале операций. После первого успешного ввода доступен пакет «Максимум».</p>
+        <form method="post" action="/app/owner-access/redeem">
+          <input type="hidden" name="idempotencyKey" value="${randomUUID()}">
+          <div class="owner-access-fields"><label>Пакет
+            <select name="packageCode" required>
+              <option value="START">Старт — 4 ВФ-коина</option>
+              <option value="OPTIMUM">Оптимум — 8 ВФ-коинов</option>
+              <option value="MAXIMUM">Максимум — 25 ВФ-коинов</option>
+            </select></label>
+            <label>Код владельца<input name="code" type="password" maxlength="41" autocomplete="off" required></label></div>
+          <p><button type="submit">Начислить ВФ-коины</button></p>
+        </form>
+        <p><a class="button secondary" href="/app/admin">Открыть админку работ и промокодов</a></p>
+      </section>` : "";
+      const partnerCodePanel = `<section class="panel partner-code-panel">
+        <div><p class="eyebrow">Для партнёров по договору</p><h2>Начислить ВФ-коины по коду</h2>
+        <p class="muted">Код имеет согласованный в договоре номинал и погашается один раз. Он пополняет баланс без покупки пакета и не меняет доступный набор стилей и инструментов.</p></div>
+        <form method="post" action="/app/partner-code/redeem">
+          <input type="hidden" name="idempotencyKey" value="${randomUUID()}">
+          <label>Партнёрский код<input name="code" maxlength="22" autocomplete="off" required placeholder="VF-P-XXXX-XXXX-XXXX"></label>
+          <button type="submit">Начислить ВФ-коины</button>
+        </form>
+      </section>`;
       return response.type("html").send(page(`${returnNotice(request.query)}
         <section class="page-heading"><div><p class="eyebrow">Продолжение работы</p><h1>Получите ещё варианты фасада</h1><p class="muted">Первый результат уже показал возможности сервиса. Выберите пакет для серии решений или добавьте несколько отдельных ВФ-коинов.</p></div></section>
         <section class="panel balance-card"><p class="muted">Доступно</p>
           <p class="balance-value">${escapeHtml(vfCoinsLabel(wallet.balance))}</p></section>
+        ${ownerAccessPanel}
+        ${partnerCodePanel}
         ${requestedPlan ? `<div class="notice success" role="status">Выбранный на главной пакет выделен ниже. Проверьте состав и переходите к оплате.</div>` : ""}
         <section class="purchase-choice" aria-label="Способы продолжить работу"><div><strong>Пакет</strong><span>Выгоднее для нескольких вариантов одного или разных домов.</span></div><div><strong>Отдельные ВФ-коины</strong><span>Когда нужна ещё одна, две или три генерации.</span></div></section>
         <h2>Пакеты для нескольких вариантов</h2><p class="muted">Обычная генерация фасада стоит ${escapeHtml(vfCoinsLabel(standardCost))}. Перед каждым платным действием сервис показывает точную стоимость.</p><div class="tariff-grid">${tariffs}</div>

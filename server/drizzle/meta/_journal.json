@@ -169,6 +169,13 @@
       "when": 1788163200000,
       "tag": "0023_free_trial_abuse_protection",
       "breakpoints": true
+    },
+    {
+      "idx": 24,
+      "version": "7",
+      "when": 1788253200000,
+      "tag": "0024_owner_access_codes",
+      "breakpoints": true
     }
   ]
 }

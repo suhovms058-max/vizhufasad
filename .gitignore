@@ -29,3 +29,7 @@ uploads/
 .DS_Store
 .idea/
 .vscode/
+
+# Local visual QA artifacts
+docs/partners/qa/*.png
+docs/partners/rendered/*.png

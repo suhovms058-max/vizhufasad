@@ -21,6 +21,12 @@ export class PlanAccessRepository {
          join tariff_plans tariff on tariff.id = subscription.tariff_plan_id
          where subscription.user_id = $1 and subscription.status = 'active'
            and tariff.code in ('START', 'OPTIMUM', 'MAXIMUM', 'PLUS')
+         union all
+         select 'MAXIMUM' as code, 3 as rank
+         from owner_access_codes owner_code
+         where owner_code.user_id = $1 and owner_code.is_active = true
+           and owner_code.activated_at is not null
+           and (owner_code.expires_at is null or owner_code.expires_at > now())
        ) access order by rank desc limit 1`,
       [userId],
     );

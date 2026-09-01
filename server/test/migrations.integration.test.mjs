@@ -10,7 +10,8 @@ const expected = new Set([
   "payments", "subscriptions", "audit_logs", "photo_assessments", "photo_assessment_attempts",
   "action_costs",
   "payment_webhook_events", "payment_receipts", "payment_refunds",
-  "promo_codes", "promo_redemptions",
+  "promo_codes", "promo_redemptions", "owner_access_codes", "owner_access_redemptions",
+  "partner_credit_codes",
   "legal_acceptances", "free_trial_entitlements", "free_trial_risk_events",
 ]);
 

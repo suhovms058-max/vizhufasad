@@ -680,6 +680,65 @@ export const promoRedemptions = pgTable("promo_redemptions", {
   index("promo_redemptions_user_created_idx").on(table.userId, table.createdAt),
 ]);
 
+export const ownerAccessCodes = pgTable("owner_access_codes", {
+  id: uuid("id").defaultRandom().primaryKey(),
+  userId: uuid("user_id").notNull().references(() => users.id, { onDelete: "restrict" }),
+  codeHash: text("code_hash").notNull(),
+  isActive: boolean("is_active").default(true).notNull(),
+  activatedAt: timestamp("activated_at", { withTimezone: true }),
+  lastRedeemedAt: timestamp("last_redeemed_at", { withTimezone: true }),
+  expiresAt: timestamp("expires_at", { withTimezone: true }),
+  ...timestamps,
+}, (table) => [
+  uniqueIndex("owner_access_codes_user_uidx").on(table.userId),
+  uniqueIndex("owner_access_codes_hash_uidx").on(table.codeHash),
+]);
+
+export const ownerAccessRedemptions = pgTable("owner_access_redemptions", {
+  id: uuid("id").defaultRandom().primaryKey(),
+  ownerAccessCodeId: uuid("owner_access_code_id").notNull()
+    .references(() => ownerAccessCodes.id, { onDelete: "restrict" }),
+  userId: uuid("user_id").notNull().references(() => users.id, { onDelete: "restrict" }),
+  packageCode: text("package_code").notNull(),
+  credits: integer("credits").notNull(),
+  idempotencyKey: text("idempotency_key").notNull(),
+  createdAt: timestamp("created_at", { withTimezone: true }).defaultNow().notNull(),
+}, (table) => [
+  uniqueIndex("owner_access_redemptions_user_key_uidx").on(table.userId, table.idempotencyKey),
+  index("owner_access_redemptions_code_created_idx").on(table.ownerAccessCodeId, table.createdAt),
+  check("owner_access_redemptions_package_chk", sql`${table.packageCode} IN ('START', 'OPTIMUM', 'MAXIMUM')`),
+  check("owner_access_redemptions_credits_chk", sql`${table.credits} > 0`),
+]);
+
+export const partnerCreditCodes = pgTable("partner_credit_codes", {
+  id: uuid("id").defaultRandom().primaryKey(),
+  codeHash: text("code_hash").notNull(),
+  codeSuffix: text("code_suffix").notNull(),
+  credits: integer("credits").notNull(),
+  contractReference: text("contract_reference").notNull(),
+  partnerName: text("partner_name"),
+  recipientEmailHash: text("recipient_email_hash").notNull(),
+  recipientEmailMasked: text("recipient_email_masked").notNull(),
+  isActive: boolean("is_active").default(true).notNull(),
+  expiresAt: timestamp("expires_at", { withTimezone: true }),
+  redeemedBy: uuid("redeemed_by").references(() => users.id, { onDelete: "restrict" }),
+  redeemedAt: timestamp("redeemed_at", { withTimezone: true }),
+  redemptionIdempotencyKey: text("redemption_idempotency_key"),
+  ...timestamps,
+}, (table) => [
+  uniqueIndex("partner_credit_codes_hash_uidx").on(table.codeHash),
+  index("partner_credit_codes_active_expiry_idx").on(table.isActive, table.expiresAt),
+  index("partner_credit_codes_contract_idx").on(table.contractReference),
+  index("partner_credit_codes_recipient_email_hash_idx").on(table.recipientEmailHash),
+  check("partner_credit_codes_credits_chk", sql`${table.credits} > 0`),
+  check("partner_credit_codes_suffix_chk", sql`length(${table.codeSuffix}) = 4`),
+  check("partner_credit_codes_redemption_chk", sql`(
+    ${table.redeemedAt} IS NULL AND ${table.redeemedBy} IS NULL AND ${table.redemptionIdempotencyKey} IS NULL
+  ) OR (
+    ${table.redeemedAt} IS NOT NULL AND ${table.redeemedBy} IS NOT NULL AND ${table.redemptionIdempotencyKey} IS NOT NULL
+  )`),
+]);
+
 export const subscriptions = pgTable("subscriptions", {
   id: uuid("id").defaultRandom().primaryKey(),
   userId: uuid("user_id").notNull().references(() => users.id, { onDelete: "restrict" }),

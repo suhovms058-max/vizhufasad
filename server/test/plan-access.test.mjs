@@ -20,6 +20,11 @@ test("topups do not unlock a package tier", () => {
   assert.equal(accessForPlan("TOPUP_3").code, "START");
 });
 
+test("owner grant returned by the repository unlocks maximum", async () => {
+  const service = new PlanAccessService({ highestPaidPackage: async () => "MAXIMUM" });
+  assert.equal((await service.forUser("owner")).code, "MAXIMUM");
+});
+
 test("generation access rejects unavailable style, material and kind", async () => {
   const service = new PlanAccessService({ highestPaidPackage: async () => "START" });
   assert.equal((await service.assertGeneration("u1", "standard", {

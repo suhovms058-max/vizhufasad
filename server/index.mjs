@@ -19,6 +19,15 @@ import { ProductAnalyticsRepository } from "./src/analytics/repository.mjs";
 import { ProductAnalyticsService } from "./src/analytics/service.mjs";
 import { PlanAccessRepository } from "./src/access/repository.mjs";
 import { PlanAccessService } from "./src/access/plans.mjs";
+import { createAdminPagesRouter } from "./src/admin/pages.mjs";
+import { AdminRepository } from "./src/admin/repository.mjs";
+import { AdminService } from "./src/admin/service.mjs";
+import { createOwnerAccessPagesRouter } from "./src/owner-access/pages.mjs";
+import { OwnerAccessRepository } from "./src/owner-access/repository.mjs";
+import { OwnerAccessService } from "./src/owner-access/service.mjs";
+import { createPartnerCreditPagesRouter } from "./src/partner-credits/pages.mjs";
+import { PartnerCreditRepository } from "./src/partner-credits/repository.mjs";
+import { PartnerCreditService } from "./src/partner-credits/service.mjs";
 import { closeDatabase } from "./src/db/client.mjs";
 import { liveness, readiness } from "./src/health.mjs";
 import { ensurePrivateBucket } from "./src/infra/storage.mjs";
@@ -118,6 +127,18 @@ const generationRepository = new GenerationRepository();
 const generationQualityRepository = new GenerationQualityRepository();
 const generationQueue = createGenerationQueue(generationConfig);
 const planAccessService = new PlanAccessService(new PlanAccessRepository());
+const ownerAccessService = new OwnerAccessService({
+  repository: new OwnerAccessRepository(),
+  hashSecret: authConfig.hashSecret,
+});
+const partnerCreditService = new PartnerCreditService({
+  repository: new PartnerCreditRepository(),
+  hashSecret: authConfig.hashSecret,
+});
+const adminService = new AdminService({
+  repository: new AdminRepository(),
+  storage,
+});
 const generationService = new GenerationService({
   repository: generationRepository,
   storage,
@@ -258,7 +279,17 @@ app.use(createProjectPagesRouter({
   generationConfig, upscaleConfig, comparisonService, planAccessService,
 }));
 app.use(createWalletPagesRouter({
-  authService, walletService, paymentService, paymentConfig,
+  authService, walletService, paymentService, paymentConfig, ownerAccessService,
+}));
+app.use(createOwnerAccessPagesRouter({
+  authService, ownerAccessService, siteOrigin: paymentConfig.siteOrigin,
+}));
+app.use(createAdminPagesRouter({
+  authService, ownerAccessService, partnerCreditService, adminService,
+  siteOrigin: paymentConfig.siteOrigin,
+}));
+app.use(createPartnerCreditPagesRouter({
+  authService, partnerCreditService, siteOrigin: paymentConfig.siteOrigin,
 }));
 app.use(createPaymentPagesRouter({ authService, paymentService, legalAcceptanceRepository, config: paymentConfig }));
 app.use(createLegalPagesRouter());

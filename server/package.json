@@ -18,6 +18,8 @@
     "cleanup:images": "node scripts/cleanup-project-images.mjs",
     "cleanup:personal-data": "node scripts/cleanup-personal-data.mjs",
     "cleanup:generation-quality": "node scripts/cleanup-generation-quality.mjs",
+    "owner-access:register": "node scripts/register-owner-access-code.mjs",
+    "partner-code:register": "node scripts/register-partner-credit-code.mjs",
     "regression:generation-quality": "node scripts/generation-quality-regression.mjs",
     "smoke:infra": "node --test test/infra.integration.test.mjs",
     "smoke:api": "node scripts/smoke-api.mjs",
