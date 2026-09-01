@@ -101,6 +101,8 @@ test("email login and verification pages use the responsive cabinet design", asy
     assert.match(loginHtml, /name="personalDataAccepted" value="yes" required/u);
     assert.match(loginHtml, /\/legal\/personal-data-consent/u);
     assert.match(loginHtml, /\/legal\/privacy/u);
+    assert.match(loginHtml, /rel="icon" href="\/favicon\.svg" type="image\/svg\+xml"/u);
+    assert.match(loginHtml, /rel="shortcut icon" href="\/favicon-32x32\.png"/u);
     assert.doesNotMatch(loginHtml, /name="personalDataAccepted"[^>]*checked/u);
     assert.doesNotMatch(loginHtml, /телефон[^<]*обязателен/iu);
 

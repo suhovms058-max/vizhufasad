@@ -21,7 +21,7 @@ function page(title, body, { cabinet = false, narrow = false } = {}) {
     : `<nav aria-label="Основная навигация"><a href="/">На главную</a></nav>`;
   return `<!doctype html><html lang="ru"><head><meta charset="utf-8">
     <meta name="viewport" content="width=device-width,initial-scale=1"><meta name="color-scheme" content="dark">
-    <title>${escapeHtml(title)} — ВИЖУФАСАД</title><link rel="stylesheet" href="/assets/app-ui.css"></head><body>
+    <title>${escapeHtml(title)} — ВИЖУФАСАД</title><link rel="shortcut icon" href="/favicon-32x32.png"><link rel="icon" href="/favicon.svg" type="image/svg+xml"><link rel="icon" href="/favicon-32x32.png" type="image/png" sizes="32x32"><link rel="stylesheet" href="/assets/app-ui.css"></head><body>
     <a class="skip-link" href="#main">К содержанию</a><header class="app-header"><a class="brand brand-home" href="/" aria-label="Вернуться на главную страницу"><svg viewBox="0 0 24 24" aria-hidden="true"><path d="M3 11.5 12 4l9 7.5M5.5 10v9h13v-9M9.5 19v-5h5v5"/></svg><span>ВИЖУФАСАД</span></a>${navigation}</header>
     <main id="main" class="app-main${narrow ? " app-main-narrow" : ""}">${body}</main>
     <footer class="app-footer"><a href="/legal">Правовая информация</a><a href="/legal/offer">Оплата</a><a href="/legal/privacy">Конфиденциальность</a><button type="button" class="link-button" data-privacy-settings>Настройки конфиденциальности</button></footer>

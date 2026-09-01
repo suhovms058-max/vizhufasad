@@ -47,6 +47,8 @@ async function render(path, { status = "completed", plan = null } = {}) {
 
 test("/app/new renders the complete generation settings path from catalog data", async () => {
   const { status, html } = await render("/app/new?project=project-1");
+  assert.match(html, /rel="icon" href="\/favicon\.svg" type="image\/svg\+xml"/u);
+  assert.match(html, /rel="shortcut icon" href="\/favicon-32x32\.png"/u);
   assert.equal(status, 200);
   for (const text of ["Фото подходит", "современный", "тёмный хай-тек", "фиброцемент", "Архитектура дома защищена автоматически", "Сбалансированный", "Генерация · 1 ВФ-коин", "700"]) {
     assert.match(html, new RegExp(text, "u"));

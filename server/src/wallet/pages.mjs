@@ -63,7 +63,7 @@ function page(body) {
   return `<!doctype html><html lang="ru"><head><meta charset="utf-8">
   <meta name="viewport" content="width=device-width,initial-scale=1">
   <meta name="color-scheme" content="dark"><title>Баланс и тарифы — ВИЖУФАСАД</title>
-  <link rel="stylesheet" href="/assets/app-ui.css"></head><body><a class="skip-link" href="#main">К содержанию</a>
+  <link rel="shortcut icon" href="/favicon-32x32.png"><link rel="icon" href="/favicon.svg" type="image/svg+xml"><link rel="icon" href="/favicon-32x32.png" type="image/png" sizes="32x32"><link rel="stylesheet" href="/assets/app-ui.css"></head><body><a class="skip-link" href="#main">К содержанию</a>
   <header class="app-header"><a class="brand brand-home" href="/" aria-label="Вернуться на главную страницу"><svg viewBox="0 0 24 24" aria-hidden="true"><path d="M3 11.5 12 4l9 7.5M5.5 10v9h13v-9M9.5 19v-5h5v5"/></svg><span>ВИЖУФАСАД</span></a><nav aria-label="Основная навигация">
   <a href="/app">Мои проекты</a><a href="/app/new">Новый проект</a><a href="/app/balance" aria-current="page">Баланс</a><a href="/app/settings">Настройки</a></nav></header>
   <main id="main" class="app-main">${body}</main><footer class="app-footer"><a href="/legal">Правовая информация</a><a href="/legal/offer">Оплата</a><a href="/legal/privacy">Конфиденциальность</a><button type="button" class="link-button" data-privacy-settings>Настройки конфиденциальности</button></footer><script src="/assets/product-analytics.js" defer></script></body></html>`;

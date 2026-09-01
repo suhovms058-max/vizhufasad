@@ -17,6 +17,8 @@ test("legal center exposes versioned documents without draft placeholders", asyn
     const index = await (await fetch(`${base}/legal`)).text();
     assert.equal((index.match(/class="panel legal-card"/gu) || []).length, LEGAL_DOCUMENTS.length);
     assert.match(index, /Сухов Максим Сергеевич/u);
+    assert.match(index, /rel="icon" href="\/favicon\.svg" type="image\/svg\+xml"/u);
+    assert.match(index, /rel="shortcut icon" href="\/favicon-32x32\.png"/u);
     for (const document of LEGAL_DOCUMENTS) {
       assert.match(document.hash, /^[a-f0-9]{64}$/u);
       const response = await fetch(`${base}/legal/${document.key}`);

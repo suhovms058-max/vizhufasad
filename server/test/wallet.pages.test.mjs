@@ -48,6 +48,8 @@ test("balance page uses catalog data and exposes no payment action", async () =>
     assert.match(html, /До 4 генераций/);
     assert.doesNotMatch(html, /Standard-вариант/u);
     assert.match(html, /\/assets\/app-ui\.css/);
+    assert.match(html, /rel="icon" href="\/favicon\.svg" type="image\/svg\+xml"/u);
+    assert.match(html, /rel="shortcut icon" href="\/favicon-32x32\.png"/u);
     assert.match(html, /class="tariff-grid"/);
     assert.match(html, /class="brand brand-home" href="\/" aria-label="Вернуться на главную страницу"/u);
     assert.doesNotMatch(html, /Купить|Оплатить|payment|checkout/i);
