@@ -54,7 +54,7 @@ export const paymentStatus = pgEnum("payment_status", ["created", "pending", "pa
 export const subscriptionStatus = pgEnum("subscription_status", ["pending", "active", "past_due", "cancelled", "expired"]);
 export const paymentWebhookStatus = pgEnum("payment_webhook_status", ["received", "processed", "rejected", "failed"]);
 export const paymentReceiptType = pgEnum("payment_receipt_type", ["payment", "refund"]);
-export const paymentReceiptStatus = pgEnum("payment_receipt_status", ["pending", "succeeded", "failed"]);
+export const paymentReceiptStatus = pgEnum("payment_receipt_status", ["pending", "succeeded", "failed", "cancelled"]);
 export const paymentRefundStatus = pgEnum("payment_refund_status", ["created", "pending", "succeeded", "failed"]);
 export const promoKind = pgEnum("promo_kind", ["discount", "credits"]);
 

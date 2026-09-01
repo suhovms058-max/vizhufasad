@@ -59,6 +59,13 @@ const statusLabels = {
   refunded: "Возвращён",
 };
 
+const receiptStatusLabels = {
+  pending: "Чек формирует Robokassa",
+  succeeded: "Чек выдан",
+  failed: "Чек не сформирован",
+  cancelled: "Чек аннулирован",
+};
+
 function page(body) {
   return `<!doctype html><html lang="ru"><head><meta charset="utf-8">
   <meta name="viewport" content="width=device-width,initial-scale=1">
@@ -179,7 +186,7 @@ export function createWalletPagesRouter({
         <td>${escapeHtml(payment.tariffName || payment.description)}</td><td>${escapeHtml(rubles(payment.amountMinor))}</td>
         <td>${escapeHtml(statusLabels[payment.status] || payment.status)}</td>
         <td class="optional">${payment.receipts?.length
-          ? payment.receipts.map((receipt) => escapeHtml(receipt.status === "succeeded" ? "Чек выдан" : "Чек формирует Robokassa")).join("<br>")
+          ? payment.receipts.map((receipt) => escapeHtml(receiptStatusLabels[receipt.status] || receipt.status)).join("<br>")
           : "—"}</td>
         <td>${(() => {
           const actions = [];

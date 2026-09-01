@@ -81,7 +81,7 @@ test("enabled balance page offers checkout only for paid tariffs and shows owner
     return [{
       id: "payment-id", createdAt: new Date("2026-08-08T12:00:00Z"), tariffName: "Старт",
       description: "Пакет Старт", amountMinor: 79_000, status: "paid", refundable: false,
-      receipts: [{ status: "pending" }],
+      receipts: [{ status: "cancelled" }],
     }];
   } };
   const app = express();
@@ -118,7 +118,7 @@ test("enabled balance page offers checkout only for paid tariffs and shows owner
     assert.match(html, /id="plan-START" class="panel tariff-card selected-plan"/);
     assert.match(html, /Вы выбрали этот пакет/);
     assert.doesNotMatch(html, /value="free-id"/);
-    assert.match(html, /Чек формирует Robokassa/);
+    assert.match(html, /Чек аннулирован/);
     assert.match(html, /Запросить частичный или иной возврат/);
     assert.match(html, /payment-id/);
     assert.match(html, /Служебный доступ владельца/u);
