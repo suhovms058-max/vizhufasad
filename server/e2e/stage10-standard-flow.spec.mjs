@@ -66,7 +66,7 @@ test("photo settings to checked Standard result survives navigation and fits vie
   await woodMaterial.scrollIntoViewIfNeeded();
   await woodMaterial.check({ force: true });
   await expect(woodMaterial).toBeChecked();
-  await page.getByLabel("Описание цветов").fill("молочный, графит");
+  await page.getByLabel("Описание цветов").fill("тёплый светлый бежевый, графитовые оконные рамы, натуральное дерево в акцентах");
   await page.getByRole("button", { name: "Продолжить" }).click();
   await page.getByLabel("Что важно учесть").fill("Отделать карниз и существующие опоры");
   await page.getByLabel(/с баланса будет списан 1 ВФ-коин/u).check();

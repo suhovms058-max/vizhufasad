@@ -335,7 +335,10 @@
         version: "1",
         style: data.get("style"),
         materials: data.getAll("materials"),
-        palette: [data.get("palettePreset"), description].filter(Boolean),
+        palette: [
+          data.get("palettePreset"),
+          ...description.split(",").map((item) => item.trim()).filter(Boolean),
+        ].filter(Boolean),
         preserve,
         transformationLevel: data.get("transformationLevel"),
         wishes: data.get("wishes"),
