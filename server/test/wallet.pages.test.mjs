@@ -102,7 +102,7 @@ test("enabled balance page offers checkout only for paid tariffs and shows owner
     assert.doesNotMatch(html, /name="promoCode"/u);
     assert.match(html, /Для партнёров по договору/u);
     assert.match(html, /action="\/app\/partner-code\/redeem"/u);
-    assert.match(html, /пополняет баланс без покупки пакета/u);
+    assert.match(html, /открывает все стили, материалы, Pro, сравнение, точечные доработки и 4K тарифа «Максимум»/u);
     assert.match(html, /4 популярных стиля и автоподбор/u);
     assert.match(html, /7 стилей и расширенный выбор материалов/u);
     assert.match(html, /Все 10 стилей и все материалы/u);

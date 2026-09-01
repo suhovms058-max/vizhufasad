@@ -81,7 +81,7 @@ function returnNotice(query) {
     return `<div class="notice error" role="alert">${escapeHtml(messages[query.partner_code_error] || "Партнёрский код не применён.")}</div>`;
   }
   if (query.partner_credits) {
-    return `<div class="notice success" role="status">Партнёрский код применён: начислено ${escapeHtml(vfCoinsLabel(query.partner_credits))}. Тарифный уровень не изменён.</div>`;
+    return `<div class="notice success" role="status">Партнёрский код применён: начислено ${escapeHtml(vfCoinsLabel(query.partner_credits))} и открыт доступ ко всем возможностям тарифа «Максимум».</div>`;
   }
   if (query.owner_access_error) {
     const messages = {
@@ -218,7 +218,7 @@ export function createWalletPagesRouter({
       </section>` : "";
       const partnerCodePanel = `<section class="panel partner-code-panel">
         <div><p class="eyebrow">Для партнёров по договору</p><h2>Начислить ВФ-коины по коду</h2>
-        <p class="muted">Код имеет согласованный в договоре номинал и погашается один раз. Он пополняет баланс без покупки пакета и не меняет доступный набор стилей и инструментов.</p></div>
+        <p class="muted">Код имеет согласованный в договоре номинал и погашается один раз. После активации он пополняет баланс и открывает все стили, материалы, Pro, сравнение, точечные доработки и 4K тарифа «Максимум» на договорный срок.</p></div>
         <form method="post" action="/app/partner-code/redeem">
           <input type="hidden" name="idempotencyKey" value="${randomUUID()}">
           <label>Партнёрский код<input name="code" maxlength="22" autocomplete="off" required placeholder="VF-P-XXXX-XXXX-XXXX"></label>

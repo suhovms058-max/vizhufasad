@@ -15,6 +15,10 @@ export class ComparisonRepository {
          join tariff_plans tariff on tariff.id = subscription.tariff_plan_id
          where subscription.user_id = $1 and subscription.status = 'active'
            and tariff.code in ('OPTIMUM', 'MAXIMUM', 'PLUS')
+         union all
+         select 1 from partner_credit_codes partner_code
+         where partner_code.redeemed_by = $1 and partner_code.redeemed_at is not null
+           and (partner_code.expires_at is null or partner_code.expires_at > now())
        ) as allowed`,
       [userId],
     );

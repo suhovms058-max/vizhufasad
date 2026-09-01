@@ -27,6 +27,11 @@ export class PlanAccessRepository {
          where owner_code.user_id = $1 and owner_code.is_active = true
            and owner_code.activated_at is not null
            and (owner_code.expires_at is null or owner_code.expires_at > now())
+         union all
+         select 'MAXIMUM' as code, 3 as rank
+         from partner_credit_codes partner_code
+         where partner_code.redeemed_by = $1 and partner_code.redeemed_at is not null
+           and (partner_code.expires_at is null or partner_code.expires_at > now())
        ) access order by rank desc limit 1`,
       [userId],
     );

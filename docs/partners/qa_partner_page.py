@@ -1,7 +1,8 @@
+import os
 from pathlib import Path
 from playwright.sync_api import sync_playwright
 
-BASE = "http://127.0.0.1:3019"
+BASE = os.environ.get("VIZHUFASAD_QA_BASE", "http://127.0.0.1:3019").rstrip("/")
 OUT = Path(__file__).resolve().parent / "qa"
 OUT.mkdir(exist_ok=True)
 
@@ -13,7 +14,12 @@ def validate(page, name):
     assert response and response.status == 200
     assert page.get_by_role("heading", name="Помогите клиенту увидеть фасад до покупки материалов").is_visible()
     assert page.get_by_role("heading", name="Образец партнёрского договора").is_visible()
-    assert page.get_by_role("link", name="Обсудить условия").is_visible()
+    contact_link = page.get_by_role("link", name="Перейти к оформлению")
+    assert contact_link.is_visible()
+    assert contact_link.get_attribute("href") == "#partner-contact"
+    contact_link.click()
+    assert page.url.endswith("#partner-contact")
+    assert page.get_by_role("heading", name="Заключить партнёрский договор").is_visible()
     assert page.get_by_role("link", name="Скачать DOCX для заполнения").is_visible()
     overflow = page.evaluate("document.documentElement.scrollWidth > document.documentElement.clientWidth")
     assert not overflow, f"horizontal overflow: {name}"

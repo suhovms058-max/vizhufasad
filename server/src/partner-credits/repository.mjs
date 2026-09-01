@@ -69,7 +69,10 @@ export class PartnerCreditRepository {
         idempotencyKey: `partner-credit:${code.id}`,
         referenceType: "partner_credit_code",
         referenceId: code.id,
-        metadata: { source: "partner_contract", codeSuffix: code.code_suffix },
+        metadata: {
+          source: "partner_contract", codeSuffix: code.code_suffix,
+          maximumAccess: true, accessUntil: code.expires_at || null,
+        },
       });
       await client.query(
         `update partner_credit_codes

@@ -54,13 +54,13 @@ function adminPage(data, { issuedCode = null, error = null } = {}) {
   ${error ? `<div class="notice error" role="alert">${escapeHtml(error)}</div>` : ""}
   ${issuedCode ? `<section class="notice success admin-issued-code"><strong>Новый код создан</strong><code>${escapeHtml(issuedCode)}</code><p>Скопируйте его сейчас и внесите в договор/реестр. Позже сервис покажет только последние четыре символа.</p></section>` : ""}
   <section class="admin-stats"><article class="panel"><span>Всего</span><strong>${escapeHtml(data.stats.total)}</strong></article><article class="panel"><span>Готово</span><strong>${escapeHtml(data.stats.completed)}</strong></article><article class="panel"><span>В работе</span><strong>${escapeHtml(data.stats.active)}</strong></article><article class="panel"><span>Ошибки/возвраты</span><strong>${escapeHtml(data.stats.failed)}</strong></article></section>
-  <section class="panel admin-code-create"><div><p class="eyebrow">Новый договор</p><h2>Выпустить партнёрский код</h2><p class="muted">Номинал начисляется целиком и один раз. Пакет и тарифные функции не открываются.</p></div>
+  <section class="panel admin-code-create"><div><p class="eyebrow">Новый договор</p><h2>Выпустить партнёрский код</h2><p class="muted">Номинал начисляется целиком и один раз. После активации аккаунт получает все возможности тарифа «Максимум» на указанный срок.</p></div>
     <form method="post" action="/app/admin/partner-codes">
       <div class="owner-partner-fields"><label>Номинал, ВФ-коинов<input name="credits" type="number" min="1" max="100000" step="1" required></label>
       <label>Договор №<input name="contractReference" maxlength="160" required></label>
       <label>Партнёр / организация<input name="partnerName" maxlength="240"></label>
       <label>Email получателя<input name="recipientEmail" type="email" maxlength="254" autocomplete="off" required></label>
-      <label>Действует до<input name="expiresAt" type="date"></label></div>
+      <label>Активировать и использовать до<input name="expiresAt" type="date"></label></div>
       <p><button type="submit">Сгенерировать и активировать код</button></p>
     </form></section>
   <section><h2>Партнёрские коды</h2><div class="table-wrap"><table><thead><tr><th>Код</th><th>Номинал</th><th>Договор</th><th>Партнёр</th><th>Email</th><th>Статус</th><th>До</th><th>Аккаунт</th></tr></thead><tbody>${codeRows || '<tr><td colspan="8">Кодов пока нет</td></tr>'}</tbody></table></div></section>

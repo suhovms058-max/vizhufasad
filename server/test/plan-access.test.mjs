@@ -1,5 +1,6 @@
 import assert from "node:assert/strict";
 import test from "node:test";
+import { PlanAccessRepository } from "../src/access/repository.mjs";
 import { accessForPlan, PlanAccessService } from "../src/access/plans.mjs";
 
 test("packages progressively unlock styles and tools", () => {
@@ -23,6 +24,17 @@ test("topups do not unlock a package tier", () => {
 test("owner grant returned by the repository unlocks maximum", async () => {
   const service = new PlanAccessService({ highestPaidPackage: async () => "MAXIMUM" });
   assert.equal((await service.forUser("owner")).code, "MAXIMUM");
+});
+
+test("partner redemption is a maximum-tier access source", async () => {
+  let sql = "";
+  const repository = new PlanAccessRepository({
+    async query(statement) { sql = String(statement); return { rows: [{ code: "MAXIMUM" }] }; },
+  });
+  assert.equal(await repository.highestPaidPackage("partner-user"), "MAXIMUM");
+  assert.match(sql, /from partner_credit_codes partner_code/u);
+  assert.match(sql, /partner_code\.redeemed_by = \$1/u);
+  assert.match(sql, /partner_code\.expires_at is null or partner_code\.expires_at > now\(\)/u);
 });
 
 test("generation access rejects unavailable style, material and kind", async () => {

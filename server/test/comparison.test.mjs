@@ -6,6 +6,7 @@ import express from "express";
 import sharp from "sharp";
 import { normalizeComparisonGenerationIds } from "../src/comparison/contract.mjs";
 import { createComparisonRouter } from "../src/comparison/http.mjs";
+import { ComparisonRepository } from "../src/comparison/repository.mjs";
 import { ComparisonService } from "../src/comparison/service.mjs";
 
 const ids = [
@@ -115,4 +116,14 @@ test("comparison HTTP endpoint delegates only after authentication", async () =>
     server.close();
     await once(server, "close");
   }
+});
+
+test("partner maximum access includes comparison", async () => {
+  let sql = "";
+  const repository = new ComparisonRepository({
+    async query(statement) { sql = String(statement); return { rows: [{ allowed: true }] }; },
+  });
+  assert.equal(await repository.hasAccess("partner-user"), true);
+  assert.match(sql, /from partner_credit_codes partner_code/u);
+  assert.match(sql, /partner_code\.redeemed_by = \$1/u);
 });

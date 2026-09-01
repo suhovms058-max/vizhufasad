@@ -675,13 +675,18 @@ h2 { font-size: clamp(48px, 5vw, 76px); margin-top: 24px; }
 .partnerFaq details { padding:25px 0;border-bottom:1px solid var(--line); }
 .partnerFaq summary { cursor:pointer;font-family:var(--font-bodoni),Georgia,serif;font-size:25px;font-weight:700; }
 .partnerFaq details p { max-width:830px;color:#55574f;line-height:1.7; }
-.partnerFinal { padding-block:clamp(82px,9vw,128px);background:var(--basalt);color:var(--cream);text-align:center; }
+.partnerFinal { padding-block:clamp(82px,9vw,128px);background:var(--basalt);color:var(--cream);text-align:center;scroll-margin-top:24px; }
 .partnerFinal .shell { display:grid;justify-items:center; }
 .partnerFinal p { max-width:700px;color:#c5c5bd;font-size:18px;line-height:1.65; }
-.partnerFinal .button { margin-top:24px; }
-.partnerEmail { margin-top:22px; }
+.partnerContactPanel { display:grid;justify-items:center;gap:8px;width:min(620px,100%);margin-top:28px;padding:24px;border:1px solid rgba(196,103,65,.65);background:rgba(255,255,255,.025); }
+.partnerContactPanel span { color:#b7b9af;font-size:12px;font-weight:800;letter-spacing:.16em;text-transform:uppercase; }
+.partnerContactPanel small { max-width:520px;color:#aeb0a7;line-height:1.5; }
+.partnerContactPanel .partnerEmail { margin-top:0;font-family:var(--font-serif);font-size:clamp(23px,3vw,34px);color:var(--cream); }
+.partnerContactActions { display:flex;justify-content:center;gap:14px;flex-wrap:wrap;margin-top:24px; }
+.partnerContactActions .button { margin-top:0; }
+.partnerContactActions .partnerOutlineButton { border-color:rgba(245,234,220,.7);color:var(--cream); }
 @media(max-width:1000px){.partnerHeroGrid,.partnerContractGrid{grid-template-columns:1fr}.partnerSteps{grid-template-columns:repeat(2,1fr)}.partnerSteps li:nth-child(3){border-left:0}.partnerAudienceGrid{grid-template-columns:1fr}.partnerAudienceGrid article{min-height:0;padding:28px 0;border-left:0;border-bottom:1px solid var(--line)}}
-@media(max-width:720px){.partnerHeroGrid{gap:34px}.partnerHero h1{font-size:clamp(42px,12vw,58px)}.partnerHeroActions{align-items:stretch;flex-direction:column}.partnerHeroActions .button{width:100%}.partnerTrustCard{padding:26px}.partnerIntro>div:first-child,.partnerTerms>div:first-child{grid-template-columns:1fr;gap:0}.partnerSteps{grid-template-columns:1fr}.partnerSteps li,.partnerSteps li:first-child,.partnerSteps li:nth-child(3){min-height:0;padding:26px 0;border-left:0;border-bottom:1px solid rgba(245,234,220,.18)}.partnerSteps strong{margin:24px 0 10px}.partnerTerms dl{grid-template-columns:1fr}.partnerTerms dl>div,.partnerTerms dl>div:nth-child(even){padding:24px 0;border-left:0}.partnerContractActions .button{font-size:11px}.partnerFaq summary{font-size:22px}}
+@media(max-width:720px){.partnerHeroGrid{gap:34px}.partnerHero h1{font-size:clamp(42px,12vw,58px)}.partnerHeroActions{align-items:stretch;flex-direction:column}.partnerHeroActions .button{width:100%}.partnerTrustCard{padding:26px}.partnerIntro>div:first-child,.partnerTerms>div:first-child{grid-template-columns:1fr;gap:0}.partnerSteps{grid-template-columns:1fr}.partnerSteps li,.partnerSteps li:first-child,.partnerSteps li:nth-child(3){min-height:0;padding:26px 0;border-left:0;border-bottom:1px solid rgba(245,234,220,.18)}.partnerSteps strong{margin:24px 0 10px}.partnerTerms dl{grid-template-columns:1fr}.partnerTerms dl>div,.partnerTerms dl>div:nth-child(even){padding:24px 0;border-left:0}.partnerContractActions .button{font-size:11px}.partnerFaq summary{font-size:22px}.partnerContactActions{width:100%;flex-direction:column}.partnerContactActions .button{width:100%}.partnerContactPanel{padding:22px 16px}.partnerContactPanel .partnerEmail{font-size:22px}}
 @media (max-width: 1100px) {
   .compactStyleGuide { grid-template-columns: 1fr; }
   .styleIndexGrid { grid-template-columns: 1fr; }

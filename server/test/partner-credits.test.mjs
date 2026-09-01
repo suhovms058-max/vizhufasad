@@ -9,7 +9,7 @@ import { PartnerCreditRepository } from "../src/partner-credits/repository.mjs";
 const secret = "partner-code-test-secret-with-at-least-32-characters";
 const code = "VF-P-ABCD-EFGH-JK23";
 
-test("partner code is hashed and does not choose a tariff", async () => {
+test("partner code is hashed and bound to the account email", async () => {
   const calls = [];
   const service = new PartnerCreditService({
     hashSecret: secret,
