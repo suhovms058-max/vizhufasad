@@ -82,12 +82,17 @@ export class RobokassaPaymentProvider {
       `${outSum}:${invId}:${this.config.password2}:Shp_payment=${paymentId}`,
     );
     if (!safeEqual(expected, signature)) throw new PaymentError("INVALID_WEBHOOK_SIGNATURE", 401);
+    const isTest = String(input.IsTest || "") === "1";
+    if (isTest && !this.config.testMode) {
+      throw new PaymentError("TEST_WEBHOOK_NOT_ALLOWED", 409);
+    }
     return {
       eventKey: `paid:${invId}:${outSum}`,
       paymentId,
       providerPaymentId: invId,
       amountMinor: parseRubles(outSum),
       paymentMethod: String(input.PaymentMethod || "").slice(0, 80) || null,
+      isTest,
       raw: { ...input, SignatureValue: "[redacted]" },
     };
   }

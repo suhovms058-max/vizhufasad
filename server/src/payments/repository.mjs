@@ -318,20 +318,25 @@ export class PaymentRepository {
         });
         await client.query(
           `update payments set status = 'paid', paid_at = now(), updated_at = now(),
-           metadata = metadata || jsonb_build_object('paymentMethod', $2::text)
+           metadata = metadata || jsonb_build_object(
+             'paymentMethod', $2::text,
+             'technicalTest', $3::boolean
+           )
            where id = $1`,
-          [payment.id, event.paymentMethod],
+          [payment.id, event.paymentMethod, Boolean(event.isTest)],
         );
-        await client.query(
-          `insert into payment_receipts (
-            payment_id, type, status, provider_receipt_id, amount_minor, metadata
-          ) values ($1, 'payment', 'pending', $2, $3, $4)
-          on conflict (provider_receipt_id) do nothing`,
-          [payment.id, `robokassa:${payment.provider_payment_id}:payment`, payment.amount_minor, {
-            scheme: "robocheck-smz",
-            note: "Receipt is issued by Robokassa and My Tax; provider link is not returned in ResultURL",
-          }],
-        );
+        if (!event.isTest) {
+          await client.query(
+            `insert into payment_receipts (
+              payment_id, type, status, provider_receipt_id, amount_minor, metadata
+            ) values ($1, 'payment', 'pending', $2, $3, $4)
+            on conflict (provider_receipt_id) do nothing`,
+            [payment.id, `robokassa:${payment.provider_payment_id}:payment`, payment.amount_minor, {
+              scheme: "robocheck-smz",
+              note: "Receipt is issued by Robokassa and My Tax; provider link is not returned in ResultURL",
+            }],
+          );
+        }
         await client.query(
           `insert into audit_logs (actor_user_id, action, entity_type, entity_id, details)
            values ($1, 'payment.paid', 'payment', $2, $3)`,

@@ -138,9 +138,29 @@ test("ResultURL signature is mandatory and amount remains exact", () => {
   assert.equal(event.amountMinor, 79_000);
   assert.equal(event.paymentId, paymentId);
   assert.equal(event.raw.SignatureValue, "[redacted]");
+  assert.equal(event.isTest, false);
   assert.throws(
     () => provider.verifyResult({ OutSum: "1.00", InvId: "100042", Shp_payment: paymentId, SignatureValue: "bad" }),
     (error) => error.code === "INVALID_WEBHOOK_SIGNATURE" && error.status === 401,
+  );
+});
+
+test("test ResultURL is accepted only while provider test mode is enabled", () => {
+  const paymentId = "4e0906df-e5e1-4b2f-8cf9-a7fd4b46b331";
+  const testConfig = loadPaymentConfig(environment);
+  const signature = createHash("sha256")
+    .update(`790.00:100042:${testConfig.password2}:Shp_payment=${paymentId}`)
+    .digest("hex");
+  const input = {
+    OutSum: "790.00", InvId: "100042", Shp_payment: paymentId,
+    SignatureValue: signature, PaymentMethod: "BankCard", IsTest: "1",
+  };
+  assert.equal(new RobokassaPaymentProvider(testConfig).verifyResult(input).isTest, true);
+
+  const productionConfig = { ...testConfig, testMode: false };
+  assert.throws(
+    () => new RobokassaPaymentProvider(productionConfig).verifyResult(input),
+    (error) => error.code === "TEST_WEBHOOK_NOT_ALLOWED" && error.status === 409,
   );
 });
 
