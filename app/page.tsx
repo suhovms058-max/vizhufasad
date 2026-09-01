@@ -265,7 +265,7 @@ export default function App() {
                     <span><strong>Посмотреть видеоинструкцию</strong><small>3 минуты</small></span>
                   </button>
                   <span className="processVideoPreview" aria-hidden="true">
-                    <img src="/vizhufasad-video-instruction-poster.jpg" alt="" width="1280" height="720" loading="lazy" decoding="async" />
+                    <img src="/vizhufasad-video-instruction-with-styles-poster.jpg" alt="" width="1280" height="720" loading="lazy" decoding="async" />
                     <i><span>▶</span> Как работает ВИЖУФАСАД</i>
                   </span>
                 </div>
@@ -464,8 +464,8 @@ export default function App() {
               <div><span>ВИДЕОИНСТРУКЦИЯ · 3 МИНУТЫ</span><h3 id="video-title">Как создать визуализацию фасада</h3></div>
               <button className="videoClose" type="button" onClick={() => setVideoOpen(false)} aria-label="Закрыть видео">×</button>
             </div>
-            <video className="videoFrame" controls autoPlay preload="metadata" playsInline poster="/vizhufasad-video-instruction-poster.jpg">
-              <source src="/vizhufasad-video-instruction-720p.mp4" type="video/mp4" />
+            <video className="videoFrame" controls autoPlay preload="metadata" playsInline poster="/vizhufasad-video-instruction-with-styles-poster.jpg">
+              <source src="/vizhufasad-video-instruction-with-styles-720p.mp4" type="video/mp4" />
               Ваш браузер не поддерживает воспроизведение видео.
             </video>
           </div>
