@@ -105,6 +105,18 @@ test("generation input applies the fixed automated preservation policy", () => {
   assert.match(composeGenerationPrompt(input).prompt, /Never add a new storey/u);
 });
 
+test("automatic material selection requires a visible finished facade system", () => {
+  const input = normalizeGenerationInput({
+    style: "современный",
+    transformationLevel: "balanced",
+    materials: ["автоподбор"],
+  });
+  const prompt = composeGenerationPrompt(input).prompt;
+  assert.match(prompt, /AUTOMATIC MATERIAL SYSTEM/u);
+  assert.match(prompt, /merely repaints the existing wall color/u);
+  assert.doesNotMatch(prompt, /Required finish materials: автоподбор/u);
+});
+
 test("generation configuration is disabled by default and selects the measured candidate", () => {
   const config = loadGenerationConfig({});
   assert.equal(config.enabled, false);

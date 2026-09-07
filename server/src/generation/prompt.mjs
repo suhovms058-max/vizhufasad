@@ -32,6 +32,8 @@ const editScopeLabels = {
 export function composeGenerationPrompt(input, {
   qualityRetryReasons = [], edit = null,
 } = {}) {
+  const automaticMaterials = input.materials.length === 0
+    || input.materials.every((material) => /^(автоподбор|auto)$/iu.test(String(material).trim()));
   const protectedItems = Object.entries(input.preserve)
     .filter(([, enabled]) => enabled)
     .map(([key]) => preserveLabels[key]);
@@ -49,9 +51,9 @@ export function composeGenerationPrompt(input, {
     modeInstructions[input.transformationLevel],
     "CLIENT BRIEF — apply these choices consistently to all suitable visible facade surfaces:",
     `Required facade style: ${input.style}.`,
-    input.materials.length
+    !automaticMaterials
       ? `Required finish materials: ${input.materials.join(", ")}. Show their real texture, scale, joints, edges and installation logic.`
-      : "Choose physically plausible finish materials consistent with the required style.",
+      : "AUTOMATIC MATERIAL SYSTEM: Select and visibly apply a coherent, buildable facade system: a primary wall finish plus one or two complementary facade materials appropriate to the required style. Show real texture, scale, joints, edges, reveals and installation logic. Do not return raw blockwork, a primer-only shell or a result that merely repaints the existing wall color.",
     input.palette.length
       ? `Required color palette: ${input.palette.join(", ")}. Keep material colors within this palette.`
       : "",
