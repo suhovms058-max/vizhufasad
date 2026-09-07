@@ -43,6 +43,7 @@ function evaluate({ observation, structural, allowedChanges, thresholds, assessm
   const candidateDoorCount = Number(observation.candidateDoorCount);
   const doorCountsMatch = sourceDoorCount === candidateDoorCount;
   const doorZoneScore = Number(structural.zones?.doors || 0);
+  const roofZoneScore = Number(structural.zones?.roof || 0);
   // New cladding, trims, lighting and removal of construction clutter can make
   // the VLM describe an existing door as changed. Do not reject that signal by
   // itself when the opening count and independent structural evidence agree.
@@ -69,6 +70,9 @@ function evaluate({ observation, structural, allowedChanges, thresholds, assessm
     }
   }
   if (structural.contours < thresholds.contours) failures.push("contours_below_threshold");
+  if (allowedChanges.roof !== true && roofZoneScore < thresholds.roofContours) {
+    failures.push("roof_contours_below_threshold");
+  }
   // Material seams, timber slats and landscaping legitimately change local
   // edge density. A low layout-density score is therefore blocking only when
   // another structural signal independently confirms the change.

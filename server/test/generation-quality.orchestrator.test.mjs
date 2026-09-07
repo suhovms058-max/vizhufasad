@@ -19,7 +19,7 @@ const config = {
   timeoutMs: 1000, retryDelayMs: 0,
   thresholds: {
     overall: 7600, sameHouse: 8500, protectedElement: 7000,
-    contours: 6800, spatialLayout: 7000, protectedZones: 6800,
+    roofContours: 8800, contours: 6800, spatialLayout: 7000, protectedZones: 6800,
     artifacts: 7500, style: 6500,
   },
 };
@@ -34,7 +34,7 @@ function orchestrator(vlm) {
     },
     structuralAnalyzer: async () => ({
       version: "test", contours: 9000, spatialLayout: 9000,
-      protectedZones: 9000, zones: {}, edgeDensityDelta: 0,
+      protectedZones: 9000, zones: { roof: 9500 }, edgeDensityDelta: 0,
     }),
   });
 }
@@ -58,6 +58,24 @@ test("gross roof change requests first retry and second rejection", async () => 
   assert.equal(first.decision, "retry_required");
   assert.equal(second.decision, "rejected_refund");
   assert.ok(first.failureReasons.includes("roof_below_threshold"));
+});
+
+test("weak roof contour rejects even when the VLM overlooks a changed roof", async () => {
+  const quality = new GenerationQualityOrchestrator({
+    config,
+    providers: {
+      primary: { name: "primary", model: "mock", async compare() {
+        return { observation: observation({ roof: 1 }), requestId: "request" };
+      } },
+    },
+    structuralAnalyzer: async () => ({
+      version: "test", contours: 9300, spatialLayout: 9000,
+      protectedZones: 9000, zones: { roof: 7400 }, edgeDensityDelta: 0,
+    }),
+  });
+  const result = await quality.assess(request);
+  assert.equal(result.decision, "retry_required");
+  assert.ok(result.failureReasons.includes("roof_contours_below_threshold"));
 });
 
 test("explicitly allowed roof change does not reject an otherwise good result", async () => {
@@ -98,7 +116,7 @@ test("door finish signal passes when counts and independent geometry confirm the
     structuralAnalyzer: async () => ({
       version: "test", contours: 8450, spatialLayout: 5200,
       protectedZones: 7873,
-      zones: { doors: 6608 },
+      zones: { doors: 6608, roof: 9500 },
       edgeDensityDelta: 465,
     }),
   });
@@ -213,7 +231,7 @@ test("bounded primary failure falls back automatically without a manual decision
     },
     structuralAnalyzer: async () => ({
       version: "test", contours: 9000, spatialLayout: 9000,
-      protectedZones: 9000, zones: {}, edgeDensityDelta: 0,
+      protectedZones: 9000, zones: { roof: 9500 }, edgeDensityDelta: 0,
     }),
     wait: async () => {},
   });

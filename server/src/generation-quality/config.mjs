@@ -70,6 +70,9 @@ export function loadGenerationQualityConfig(environment = process.env) {
       overall: integer(environment, "GENERATION_QUALITY_MIN_OVERALL", 7600, 0, 10_000),
       sameHouse: integer(environment, "GENERATION_QUALITY_MIN_SAME_HOUSE", 8500, 0, 10_000),
       protectedElement: integer(environment, "GENERATION_QUALITY_MIN_PROTECTED_ELEMENT", 7000, 0, 10_000),
+      // The roof silhouette is a primary identity marker of a house.  It needs
+      // a stricter, independent structural check than the average of all zones.
+      roofContours: integer(environment, "GENERATION_QUALITY_MIN_ROOF_CONTOURS", 8800, 0, 10_000),
       contours: integer(environment, "GENERATION_QUALITY_MIN_CONTOURS", 6800, 0, 10_000),
       spatialLayout: integer(environment, "GENERATION_QUALITY_MIN_SPATIAL_LAYOUT", 7000, 0, 10_000),
       protectedZones: integer(environment, "GENERATION_QUALITY_MIN_PROTECTED_ZONES", 6800, 0, 10_000),
