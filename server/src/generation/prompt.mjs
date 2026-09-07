@@ -1,10 +1,34 @@
 import { GENERATION_PROMPT_VERSION } from "./contract.mjs";
 
 const modeInstructions = {
-  gentle: "Use a restrained design language and finish the existing envelope without changing its architecture.",
+  gentle: "Use a restrained design language while preserving the exact architecture. Gentle means restrained styling only: it never permits retaining a raw structural wall surface as the final facade.",
   balanced: "Use a noticeable but buildable facade composition while preserving every protected structural element.",
   conceptual: "Use a more expressive composition of finish materials, colors, lighting and facade details on the existing wall surfaces. Keep the architecture and every protected structural element unchanged.",
 };
+
+function isCombinedFacade(materials) {
+  return materials.some((material) => /^(комбинированная|combined)$/iu.test(String(material).trim()));
+}
+
+function finishInstruction(input, automaticMaterials) {
+  const rawSurfaceRule = "RAW-SURFACE REPLACEMENT — non-negotiable: if the source shows aerated-concrete blocks, cinder blocks, unfinished masonry, bare concrete, primer or a construction shell, cover every visible raw wall field with a real finished facade system. Preserve the wall plane, all openings and roof geometry, but completely hide raw block joints. A recolour, tint, wash, thin paint-like layer or isolated accents over the same raw blocks is invalid.";
+  if (automaticMaterials) {
+    return [
+      "AUTOMATIC MATERIAL SYSTEM: Select and visibly apply a coherent, buildable facade system: a primary wall finish plus one or two complementary facade materials appropriate to the required style. Show real texture, scale, joints, edges, reveals and installation logic. Do not return raw blockwork, a primer-only shell or a result that merely repaints the existing wall color.",
+      rawSurfaceRule,
+    ].join(" ");
+  }
+  if (isCombinedFacade(input.materials)) {
+    return [
+      "COMBINED FACADE SYSTEM — mandatory: make the complete facade look finished. Use one continuous primary finish across all raw exterior wall surfaces (for example smooth mineral plaster, fibre-cement or large-format facade panels) and place complementary stone, wood or metal accents only as deliberate secondary areas. Finish the plinth, external corners, window/door reveals and existing columns in the same coherent system. The primary finish must visually dominate the raw wall area.",
+      rawSurfaceRule,
+    ].join(" ");
+  }
+  return [
+    `Required finish materials: ${input.materials.join(", ")}. Show their real texture, scale, joints, edges and installation logic over the visible wall surfaces.`,
+    rawSurfaceRule,
+  ].join(" ");
+}
 
 const preserveLabels = {
   geometry: "building geometry and footprint",
@@ -51,9 +75,7 @@ export function composeGenerationPrompt(input, {
     modeInstructions[input.transformationLevel],
     "CLIENT BRIEF — apply these choices consistently to all suitable visible facade surfaces:",
     `Required facade style: ${input.style}.`,
-    !automaticMaterials
-      ? `Required finish materials: ${input.materials.join(", ")}. Show their real texture, scale, joints, edges and installation logic.`
-      : "AUTOMATIC MATERIAL SYSTEM: Select and visibly apply a coherent, buildable facade system: a primary wall finish plus one or two complementary facade materials appropriate to the required style. Show real texture, scale, joints, edges, reveals and installation logic. Do not return raw blockwork, a primer-only shell or a result that merely repaints the existing wall color.",
+    finishInstruction(input, automaticMaterials),
     input.palette.length
       ? `Required color palette: ${input.palette.join(", ")}. Keep material colors within this palette.`
       : "",
@@ -82,6 +104,9 @@ export function composeGenerationPrompt(input, {
     "Do not change any protected floor, window, door, roof, terrace, balcony, extension, structural post or canopy. Safety railings on already-existing geometry are the only permitted automatically inferred addition. Do not add people, vehicles, text, logos, watermarks or construction drawings.",
     qualityRetryReasons.length
       ? `AUTOMATIC QUALITY RETRY: The previous candidate was rejected for: ${qualityRetryReasons.join(", ")}. Correct those failures. Increase source-image fidelity and preserve all protected contours, openings, roof lines, storeys, viewpoint and house position. This is the single automatic retry; do not trade structural fidelity for style.`
+      : "",
+    qualityRetryReasons.some((reason) => /finish|unfinished_facade/iu.test(reason))
+      ? "RETRY FINISH LOCK: The previous result left a raw construction wall visible or merely recoloured it. Replace the exposed raw blockwork with the required full facade system now. Do not return any exposed aerated-concrete, cinder-block or unfinished masonry as the main wall finish."
       : "",
     openingRetry
       ? "RETRY OPENING LOCK: Copy the source window and door inventory exactly. Any extra, missing, moved, resized or duplicated opening makes this result invalid. Keep every source blank wall free of new openings."

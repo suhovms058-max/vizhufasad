@@ -24,6 +24,7 @@ export function composeGenerationQualityPrompt({ input, allowedChanges }) {
       `Protected criteria: ${protectedElements || "same house and artifacts only"}.`,
       allowedElements ? `The user explicitly permits changes to: ${allowedElements}. Do not penalize those changes.` : "",
       `Requested style: ${input.style}. Materials: ${input.materials.join(", ") || "provider choice"}. Palette: ${input.palette.join(", ") || "provider choice"}. Wishes: ${input.wishes || "none"}.`,
+      "Score finish from 0 to 1 independently of style. A high finish score requires the requested material system to be visibly and coherently applied over the facade: real finish texture, scale, joints or seams, corner and opening reveals, transitions and a completed plinth. When IMAGE 1 has raw aerated-concrete blocks, cinder blocks, unfinished masonry, primer or bare construction shell, IMAGE 2 must cover those raw wall surfaces with a real facade finish. A recolour of the same raw blockwork, a thin paint-like treatment or isolated decorative accents is not a finished facade: score finish below 0.50 and include unfinished_facade. Do not flag established decorative facing brick, clinker or stone as unfinished merely because it has joints.",
       "The artifacts score must penalize warped geometry, duplicate or melted openings, floating materials, broken edges, impossible supports, text and watermarks.",
       "Return only the required structured JSON.",
     ].filter(Boolean).join("\n"),

@@ -36,7 +36,8 @@ function evaluate({ observation, structural, allowedChanges, thresholds, assessm
     + structural.spatialLayout * 0.1
     + structural.protectedZones * 0.12
     + vlm.artifacts * 0.12
-    + vlm.style * 0.1,
+    + vlm.style * 0.05
+    + vlm.finish * 0.05,
   );
   const failures = [];
   const sourceDoorCount = Number(observation.sourceDoorCount);
@@ -83,6 +84,8 @@ function evaluate({ observation, structural, allowedChanges, thresholds, assessm
   if (structural.protectedZones < thresholds.protectedZones) failures.push("protected_zones_below_threshold");
   if (vlm.artifacts < thresholds.artifacts) failures.push("artifacts_below_threshold");
   if (vlm.style < thresholds.style) failures.push("style_below_threshold");
+  if (vlm.finish < thresholds.finish) failures.push("finish_below_threshold");
+  if (observation.detectedChanges.includes("unfinished_facade")) failures.push("unfinished_facade_detected");
   if (overallScore < thresholds.overall) failures.push("overall_below_threshold");
   if (allowedChanges.windows !== true
     && observation.sourceWindowCount !== observation.candidateWindowCount) {

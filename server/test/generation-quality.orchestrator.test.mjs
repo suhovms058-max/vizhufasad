@@ -9,7 +9,7 @@ function observation(overrides = {}) {
     balconiesTerraces: 0.91, position: 0.95, perspective: 0.94,
     sourceWindowCount: 3, candidateWindowCount: 3,
     sourceDoorCount: 1, candidateDoorCount: 1,
-    artifacts: 0.92, style: 0.9, detectedChanges: [], summary: "Pass",
+    artifacts: 0.92, style: 0.9, finish: 0.9, detectedChanges: [], summary: "Pass",
     ...overrides,
   };
 }
@@ -20,7 +20,7 @@ const config = {
   thresholds: {
     overall: 7600, sameHouse: 8500, protectedElement: 7000,
     roofContours: 8800, contours: 6800, spatialLayout: 7000, protectedZones: 6800,
-    artifacts: 7500, style: 6500,
+    artifacts: 7500, style: 6500, finish: 7800,
   },
 };
 
@@ -58,6 +58,20 @@ test("gross roof change requests first retry and second rejection", async () => 
   assert.equal(first.decision, "retry_required");
   assert.equal(second.decision, "rejected_refund");
   assert.ok(first.failureReasons.includes("roof_below_threshold"));
+});
+
+test("painted raw blockwork is retried and then rejected even when geometry is preserved", async () => {
+  const quality = orchestrator(observation({
+    style: 0.95,
+    finish: 0.35,
+    detectedChanges: ["unfinished_facade"],
+  }));
+  const first = await quality.assess(request);
+  const second = await quality.assess({ ...request, assessmentNumber: 2 });
+  assert.equal(first.decision, "retry_required");
+  assert.equal(second.decision, "rejected_refund");
+  assert.ok(first.failureReasons.includes("finish_below_threshold"));
+  assert.ok(first.failureReasons.includes("unfinished_facade_detected"));
 });
 
 test("weak roof contour rejects even when the VLM overlooks a changed roof", async () => {

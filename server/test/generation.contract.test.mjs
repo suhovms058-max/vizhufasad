@@ -47,6 +47,8 @@ test("generation input defaults to gentle and protects structure", () => {
   assert.match(composed.prompt, /Automatically clean up the visible construction area/u);
   assert.match(composed.prompt, /inventory every visible original window and door/u);
   assert.match(composed.prompt, /Never add an opening to a blank wall/u);
+  assert.match(composed.prompt, /RAW-SURFACE REPLACEMENT/u);
+  assert.match(composed.prompt, /completely hide raw block joints/u);
 });
 
 test("quality retry strengthens the protected opening lock", () => {
@@ -116,6 +118,19 @@ test("automatic material selection requires a visible finished facade system", (
   assert.match(prompt, /ROOF SILHOUETTE LOCK/u);
   assert.match(prompt, /merely repaints the existing wall color/u);
   assert.doesNotMatch(prompt, /Required finish materials: автоподбор/u);
+});
+
+test("combined finish requires a dominant continuous wall finish", () => {
+  const input = normalizeGenerationInput({
+    style: "современный",
+    materials: ["комбинированная"],
+  });
+  const prompt = composeGenerationPrompt(input, {
+    qualityRetryReasons: ["finish_below_threshold", "unfinished_facade_detected"],
+  }).prompt;
+  assert.match(prompt, /COMBINED FACADE SYSTEM/u);
+  assert.match(prompt, /primary finish must visually dominate/u);
+  assert.match(prompt, /RETRY FINISH LOCK/u);
 });
 
 test("generation configuration is disabled by default and selects the measured candidate", () => {

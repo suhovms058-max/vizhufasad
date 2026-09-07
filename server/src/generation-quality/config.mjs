@@ -78,6 +78,7 @@ export function loadGenerationQualityConfig(environment = process.env) {
       protectedZones: integer(environment, "GENERATION_QUALITY_MIN_PROTECTED_ZONES", 6800, 0, 10_000),
       artifacts: integer(environment, "GENERATION_QUALITY_MIN_ARTIFACTS", 7500, 0, 10_000),
       style: integer(environment, "GENERATION_QUALITY_MIN_STYLE", 6500, 0, 10_000),
+      finish: integer(environment, "GENERATION_QUALITY_MIN_FINISH", 7800, 0, 10_000),
     }),
   });
 }

@@ -31,6 +31,7 @@ test("provider contract and VLM schema are strict", () => {
   assert.ok(VLM_QUALITY_RESULT_SCHEMA.required.includes("sameHouse"));
   assert.ok(VLM_QUALITY_RESULT_SCHEMA.required.includes("sourceWindowCount"));
   assert.ok(VLM_QUALITY_RESULT_SCHEMA.required.includes("candidateWindowCount"));
+  assert.ok(VLM_QUALITY_RESULT_SCHEMA.required.includes("finish"));
 });
 
 test("quality prompt counts outer openings and permits safety railings on existing slabs", () => {
@@ -43,6 +44,8 @@ test("quality prompt counts outer openings and permits safety railings on existi
   assert.match(prompt, /already-existing projecting slab or platform/u);
   assert.match(prompt, /Adding only a guardrail or handrail/u);
   assert.match(prompt, /do not report balconies_terraces_changed/u);
+  assert.match(prompt, /raw aerated-concrete blocks/u);
+  assert.match(prompt, /unfinished_facade/u);
 });
 
 test("quality config selects Yandex first and fails closed for enabled generation", () => {
@@ -54,6 +57,7 @@ test("quality config selects Yandex first and fails closed for enabled generatio
   assert.equal(config.primary, "yandex");
   assert.equal(config.thresholds.sameHouse, 8500);
   assert.equal(config.thresholds.roofContours, 8400);
+  assert.equal(config.thresholds.finish, 7800);
   assert.throws(
     () => loadGenerationQualityConfig({ FEATURE_STANDARD_GENERATION_ENABLED: "true" }),
     /GENERATION_QUALITY_REQUIRED/,
