@@ -53,6 +53,7 @@ test("quality config selects Yandex first and fails closed for enabled generatio
   });
   assert.equal(config.primary, "yandex");
   assert.equal(config.thresholds.sameHouse, 8500);
+  assert.equal(config.thresholds.roofContours, 8400);
   assert.throws(
     () => loadGenerationQualityConfig({ FEATURE_STANDARD_GENERATION_ENABLED: "true" }),
     /GENERATION_QUALITY_REQUIRED/,
