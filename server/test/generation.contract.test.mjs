@@ -113,6 +113,7 @@ test("automatic material selection requires a visible finished facade system", (
   });
   const prompt = composeGenerationPrompt(input).prompt;
   assert.match(prompt, /AUTOMATIC MATERIAL SYSTEM/u);
+  assert.match(prompt, /ROOF SILHOUETTE LOCK/u);
   assert.match(prompt, /merely repaints the existing wall color/u);
   assert.doesNotMatch(prompt, /Required finish materials: автоподбор/u);
 });
