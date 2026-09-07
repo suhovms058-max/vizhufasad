@@ -281,7 +281,7 @@ Stage 12 реализован за выключенными по умолчан�
 
 ```dotenv
 FEATURE_PRO_GENERATION_ENABLED=false
-GENAPI_PRO_MODEL=nano-banana-pro
+GENAPI_PRO_MODEL=seedream-v5-pro
 FEATURE_GENERATION_EDITOR_ENABLED=false
 GENAPI_EDIT_MODEL=qwen-image-edit-plus
 GENAPI_MASK_EDIT_MODEL=bria-genfill

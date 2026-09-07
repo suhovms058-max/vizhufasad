@@ -145,6 +145,47 @@ def detect_text(cv2, image, model_path):
     return rectangles
 
 
+def classify_text_regions(rectangles, image_width, image_height):
+    """Separate plausible text lines/signs from large facade-pattern false positives.
+
+    DB text detection occasionally groups masonry joints or a window bay into one
+    large, nearly square polygon. Masking that polygon destroys useful facade
+    geometry. Real address plates and text lines are normally small or strongly
+    horizontal. Large rejected regions still participate in document detection,
+    so a close-up page remains fail-closed.
+    """
+    image_area = float(max(1, image_width * image_height))
+    accepted = []
+    rejected = []
+    for rect in rectangles:
+        left, top, right, bottom = rect
+        box_width = max(0, right - left)
+        box_height = max(0, bottom - top)
+        area_ratio = (box_width * box_height) / image_area
+        height_ratio = box_height / float(max(1, image_height))
+        aspect_ratio = box_width / float(max(1, box_height))
+        small_region = area_ratio <= 0.02 and height_ratio <= 0.16
+        horizontal_text_line = (
+            aspect_ratio >= 2.5 and height_ratio <= 0.12 and area_ratio <= 0.05
+        )
+        (accepted if small_region or horizontal_text_line else rejected).append(rect)
+
+    accepted_area_ratio = min(1.0, sum(
+        max(0, right - left) * max(0, bottom - top)
+        for left, top, right, bottom in accepted
+    ) / image_area)
+    rejected_area_ratio = min(1.0, sum(
+        max(0, right - left) * max(0, bottom - top)
+        for left, top, right, bottom in rejected
+    ) / image_area)
+    document_suspected = (
+        len(accepted) >= 8
+        or accepted_area_ratio >= 0.08
+        or rejected_area_ratio >= 0.12
+    )
+    return accepted, rejected, accepted_area_ratio, rejected_area_ratio, document_suspected
+
+
 def main():
     parser = argparse.ArgumentParser()
     parser.add_argument("--face-model", required=True)
@@ -184,21 +225,20 @@ def main():
             detect_yunet(cv2, detection_image, args.face_model, 0.70),
             scale_x, scale_y, original_width, original_height,
         )
-        text_rects = scaled_rectangles(
+        raw_text_rects = scaled_rectangles(
             detect_text(cv2, detection_image, args.text_model),
             scale_x, scale_y, original_width, original_height,
         )
+        (
+            text_rects, rejected_text_rects, text_area_ratio,
+            rejected_text_area_ratio, document_suspected,
+        ) = classify_text_regions(raw_text_rects, original_width, original_height)
         yunet_plate_rects = detect_plates(cv2, np, detection_image, args.plate_model, 0.85)
         yolo_plate_rects = detect_yolo_plates(cv2, np, ort, detection_image, args.plate_yolo_model)
         plate_rects = scaled_rectangles(
             yunet_plate_rects + yolo_plate_rects,
             scale_x, scale_y, original_width, original_height,
         )
-        text_area_ratio = min(1.0, sum(
-            max(0, right - left) * max(0, bottom - top)
-            for left, top, right, bottom in text_rects
-        ) / float(original_width * original_height))
-        document_suspected = len(text_rects) >= 8 or text_area_ratio >= 0.08
         for rect in face_rects + text_rects + plate_rects:
             mask_rect(image, rect)
 
@@ -206,10 +246,11 @@ def main():
         if not ok:
             raise RuntimeError("jpeg encode failed")
         report = {
-            "version": "2026-08-31.1",
+            "version": "2026-09-07.1",
             "detectors": {"face": "ok", "text": "ok", "plate": "ok"},
             "regions": {
                 "faces": len(face_rects), "text": len(text_rects), "plates": len(plate_rects),
+                "textRejectedAsPattern": len(rejected_text_rects),
                 "plateDetectors": {
                     "yunet": len(yunet_plate_rects), "yoloV9": len(yolo_plate_rects),
                 },
@@ -217,6 +258,7 @@ def main():
             "document": {
                 "suspected": document_suspected,
                 "textAreaRatio": round(text_area_ratio, 6),
+                "rejectedTextAreaRatio": round(rejected_text_area_ratio, 6),
             },
             "detectionSize": {"width": detection_width, "height": detection_height},
         }

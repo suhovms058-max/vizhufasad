@@ -140,25 +140,17 @@ test("generation configuration is disabled by default and selects the measured c
     }),
     (error) => error.code === "GENAPI_PRO_MODEL_REQUIRED",
   );
-  assert.throws(
-    () => loadGenerationConfig({
-      FEATURE_PRO_GENERATION_ENABLED: "true",
-      GENAPI_API_KEY: "secret",
-      GENAPI_PRO_MODEL: "seedream-v5-pro",
-    }),
-    (error) => error.code === "GENAPI_PRO_MODEL_MUST_DIFFER",
-  );
   const pro = loadGenerationConfig({
     FEATURE_PRO_GENERATION_ENABLED: "true",
     GENAPI_API_KEY: "secret",
-    GENAPI_PRO_MODEL: "nano-banana-pro",
+    GENAPI_PRO_MODEL: "seedream-v5-pro",
   });
   assert.equal(pro.proEnabled, true);
-  assert.equal(pro.proModel, "nano-banana-pro");
-  assert.equal(pro.proEstimatedCostMinor, 5000);
+  assert.equal(pro.proModel, "seedream-v5-pro");
+  assert.equal(pro.proEstimatedCostMinor, 1688);
   const providers = createGenerationProviders(pro);
   assert.deepEqual(providers.map((provider) => [provider.model, provider.generationKinds]), [
-    ["nano-banana-pro", ["pro"]],
+    ["seedream-v5-pro", ["pro"]],
   ]);
   assert.throws(
     () => loadGenerationConfig({
