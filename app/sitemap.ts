@@ -1,4 +1,6 @@
 import type { MetadataRoute } from "next";
+import { facadeStyles } from "./facadeStyleCatalog";
+import { seoPages } from "./seoLandingPages";
 
 const siteOrigin = process.env.NEXT_PUBLIC_SITE_ORIGIN || "https://vizhufasad.ru";
 export const dynamic = "force-static";
@@ -11,5 +13,7 @@ export default function sitemap(): MetadataRoute.Sitemap {
     { url: `${siteOrigin}/partners`, changeFrequency: "monthly", priority: 0.6 },
     { url: `${siteOrigin}/gallery`, changeFrequency: "monthly", priority: 0.8 },
     { url: `${siteOrigin}/styles`, changeFrequency: "monthly", priority: 0.8 },
+    ...seoPages.map((page) => ({ url: `${siteOrigin}/${page.slug}`, changeFrequency: "monthly" as const, priority: 0.8 })),
+    ...facadeStyles.map((style) => ({ url: `${siteOrigin}/styles/${style.slug}`, changeFrequency: "monthly" as const, priority: 0.7 })),
   ];
 }

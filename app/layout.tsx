@@ -1,5 +1,5 @@
 import type { ReactNode } from "react";
-import { Bodoni_Moda, Inter } from "next/font/google";
+import { Bodoni_Moda, Cormorant_Garamond, Inter } from "next/font/google";
 import "./globals.css";
 import { JsonLd } from "./JsonLd";
 
@@ -16,6 +16,14 @@ const bodoni = Bodoni_Moda({
   display: "swap",
   variable: "--font-bodoni",
   preload: false,
+  fallback: ["Georgia", "serif"],
+  adjustFontFallback: false,
+});
+const editorial = Cormorant_Garamond({
+  subsets: ["cyrillic", "latin"],
+  weight: ["400", "500", "600", "700"],
+  display: "swap",
+  variable: "--font-editorial",
   fallback: ["Georgia", "serif"],
   adjustFontFallback: false,
 });
@@ -52,7 +60,7 @@ export const metadata = {
 
 export default function RootLayout({ children }: { children: ReactNode }) {
   return (
-    <html lang="ru" className={`${inter.variable} ${bodoni.variable}`}>
+    <html lang="ru" className={`${inter.variable} ${bodoni.variable} ${editorial.variable}`}>
       <body>{children}
         <JsonLd data={{
           "@context": "https://schema.org",

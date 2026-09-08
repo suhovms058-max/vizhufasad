@@ -501,8 +501,14 @@ h2 { font-size: clamp(48px, 5vw, 76px); margin-top: 24px; }
 .seoHeader nav a { color: var(--ink); font-size: 13px; font-weight: 700; text-decoration: none; opacity: 1; }
 .seoHeader .seoHeaderCta { padding: 11px 17px; border-radius: 8px; background: var(--action); color: #fff; }
 .seoHero { padding: 92px 0 100px; background: var(--basalt); color: var(--cream); }
+.seoHeroGrid { display: grid; grid-template-columns: minmax(0,1fr); gap: 48px; align-items: center; }
+.seoHeroGrid.hasVisual { grid-template-columns: minmax(0,1.05fr) minmax(320px,.95fr); }
 .seoHero h1 { max-width: 1040px; margin: 24px 0; font-size: clamp(48px, 7.5vw, 104px); }
 .seoHero p { max-width: 780px; font-size: clamp(18px, 2vw, 24px); line-height: 1.55; color: rgba(245,234,220,.78); }
+.seoHeroVisual { position: relative; min-width: 0; margin: 0; overflow: hidden; border: 1px solid rgba(236,170,131,.55); background: #121613; box-shadow: 24px 28px 0 rgba(186,105,70,.18), 0 24px 70px rgba(0,0,0,.35); }
+.seoHeroVisual::before { content: ""; position: absolute; inset: 15px; z-index: 1; border: 1px solid rgba(245,234,220,.24); pointer-events: none; }
+.seoHeroVisual img { display: block; width: 100%; aspect-ratio: 3/2; object-fit: cover; }
+.seoHeroVisual figcaption { position: absolute; z-index: 2; right: 0; bottom: 0; max-width: 72%; padding: 11px 15px; background: rgba(18,20,18,.88); color: #e7d8c8; font-size: 10px; letter-spacing: .08em; line-height: 1.45; }
 .seoBreadcrumb { display: flex; gap: 9px; margin-bottom: 24px; color: rgba(245,234,220,.7); font-size: 13px; }
 .seoBreadcrumb a { color: var(--cream); }
 .seoHero .button { margin-top: 22px; }
@@ -514,6 +520,23 @@ h2 { font-size: clamp(48px, 5vw, 76px); margin-top: 24px; }
 .seoContent li + li { margin-top: 10px; }
 .seoConcept { grid-column: 1 / -1; margin-top: 24px; padding: 26px 30px; border-radius: 14px; background: #e8e3da; }
 .seoConcept p { margin-bottom: 0; }
+.seoFaq { grid-column: 1 / -1; }
+.seoFaq details { border-bottom: 1px solid var(--line); }
+.seoFaq summary { cursor: pointer; list-style: none; padding: 18px 38px 18px 0; color: var(--ink); font-size: 18px; font-weight: 700; line-height: 1.4; }
+.seoFaq summary::-webkit-details-marker { display: none; }
+.seoFaq summary::after { content: "+"; float: right; color: var(--action); font-size: 28px; font-weight: 400; line-height: .7; }
+.seoFaq details[open] summary::after { content: "−"; }
+.seoFaq details p { margin: 0 0 22px; }
+.seoRelated { grid-column: 1 / -1; display: grid; grid-template-columns: minmax(260px,.68fr) minmax(0,1.32fr); gap: 42px; align-items: start; padding-top: 54px !important; }
+.seoRelated .eyebrow { color: var(--action); }
+.seoRelated .eyebrow i { width: 28px; height: 1px; background: currentColor; }
+.seoRelated h2 { margin-bottom: 0; }
+.seoRelatedGrid { display: grid; grid-template-columns: repeat(3,minmax(0,1fr)); gap: 14px; }
+.seoRelatedGrid a { display: flex; min-height: 190px; flex-direction: column; justify-content: flex-end; gap: 10px; padding: 22px; border: 1px solid var(--line); background: #f8f4ee; transition: transform .2s, border-color .2s, background .2s; }
+.seoRelatedGrid a:hover { border-color: var(--action); background: #f0e3d6; transform: translateY(-3px); }
+.seoRelatedGrid strong { font-family: var(--font-bodoni),Georgia,serif; font-size: 26px; line-height: 1.02; }
+.seoRelatedGrid span { color: var(--text-dark-muted); font-size: 12px; line-height: 1.55; }
+.seoRelatedGrid b { margin-top: 7px; color: var(--action); font-size: 11px; letter-spacing: .04em; }
 .seoFooter { display: flex; flex-wrap: wrap; gap: 20px; padding-block: 30px 50px; border-top: 1px solid var(--line); }
 .seoFooter a { color: var(--action); font-weight: 700; }
 .stylePreview { position: relative; overflow: hidden; padding-block: clamp(72px,8vw,112px); background: radial-gradient(circle at 78% 38%,rgba(176,79,47,.19),transparent 29%),linear-gradient(118deg,#20231f 0%,#252824 58%,#1b1e1b 100%); color: var(--cream); border-top: 1px solid rgba(245,234,220,.1); border-bottom: 1px solid rgba(245,234,220,.1); }
@@ -534,6 +557,66 @@ h2 { font-size: clamp(48px, 5vw, 76px); margin-top: 24px; }
 .stylePreviewFacts span:first-child { padding-left: 0; border-left: 0; }
 .stylePreviewFacts strong { display: block; color: var(--cream); font-size: 16px; }
 .styleGalleryCard h3,.styleIndexGrid h3 { margin: 14px 0 12px; font-family: var(--font-bodoni),Georgia,serif; font-size: 30px; }
+.seoJournal { background: #f0ece5; color: #21241f; }
+.seoJournalHeader { position: relative; z-index: 3; background: #171a17; color: #f5eadc; border-bottom: 1px solid rgba(245,234,220,.18); }
+.seoJournalHeader > div { min-height: 80px; display: flex; align-items: center; justify-content: space-between; gap: 28px; }
+.seoJournalHeader .logo { color: #f5eadc; text-decoration: none; }
+.seoJournalHeader .logo small { color: rgba(245,234,220,.62); }
+.seoJournalHeader nav { display: flex; align-items: center; gap: 24px; }
+.seoJournalHeader nav a { color: #f5eadc; font-size: 11px; font-weight: 700; letter-spacing: .08em; text-decoration: none; text-transform: uppercase; }
+.seoJournalCover { position: relative; min-height: min(780px,calc(100vh - 80px)); overflow: hidden; background: #151714; color: #f5eadc; }
+.seoJournalCover figure,.seoJournalCover figure img { position: absolute; inset: 0; width: 100%; height: 100%; margin: 0; }
+.seoJournalCover figure img { object-fit: cover; object-position: center; }
+.seoJournalCover figure::after { content: ""; position: absolute; inset: 0; background: linear-gradient(90deg,rgba(10,12,11,.86) 0%,rgba(10,12,11,.5) 41%,rgba(10,12,11,.05) 72%),linear-gradient(0deg,rgba(10,12,11,.52) 0%,transparent 38%); }
+.seoJournalCover figcaption { position: absolute; right: max(24px,calc((100vw - 1280px)/2)); bottom: 22px; z-index: 1; max-width: 360px; color: rgba(245,234,220,.74); font-size: 10px; letter-spacing: .08em; line-height: 1.45; text-align: right; text-transform: uppercase; }
+.seoJournalCoverCopy { position: relative; z-index: 2; display: flex; min-height: inherit; flex-direction: column; justify-content: center; padding-top: 34px; padding-bottom: 86px; }
+.seoJournal .seoBreadcrumb { margin: 0 0 54px; color: rgba(245,234,220,.66); font-size: 11px; letter-spacing: .04em; }
+.seoJournal .seoBreadcrumb a { color: #f5eadc; }
+.seoJournalIssue { display: flex; align-items: center; gap: 11px; color: #e6a17c; font-size: 11px; font-weight: 750; letter-spacing: .15em; text-transform: uppercase; }
+.seoJournalIssue i { width: 32px; height: 1px; background: currentColor; }
+.seoJournalCover h1 { max-width: 850px; margin: 22px 0 18px; font-family: var(--font-editorial),Georgia,serif; font-size: clamp(58px,7vw,116px); font-weight: 600; letter-spacing: -.045em; line-height: .88; }
+.seoJournalCoverCopy > p { max-width: 560px; margin: 0; color: rgba(245,234,220,.86); font-size: clamp(17px,1.5vw,21px); line-height: 1.6; }
+.seoJournalArticle { display: grid; grid-template-columns: minmax(0,1fr) minmax(260px,.42fr); column-gap: clamp(48px,9vw,150px); padding-top: clamp(78px,11vw,150px); padding-bottom: 110px; }
+.seoJournalOpening { grid-column: 1; padding-bottom: clamp(58px,8vw,105px); }
+.seoJournalOpening p { max-width: 16ch; margin: 0; font-family: var(--font-editorial),Georgia,serif; font-size: clamp(35px,4vw,66px); font-weight: 500; letter-spacing: -.025em; line-height: .98; }
+.seoJournalOpening p::first-letter { color: var(--action); font-size: 1.24em; }
+.seoJournalNote { grid-column: 2; align-self: end; margin-bottom: clamp(58px,8vw,105px); padding: 24px 0 0; border-top: 1px solid #b46848; }
+.seoJournalNote span { color: #a14e2f; font-size: 10px; font-weight: 800; letter-spacing: .15em; text-transform: uppercase; }
+.seoJournalNote p { margin: 14px 0 0; font-family: var(--font-editorial),Georgia,serif; font-size: 27px; font-weight: 600; line-height: 1.02; }
+.seoJournalSection { grid-column: 1 / -1; display: grid; grid-template-columns: minmax(60px,.12fr) minmax(0,1fr); gap: clamp(22px,4vw,64px); padding: clamp(42px,6vw,80px) 0; border-top: 1px solid rgba(33,36,31,.24); }
+.seoJournalSectionNo { padding-top: 11px; color: #a14e2f; font-size: 12px; font-weight: 800; letter-spacing: .15em; }
+.seoJournalSection h2 { max-width: 16ch; margin: 0 0 30px; font-family: var(--font-editorial),Georgia,serif; font-size: clamp(43px,5vw,76px); font-weight: 600; letter-spacing: -.04em; line-height: .9; }
+.seoJournalSectionBody { display: grid; grid-template-columns: minmax(0,1fr) minmax(230px,.57fr); gap: clamp(30px,6vw,92px); }
+.seoJournalSectionBody > * { grid-column: 1; max-width: 60ch; }
+.seoJournalSectionBody p,.seoJournalSectionBody li { color: #3c4039; font-size: 17px; line-height: 1.72; }
+.seoJournalSectionBody p { margin: 0 0 18px; }
+.seoJournalSectionBody strong { color: #1e211d; font-weight: 800; }
+.seoJournalSectionBody ul { margin: 0; padding-left: 1.1em; }
+.seoJournalSectionBody li + li { margin-top: 11px; }
+.seoJournalSection2 .seoJournalSectionBody::after { content: "Сначала выберите настроение. Затем — материал. Не наоборот."; grid-column: 2; grid-row: 1; align-self: start; padding: 24px; border-left: 2px solid #a14e2f; color: #7d3d28; font-family: var(--font-editorial),Georgia,serif; font-size: 31px; font-weight: 600; line-height: .98; }
+.seoJournalInvitation { grid-column: 1 / -1; display: grid; grid-template-columns: minmax(0,.9fr) minmax(310px,.8fr); gap: clamp(36px,8vw,128px); margin-top: 36px; padding: clamp(44px,6vw,76px); background: #1b1e1a; color: #f5eadc; }
+.seoJournalInvitation h2 { max-width: 9ch; margin: 17px 0 0; font-family: var(--font-editorial),Georgia,serif; font-size: clamp(48px,5vw,76px); font-weight: 600; letter-spacing: -.04em; line-height: .88; }
+.seoJournalInvitation .eyebrow { color: #e5a27e; }
+.seoJournalInvitation .eyebrow i,.seoJournalFaq .eyebrow i { display: inline-block; width: 28px; height: 1px; margin-right: 9px; vertical-align: middle; background: currentColor; }
+.seoJournalInvitation p { margin: 0 0 28px; color: rgba(245,234,220,.75); font-size: 16px; line-height: 1.7; }
+.seoJournalInvitation .button { display: inline-flex; align-items: center; gap: 20px; background: #b65a37; color: #fff; }
+.seoJournalInvitation .button span { font-size: 20px; line-height: .6; }
+.seoJournalFaq { grid-column: 1 / -1; margin-top: clamp(72px,11vw,140px); }
+.seoJournalFaq > .eyebrow { color: #a14e2f; }
+.seoJournalFaq h2 { max-width: 11ch; margin: 18px 0 42px; font-family: var(--font-editorial),Georgia,serif; font-size: clamp(47px,5.4vw,80px); font-weight: 600; letter-spacing: -.04em; line-height: .9; }
+.seoJournalFaq details { border-color: rgba(33,36,31,.27); }
+.seoJournalFaq summary { font-family: var(--font-editorial),Georgia,serif; font-size: clamp(25px,2.2vw,34px); font-weight: 600; }
+.seoJournalFaq details p { max-width: 70ch; color: #42463e; }
+.seoJournalRelated { margin-top: clamp(72px,11vw,140px); }
+.seoJournalRelated h2 { font-family: var(--font-editorial),Georgia,serif; font-size: clamp(46px,4.7vw,70px); font-weight: 600; letter-spacing: -.04em; line-height: .9; }
+.seoJournalRelated .seoRelatedGrid a { min-height: 236px; border-color: rgba(33,36,31,.28); background: transparent; }
+.seoJournalRelated .seoRelatedGrid a:hover { background: #e6ddd1; }
+.seoJournalRelated .seoRelatedGrid strong { font-family: var(--font-editorial),Georgia,serif; font-size: 34px; font-weight: 600; line-height: .93; }
+.seoJournalRelated .seoRelatedGrid b { display: flex; align-items: center; justify-content: space-between; font-size: 10px; letter-spacing: .12em; text-transform: uppercase; }
+.seoJournalRelated .seoRelatedGrid em { font-size: 18px; font-style: normal; }
+.seoJournal .seoConcept { margin-top: 64px; border-radius: 0; background: transparent; border: 1px solid rgba(33,36,31,.25); }
+.seoJournal .seoFooter { border-color: rgba(33,36,31,.25); }
+.seoJournal .seoFooter a { color: #4d3329; }
 .stylePreview .eyebrow { color: var(--copper-bright); }
 .stylePreview .textLink { color: var(--cream); }
 .deliver .eyebrow,.pricing .eyebrow,.audience .eyebrow,.faq .eyebrow { color: var(--copper-bright); }
@@ -689,6 +772,9 @@ h2 { font-size: clamp(48px, 5vw, 76px); margin-top: 24px; }
 @media(max-width:720px){.partnerHeroGrid{gap:34px}.partnerHero h1{font-size:clamp(42px,12vw,58px)}.partnerHeroActions{align-items:stretch;flex-direction:column}.partnerHeroActions .button{width:100%}.partnerTrustCard{padding:26px}.partnerIntro>div:first-child,.partnerTerms>div:first-child{grid-template-columns:1fr;gap:0}.partnerSteps{grid-template-columns:1fr}.partnerSteps li,.partnerSteps li:first-child,.partnerSteps li:nth-child(3){min-height:0;padding:26px 0;border-left:0;border-bottom:1px solid rgba(245,234,220,.18)}.partnerSteps strong{margin:24px 0 10px}.partnerTerms dl{grid-template-columns:1fr}.partnerTerms dl>div,.partnerTerms dl>div:nth-child(even){padding:24px 0;border-left:0}.partnerContractActions .button{font-size:11px}.partnerFaq summary{font-size:22px}.partnerContactActions{width:100%;flex-direction:column}.partnerContactActions .button{width:100%}.partnerContactPanel{padding:22px 16px}.partnerContactPanel .partnerEmail{font-size:22px}}
 @media (max-width: 1100px) {
   .compactStyleGuide { grid-template-columns: 1fr; }
+  .seoHeroGrid.hasVisual,.seoRelated { grid-template-columns: 1fr; }
+  .seoHeroVisual { max-width: 720px; }
+  .seoRelatedGrid { grid-template-columns: repeat(3,minmax(0,1fr)); }
   .styleIndexGrid { grid-template-columns: 1fr; }
   .styleJournalCopy { column-gap: 38px; }
 }
@@ -698,6 +784,10 @@ h2 { font-size: clamp(48px, 5vw, 76px); margin-top: 24px; }
   .seoHeader nav a:not(.seoHeaderCta) { display: none; }
   .seoHero { padding: 62px 0 70px; }
   .seoHero h1 { font-size: clamp(42px, 12vw, 62px); }
+  .seoHeroGrid { gap: 32px; }
+  .seoHeroVisual { box-shadow: 12px 15px 0 rgba(186,105,70,.18), 0 18px 45px rgba(0,0,0,.32); }
+  .seoHeroVisual::before { inset: 10px; }
+  .seoHeroVisual figcaption { max-width: 84%; padding: 9px 11px; font-size: 8px; }
   .seoContent { grid-template-columns: 1fr; padding-block: 54px 70px; }
   .seoContent > section:first-child,.seoConcept { grid-column: 1; }
   .styleGalleryCard { grid-template-columns: 1fr; gap: 28px; }
@@ -710,6 +800,11 @@ h2 { font-size: clamp(48px, 5vw, 76px); margin-top: 24px; }
   .stylePreviewFacts { grid-template-columns: 1fr; }
   .stylePreviewFacts span,.stylePreviewFacts span:first-child { min-height: 0; padding: 12px 0; border-left: 0; border-top: 1px solid rgba(245,234,220,.1); }
   .stylePreviewFacts span:first-child { border-top: 0; }
+  .seoFaq,.seoRelated { grid-column: 1; }
+  .seoFaq summary { padding-block: 16px; font-size: 16px; }
+  .seoRelated { gap: 24px; padding-top: 36px !important; }
+  .seoRelatedGrid { grid-template-columns: 1fr; }
+  .seoRelatedGrid a { min-height: 0; padding: 19px; }
   .stylePreviewActions { align-items: stretch; flex-direction: column; }
   .stylePreviewActions > * { width: 100%; }
   .styleGalleryCard img { min-height: 0; aspect-ratio: 4/3; }
@@ -747,4 +842,47 @@ h2 { font-size: clamp(48px, 5vw, 76px); margin-top: 24px; }
   .styleJournalFacts div:first-child { border-top: 0; }
   .styleJournalNote { display: block; }
   .styleJournalNote strong { display: block; margin-bottom: 8px; }
+}
+
+@media (max-width: 900px) {
+  .seoJournalCover { min-height: 690px; }
+  .seoJournalArticle { grid-template-columns: 1fr; }
+  .seoJournalOpening,.seoJournalNote { grid-column: 1; }
+  .seoJournalNote { max-width: 430px; margin: 0 0 58px; }
+  .seoJournalInvitation { grid-template-columns: 1fr; }
+  .seoJournalSectionBody { grid-template-columns: 1fr; }
+  .seoJournalSection2 .seoJournalSectionBody::after { grid-column: 1; grid-row: auto; max-width: 430px; }
+}
+@media (max-width: 620px) {
+  .seoJournalHeader > div { min-height: 66px; }
+  .seoJournalHeader nav { gap: 14px; }
+  .seoJournalHeader nav a { font-size: 9px; }
+  .seoJournalHeader nav a:nth-child(2) { display: none; }
+  .seoJournalCover { min-height: 620px; }
+  .seoJournalCover figure img { object-position: 58% center; }
+  .seoJournalCover figure::after { background: linear-gradient(90deg,rgba(10,12,11,.86),rgba(10,12,11,.28)),linear-gradient(0deg,rgba(10,12,11,.62),transparent 54%); }
+  .seoJournalCoverCopy { padding-top: 28px; padding-bottom: 46px; justify-content: flex-end; }
+  .seoJournal .seoBreadcrumb { margin-bottom: 31px; font-size: 9px; }
+  .seoJournalIssue { font-size: 9px; }
+  .seoJournalCover h1 { font-size: clamp(53px,15vw,74px); }
+  .seoJournalCoverCopy > p { font-size: 15px; line-height: 1.53; }
+  .seoJournalCover figcaption { right: 18px; bottom: 15px; max-width: 220px; font-size: 8px; }
+  .seoJournalArticle { padding-top: 70px; padding-bottom: 72px; }
+  .seoJournalOpening p { font-size: 39px; }
+  .seoJournalNote { margin-bottom: 45px; }
+  .seoJournalNote p { font-size: 27px; }
+  .seoJournalSection { grid-template-columns: 1fr; gap: 14px; padding: 44px 0; }
+  .seoJournalSectionNo { padding-top: 0; font-size: 10px; }
+  .seoJournalSection h2 { margin-bottom: 22px; font-size: 49px; }
+  .seoJournalSectionBody p,.seoJournalSectionBody li { font-size: 16px; line-height: 1.67; }
+  .seoJournalSection2 .seoJournalSectionBody::after { margin-top: 7px; padding: 19px; font-size: 28px; }
+  .seoJournalInvitation { margin-top: 18px; padding: 34px 25px; }
+  .seoJournalInvitation h2 { font-size: 53px; }
+  .seoJournalInvitation .button { width: 100%; justify-content: space-between; }
+  .seoJournalFaq { margin-top: 72px; }
+  .seoJournalFaq h2 { font-size: 53px; }
+  .seoJournalFaq summary { font-size: 27px; }
+  .seoJournalRelated { margin-top: 72px; }
+  .seoJournalRelated h2 { font-size: 53px; }
+  .seoJournalRelated .seoRelatedGrid a { min-height: 195px; }
 }
