@@ -9,8 +9,8 @@ export class AdminRepository {
         `select
           count(*)::int as total,
           count(*) filter (where status = 'completed')::int as completed,
-          count(*) filter (where status in ('created','queued','preprocessing','generating','quality_check_pending','retrying','qa_queued','qa_failed_retrying'))::int as active,
-          count(*) filter (where status in ('failed_refunded','cancelled','failed_terminal'))::int as failed
+          count(*) filter (where status in ('created','queued','preprocessing','generating','quality_check_pending','retrying'))::int as active,
+          count(*) filter (where status in ('failed_refunded','cancelled'))::int as failed
          from generations`,
       ),
       this.pool.query(
