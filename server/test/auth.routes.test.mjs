@@ -112,6 +112,8 @@ test("email login and verification pages use the responsive cabinet design", asy
     assert.match(verifyHtml, /class="code-input"/u);
     assert.match(verifyHtml, /name="agreementAccepted" value="yes" required/u);
     assert.match(verifyHtml, /name="ageConfirmed" value="yes" required/u);
+    assert.match(verifyHtml, /<span>Я принимаю условия <a href="\/legal\/user-agreement"/u);
+    assert.match(verifyHtml, /<span>Подтверждаю, что мне исполнилось 18 лет<\/span>/u);
     assert.doesNotMatch(verifyHtml, /name="personalDataAccepted"/u);
     assert.doesNotMatch(verifyHtml, /name="(?:agreementAccepted|ageConfirmed)"[^>]*checked/u);
   });

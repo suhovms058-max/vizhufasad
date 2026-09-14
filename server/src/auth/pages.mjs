@@ -91,8 +91,8 @@ export function createAuthPagesRouter({ service, config }) {
       <label>Код <input class="code-input" name="code" inputmode="numeric" autocomplete="one-time-code" pattern="[0-9]{6}" maxlength="6" required></label>
       <input type="hidden" name="agreementVersion" value="${agreement.revision}"><input type="hidden" name="agreementHash" value="${agreement.hash}">
       <input type="hidden" name="ageVersion" value="${AGE_CONFIRMATION.revision}"><input type="hidden" name="ageHash" value="${AGE_CONFIRMATION.hash}">
-      <label class="confirm consent-confirm"><input type="checkbox" name="agreementAccepted" value="yes" required> Принимаю <a href="/legal/user-agreement" target="_blank" rel="noopener">Пользовательское соглашение</a></label>
-      <label class="confirm consent-confirm"><input type="checkbox" name="ageConfirmed" value="yes" required> Подтверждаю, что мне исполнилось 18 лет</label>
+      <label class="confirm consent-confirm"><input type="checkbox" name="agreementAccepted" value="yes" required><span>Я принимаю условия <a href="/legal/user-agreement" target="_blank" rel="noopener">Пользовательского соглашения</a></span></label>
+      <label class="confirm consent-confirm"><input type="checkbox" name="ageConfirmed" value="yes" required><span>Подтверждаю, что мне исполнилось 18 лет</span></label>
       <button type="submit">Войти</button></form><p><a href="/auth/login">Запросить новый код</a></p></section>`, { narrow: true });
   };
   router.get("/auth/verify", (request, response) => {
