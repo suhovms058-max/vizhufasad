@@ -103,6 +103,8 @@ test("/app/new shows only server-entitled Start styles and materials", async () 
   assert.match(html, /name="materials" value="PHOMI — Rome Travertine"/u);
   assert.match(html, /id="phomi-material-subsystem" class="partner-material-preview hidden"/u);
   assert.doesNotMatch(html, /<summary><span><strong>Фактуры PHOMI/u);
+  assert.ok(html.indexOf('value="гибкая керамика PHOMI"') < html.indexOf('id="phomi-material-subsystem"'));
+  assert.ok(html.indexOf('id="phomi-material-subsystem"') < html.indexOf('value="фиброцемент"'));
   assert.match(html, /Доступно в пакетах «Оптимум» и «Максимум»/u);
   assert.match(html, /data-pro-enabled="false"/u);
 });
