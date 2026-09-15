@@ -10,6 +10,10 @@ function isCombinedFacade(materials) {
   return materials.some((material) => /^(комбинированная|combined)$/iu.test(String(material).trim()));
 }
 
+function usesAutomaticPhomiTexture(materials) {
+  return materials.some((material) => /^PHOMI — автоподбор фактуры ИИ$/iu.test(String(material).trim()));
+}
+
 function finishInstruction(input, automaticMaterials) {
   const rawSurfaceRule = "RAW-SURFACE REPLACEMENT — non-negotiable: if the source shows aerated-concrete blocks, cinder blocks, unfinished masonry, bare concrete, primer or a construction shell, cover every visible raw wall field with a real finished facade system. Preserve the wall plane, all openings and roof geometry, but completely hide raw block joints. A recolour, tint, wash, thin paint-like layer or isolated accents over the same raw blocks is invalid.";
   if (automaticMaterials) {
@@ -17,6 +21,14 @@ function finishInstruction(input, automaticMaterials) {
       "AUTOMATIC MATERIAL SYSTEM: Select and visibly apply a coherent, buildable facade system: a primary wall finish plus one or two complementary facade materials appropriate to the required style. Show real texture, scale, joints, edges, reveals and installation logic. Do not return raw blockwork, a primer-only shell or a result that merely repaints the existing wall color.",
       rawSurfaceRule,
     ].join(" ");
+  }
+  if (usesAutomaticPhomiTexture(input.materials)) {
+    const otherMaterials = input.materials.filter((material) => !/^(гибкая керамика PHOMI|PHOMI — автоподбор фактуры ИИ)$/iu.test(String(material).trim()));
+    return [
+      "PHOMI TEXTURE AUTO-SELECTION: Choose the PHOMI facade texture that best fits the requested architectural style, palette and existing house proportions. Use a believable option from the available stone, travertine, concrete or wood texture families and apply it with realistic scale, joints, corners and opening reveals.",
+      otherMaterials.length ? `Other required finish materials: ${otherMaterials.join(", ")}.` : "",
+      rawSurfaceRule,
+    ].filter(Boolean).join(" ");
   }
   if (isCombinedFacade(input.materials)) {
     return [

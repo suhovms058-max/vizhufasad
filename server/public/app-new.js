@@ -283,6 +283,7 @@
     const phomiToggle = form.querySelector('input[name="materials"][value="гибкая керамика PHOMI"]');
     const phomiSubsystem = form.querySelector("#phomi-material-subsystem");
     const phomiChoices = [...form.querySelectorAll('#phomi-material-subsystem input[name="materials"]')];
+    const phomiAutoChoice = form.querySelector('input[name="materials"][value="PHOMI — автоподбор фактуры ИИ"]');
     const storageKey = `vizhufasad:stage10:draft:${projectId}`;
     const wizardStorageKey = `${storageKey}:step`;
     const wizardSteps = [...form.querySelectorAll("[data-wizard-step]")];
@@ -334,7 +335,11 @@
     };
     phomiToggle?.addEventListener("change", () => updatePhomiSubsystem({ clear: true }));
     phomiChoices.forEach((input) => input.addEventListener("change", () => {
-      if (input.checked && phomiToggle) phomiToggle.checked = true;
+      if (input.checked && phomiToggle) {
+        phomiToggle.checked = true;
+        if (input === phomiAutoChoice) phomiChoices.forEach((choice) => { if (choice !== input) choice.checked = false; });
+        else if (phomiAutoChoice) phomiAutoChoice.checked = false;
+      }
       updatePhomiSubsystem();
     }));
 

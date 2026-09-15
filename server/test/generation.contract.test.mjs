@@ -133,6 +133,18 @@ test("combined finish requires a dominant continuous wall finish", () => {
   assert.match(prompt, /RETRY FINISH LOCK/u);
 });
 
+test("PHOMI automatic texture selection receives a specific generator instruction", () => {
+  const input = normalizeGenerationInput({
+    style: "современный",
+    materials: ["гибкая керамика PHOMI", "PHOMI — автоподбор фактуры ИИ"],
+  });
+  const prompt = composeGenerationPrompt(input).prompt;
+  assert.match(prompt, /PHOMI TEXTURE AUTO-SELECTION/u);
+  assert.match(prompt, /stone, travertine, concrete or wood texture families/u);
+  assert.doesNotMatch(prompt, /Other required finish materials: гибкая керамика PHOMI/u);
+  assert.doesNotMatch(prompt, /Required finish materials: .*автоподбор фактуры ИИ/u);
+});
+
 test("generation configuration is disabled by default and selects the measured candidate", () => {
   const config = loadGenerationConfig({});
   assert.equal(config.enabled, false);

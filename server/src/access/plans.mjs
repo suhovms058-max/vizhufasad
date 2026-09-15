@@ -1,4 +1,5 @@
 const PHOMI_MATERIALS = Object.freeze([
+  "PHOMI — автоподбор фактуры ИИ",
   "PHOMI — Rome Travertine", "PHOMI — Oceanic Travertine", "PHOMI — Cloud Silk Travertine",
   "PHOMI — Original Wood", "PHOMI — Sawtooth Wood", "PHOMI — Spliced Wood",
   "PHOMI — Polish Concrete Stone", "PHOMI — Rough Surface", "PHOMI — Skyline",

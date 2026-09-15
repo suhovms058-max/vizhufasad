@@ -12,6 +12,7 @@ test("packages progressively unlock styles and tools", () => {
   assert.equal(maximum.styles.length - 1, 10);
   for (const plan of [start, optimum, maximum]) {
     assert.ok(plan.materials.includes("гибкая керамика PHOMI"));
+    assert.ok(plan.materials.includes("PHOMI — автоподбор фактуры ИИ"));
     assert.ok(plan.materials.includes("PHOMI — Rome Travertine"));
   }
   assert.equal(start.pro, false);

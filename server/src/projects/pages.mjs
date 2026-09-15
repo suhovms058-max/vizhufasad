@@ -85,6 +85,7 @@ const PHOMI_COLLECTIONS = [
   ["Oman Linear Stone", "Вытянутый каменный рисунок", "/materials/phomi/oman-linear-stone.jpg", "Современный · контемпорари"],
   ["35 Piece Stone", "Мелкоформатная каменная кладка", "/materials/phomi/35-piece-stone.jpg", "Шале · классический"],
 ];
+const PHOMI_AUTO_VALUE = "PHOMI — автоподбор фактуры ИИ";
 const PALETTES = [
   ["автоподбор", "Автоподбор", ["#d8d0c2", "#8d5b42", "#303531"]],
   ["тёплая светлая", "Тёплая светлая", ["#eee2cf", "#c8aa83", "#705646"]],
@@ -258,11 +259,14 @@ function featuredStyleCard(style, selectedStyle) {
 
 function phomiCollectionPreview(selectedMaterials) {
   const isOpen = selectedMaterials.has("гибкая керамика PHOMI")
+    || selectedMaterials.has(PHOMI_AUTO_VALUE)
     || PHOMI_COLLECTIONS.some(([name]) => selectedMaterials.has(`PHOMI — ${name}`));
   return `<section id="phomi-material-subsystem" class="partner-material-preview${isOpen ? "" : " hidden"}" aria-labelledby="phomi-material-heading">
     <div class="partner-material-heading"><span><strong id="phomi-material-heading">Фактуры PHOMI</strong><small>Реальные образцы из каталога · партнёрство на согласовании</small></span></div>
-    <div class="partner-material-note"><p>Нажмите на одну или несколько фактур. Выбранные названия автоматически попадут в задание генератору.</p><p>Изображения приведены для предварительного выбора. Итоговый оттенок проверяйте по физическому образцу.</p></div>
-    <div class="partner-material-grid">${PHOMI_COLLECTIONS.map(([name, description, image, styles]) => {
+    <div class="partner-material-note"><p><strong>Выберите фактуру самостоятельно или включите автоподбор с помощью ИИ.</strong> Выбор автоматически попадёт в задание генератору.</p><p>Изображения приведены для предварительного выбора. Итоговый оттенок проверяйте по физическому образцу.</p></div>
+    <div class="partner-material-grid"><label class="partner-material-auto"><input type="checkbox" name="materials" value="${escapeHtml(PHOMI_AUTO_VALUE)}" ${selectedMaterials.has(PHOMI_AUTO_VALUE) ? "checked" : ""}><article>
+      <div><strong>Автоподбор фактуры с помощью ИИ</strong><span>ИИ выберет подходящую фактуру PHOMI с учётом стиля дома, палитры и выбранного уровня изменений.</span><small>Рекомендуемый вариант</small></div>
+    </article></label>${PHOMI_COLLECTIONS.map(([name, description, image, styles]) => {
       const value = `PHOMI — ${name}`;
       return `<label><input type="checkbox" name="materials" value="${escapeHtml(value)}" ${selectedMaterials.has(value) ? "checked" : ""}><article>
         <img src="${escapeHtml(image)}" alt="Образец гибкой керамики PHOMI ${escapeHtml(name)}" width="420" height="560" loading="lazy" decoding="async">
@@ -305,7 +309,7 @@ function settingsStep(project, balance, costs, features, access) {
       <div class="settings-step-heading"><p class="eyebrow">Настройка 2 из 3</p><h2>Отделка и цветовое решение</h2><p>Материалы, палитра и ваши уточнения автоматически попадут в задание генератору.</p></div>
       <fieldset><legend>Отделка</legend><p class="hint">Можно сочетать несколько материалов. Финальная совместимость системы требует проверки основания.</p>
       <div class="choice-grid material-grid">${MATERIALS.filter(([value]) => allowedMaterials.has(value)).map(([value, description, image, title = value]) => {
-        const card = `<label class="choice material-choice"><input type="checkbox" name="materials" value="${escapeHtml(value)}" ${selectedMaterials.has(value) ? "checked" : ""}><span><img class="material-photo" src="${escapeHtml(image)}?v=${SELECTION_ASSET_VERSION}" alt="Фактура материала: ${escapeHtml(value)}" width="480" height="480" loading="lazy" decoding="async"><i class="material-shade" aria-hidden="true"></i><b${title !== value ? ' class="material-title-verbatim"' : ""}>${escapeHtml(title)}</b><small>${escapeHtml(description)}</small></span></label>`;
+        const card = `<label class="choice material-choice${value === "гибкая керамика PHOMI" ? " partner-material-toggle" : ""}"><input type="checkbox" name="materials" value="${escapeHtml(value)}" ${selectedMaterials.has(value) ? "checked" : ""}><span><img class="material-photo" src="${escapeHtml(image)}?v=${SELECTION_ASSET_VERSION}" alt="Фактура материала: ${escapeHtml(value)}" width="480" height="480" loading="lazy" decoding="async"><i class="material-shade" aria-hidden="true"></i><b${title !== value ? ' class="material-title-verbatim"' : ""}>${escapeHtml(title)}</b><small>${escapeHtml(description)}</small></span></label>`;
         return value === "гибкая керамика PHOMI" ? `${card}${phomiCollectionPreview(selectedMaterials)}` : card;
       }).join("")}</div></fieldset>
       <fieldset><legend>Палитра</legend><p class="hint">Готовое сочетание задаёт настроение, а точные оттенки можно описать ниже.</p>
