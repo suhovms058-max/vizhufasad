@@ -280,6 +280,9 @@
     const costText = form.querySelector("#cost-confirm-text");
     const styleSelect = form.querySelector("#style");
     const styleCards = [...form.querySelectorAll("[data-style]")];
+    const phomiToggle = form.querySelector('input[name="materials"][value="гибкая керамика PHOMI"]');
+    const phomiSubsystem = form.querySelector("#phomi-material-subsystem");
+    const phomiChoices = [...form.querySelectorAll('#phomi-material-subsystem input[name="materials"]')];
     const storageKey = `vizhufasad:stage10:draft:${projectId}`;
     const wizardStorageKey = `${storageKey}:step`;
     const wizardSteps = [...form.querySelectorAll("[data-wizard-step]")];
@@ -323,6 +326,18 @@
     }));
     styleSelect.addEventListener("change", updateStyleCards);
 
+    const updatePhomiSubsystem = ({ clear = false } = {}) => {
+      if (!phomiToggle || !phomiSubsystem) return;
+      if (clear && !phomiToggle.checked) phomiChoices.forEach((input) => { input.checked = false; });
+      phomiSubsystem.classList.toggle("hidden", !phomiToggle.checked);
+      phomiToggle.setAttribute("aria-expanded", String(phomiToggle.checked));
+    };
+    phomiToggle?.addEventListener("change", () => updatePhomiSubsystem({ clear: true }));
+    phomiChoices.forEach((input) => input.addEventListener("change", () => {
+      if (input.checked && phomiToggle) phomiToggle.checked = true;
+      updatePhomiSubsystem();
+    }));
+
     const configuration = () => {
       const data = new FormData(form);
       const description = String(data.get("paletteDescription") || "").trim();
@@ -349,6 +364,7 @@
       if (!config || typeof config !== "object") return;
       if (config.style) form.elements.style.value = config.style;
       [...form.querySelectorAll('input[name="materials"]')].forEach((input) => { input.checked = (config.materials || []).includes(input.value); });
+      if (phomiChoices.some((input) => input.checked) && phomiToggle) phomiToggle.checked = true;
       if (config.palette?.[0]) form.elements.palettePreset.value = config.palette[0];
       form.elements.paletteDescription.value = config.palette?.slice(1).join(", ") || "";
       if (config.transformationLevel) form.elements.transformationLevel.value = config.transformationLevel;
@@ -373,6 +389,7 @@
     };
     try { applyDraft(JSON.parse(localStorage.getItem(storageKey) || "null")); } catch {}
     updateStyleCards();
+    updatePhomiSubsystem();
     const updateCount = () => { count.textContent = String(wishes.value.length); };
     const updateGenerationKind = () => {
       const kind = new FormData(form).get("generationKind") === "pro" ? "pro" : "standard";
