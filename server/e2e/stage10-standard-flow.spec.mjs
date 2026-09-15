@@ -87,6 +87,41 @@ test("photo settings to checked Standard result survives navigation and fits vie
   await expect.poll(() => page.evaluate(() => document.documentElement.scrollWidth <= document.documentElement.clientWidth)).toBe(true);
 });
 
+test("PHOMI textures expand from the material card and leave AI selection optional", async ({ page }) => {
+  await page.goto("/app/new?project=project-e2e");
+  await page.getByRole("button", { name: "Продолжить" }).click();
+
+  const phomi = page.locator('input[name="materials"][value="гибкая керамика PHOMI"]');
+  const panel = page.locator("#phomi-material-subsystem");
+  const auto = page.locator('input[name="materials"][value="PHOMI — автоподбор фактуры ИИ"]');
+  const texture = page.locator('input[name="materials"][value="PHOMI — Rome Travertine"]');
+  const nextMaterial = page.locator('input[name="materials"][value="фиброцемент"]').locator("xpath=..");
+
+  await expect(panel).toBeHidden();
+  await phomi.check({ force: true });
+  await expect(panel).toBeVisible();
+  await expect(auto).not.toBeChecked();
+  const positions = await page.evaluate(() => {
+    const card = document.querySelector('input[value="гибкая керамика PHOMI"]')?.closest("label")?.getBoundingClientRect();
+    const expanded = document.querySelector("#phomi-material-subsystem")?.getBoundingClientRect();
+    const next = document.querySelector('input[value="фиброцемент"]')?.closest("label")?.getBoundingClientRect();
+    return { cardBottom: card?.bottom, panelTop: expanded?.top, panelBottom: expanded?.bottom, nextTop: next?.top };
+  });
+  expect(Math.abs(positions.cardBottom - positions.panelTop)).toBeLessThanOrEqual(1);
+  expect(positions.nextTop).toBeGreaterThan(positions.panelBottom);
+
+  await auto.check({ force: true });
+  await expect(auto).toBeChecked();
+  await texture.check({ force: true });
+  await expect(texture).toBeChecked();
+  await expect(auto).not.toBeChecked();
+  await phomi.uncheck({ force: true });
+  await expect(panel).toBeHidden();
+  await expect(texture).not.toBeChecked();
+  await expect.poll(() => page.evaluate(() => document.documentElement.scrollWidth <= document.documentElement.clientWidth)).toBe(true);
+  await expect(nextMaterial).toBeVisible();
+});
+
 test("free-trial denial offers payment and support without opening a generation", async ({ page }) => {
   await page.goto("/app/new?project=project-e2e");
   await expect(page.getByRole("heading", { name: "Настройте фасад" })).toBeVisible();
