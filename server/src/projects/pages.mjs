@@ -65,10 +65,25 @@ const MATERIALS = [
   ["дерево", "Натуральные рейки или планкен", "/material-wood.webp"],
   ["камень", "Фактурный природный акцент", "/material-stone.webp"],
   ["панели", "Крупный современный формат", "/material-panels.webp"],
+  ["гибкая керамика PHOMI", "Камень, травертин, бетон и дерево", "/materials/phomi/rome-travertine.jpg"],
   ["фиброцемент", "Практичная ровная облицовка", "/material-fiber-cement.webp"],
   ["металл", "Фальц или вертикальный профиль", "/material-metal.webp"],
   ["комбинированная", "Два-три материала в балансе", "/material-combined.webp"],
   ["автоподбор", "ИИ подберёт сочетание", "/material-auto.webp"],
+];
+const PHOMI_COLLECTIONS = [
+  ["Rome Travertine", "Светлый травертин", "/materials/phomi/rome-travertine.jpg", "Современный · неоклассика"],
+  ["Oceanic Travertine", "Травертин с направленным рисунком", "/materials/phomi/oceanic-travertine.jpg", "Минимализм · современный"],
+  ["Cloud Silk Travertine", "Светлая спокойная фактура", "/materials/phomi/cloud-silk-travertine.jpg", "Скандинавский · неоклассика"],
+  ["Original Wood", "Рисунок натурального дерева", "/materials/phomi/original-wood.jpg", "Современный · скандинавский"],
+  ["Sawtooth Wood", "Выразительная древесная фактура", "/materials/phomi/sawtooth-wood.jpg", "Барнхаус · лофт"],
+  ["Spliced Wood", "Наборный древесный рисунок", "/materials/phomi/spliced-wood.jpg", "Шале · контемпорари"],
+  ["Polish Concrete Stone", "Шлифованная бетонная поверхность", "/materials/phomi/polish-concrete-stone.jpg", "Минимализм · современный"],
+  ["Rough Surface", "Матовая минеральная поверхность", "/materials/phomi/rough-surface.jpg", "Лофт · современный"],
+  ["Skyline", "Линейная минеральная фактура", "/materials/phomi/skyline.jpg", "Минимализм · хай-тек"],
+  ["Chiseled Stone", "Фактура колотого камня", "/materials/phomi/chiseled-stone.jpg", "Шале · классический"],
+  ["Oman Linear Stone", "Вытянутый каменный рисунок", "/materials/phomi/oman-linear-stone.jpg", "Современный · контемпорари"],
+  ["35 Piece Stone", "Мелкоформатная каменная кладка", "/materials/phomi/35-piece-stone.jpg", "Шале · классический"],
 ];
 const PALETTES = [
   ["автоподбор", "Автоподбор", ["#d8d0c2", "#8d5b42", "#303531"]],
@@ -241,6 +256,20 @@ function featuredStyleCard(style, selectedStyle) {
     <span class="style-card-action">Выбрать</span></button>`;
 }
 
+function phomiCollectionPreview(selectedMaterials) {
+  return `<details class="partner-material-preview">
+    <summary><span><strong>Фактуры PHOMI</strong><small>Реальные образцы из каталога · партнёрство на согласовании</small></span><b>Посмотреть</b></summary>
+    <div class="partner-material-note"><p>Нажмите на одну или несколько фактур. Выбранные названия автоматически попадут в задание генератору.</p><p>Изображения приведены для предварительного выбора. Итоговый оттенок проверяйте по физическому образцу.</p></div>
+    <div class="partner-material-grid">${PHOMI_COLLECTIONS.map(([name, description, image, styles]) => {
+      const value = `PHOMI — ${name}`;
+      return `<label><input type="checkbox" name="materials" value="${escapeHtml(value)}" ${selectedMaterials.has(value) ? "checked" : ""}><article>
+        <img src="${escapeHtml(image)}" alt="Образец гибкой керамики PHOMI ${escapeHtml(name)}" width="420" height="560" loading="lazy" decoding="async">
+        <div><strong>${escapeHtml(name)}</strong><span>${escapeHtml(description)}</span><small>${escapeHtml(styles)}</small></div>
+      </article></label>`;
+    }).join("")}</div>
+  </details>`;
+}
+
 function settingsStep(project, balance, costs, features, access) {
   const config = project.configuration || {};
   const selectedMaterials = new Set(config.materials || []);
@@ -273,7 +302,8 @@ function settingsStep(project, balance, costs, features, access) {
       <div class="settings-step hidden" data-wizard-step="2">
       <div class="settings-step-heading"><p class="eyebrow">Настройка 2 из 3</p><h2>Отделка и цветовое решение</h2><p>Материалы, палитра и ваши уточнения автоматически попадут в задание генератору.</p></div>
       <fieldset><legend>Отделка</legend><p class="hint">Можно сочетать несколько материалов. Финальная совместимость системы требует проверки основания.</p>
-      <div class="choice-grid material-grid">${MATERIALS.filter(([value]) => allowedMaterials.has(value)).map(([value, description, image]) => `<label class="choice material-choice"><input type="checkbox" name="materials" value="${escapeHtml(value)}" ${selectedMaterials.has(value) ? "checked" : ""}><span><img class="material-photo" src="${escapeHtml(image)}?v=${SELECTION_ASSET_VERSION}" alt="Фактура материала: ${escapeHtml(value)}" width="480" height="480" loading="lazy" decoding="async"><i class="material-shade" aria-hidden="true"></i><b>${escapeHtml(value)}</b><small>${escapeHtml(description)}</small></span></label>`).join("")}</div></fieldset>
+      <div class="choice-grid material-grid">${MATERIALS.filter(([value]) => allowedMaterials.has(value)).map(([value, description, image]) => `<label class="choice material-choice"><input type="checkbox" name="materials" value="${escapeHtml(value)}" ${selectedMaterials.has(value) ? "checked" : ""}><span><img class="material-photo" src="${escapeHtml(image)}?v=${SELECTION_ASSET_VERSION}" alt="Фактура материала: ${escapeHtml(value)}" width="480" height="480" loading="lazy" decoding="async"><i class="material-shade" aria-hidden="true"></i><b>${escapeHtml(value)}</b><small>${escapeHtml(description)}</small></span></label>`).join("")}</div>
+      ${allowedMaterials.has("гибкая керамика PHOMI") ? phomiCollectionPreview(selectedMaterials) : ""}</fieldset>
       <fieldset><legend>Палитра</legend><p class="hint">Готовое сочетание задаёт настроение, а точные оттенки можно описать ниже.</p>
       <div class="palette-grid">${PALETTES.map(([value, label, colors]) => `<label class="palette-choice"><input type="radio" name="palettePreset" value="${escapeHtml(value)}" ${selectedPalette === value ? "checked" : ""}><span><i class="palette-chips" aria-hidden="true">${colors.map((color) => `<b style="background:${escapeHtml(color)}"></b>`).join("")}</i><strong>${escapeHtml(label)}</strong></span></label>`).join("")}</div>
       <label for="palette-description">Описание цветов</label><input id="palette-description" name="paletteDescription" maxlength="120" value="${escapeHtml(config.palette?.slice(1).join(", ") || "")}" placeholder="Например: молочный, натуральное дерево, графит"></fieldset>

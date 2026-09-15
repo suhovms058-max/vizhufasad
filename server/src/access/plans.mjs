@@ -1,9 +1,16 @@
+const PHOMI_MATERIALS = Object.freeze([
+  "PHOMI — Rome Travertine", "PHOMI — Oceanic Travertine", "PHOMI — Cloud Silk Travertine",
+  "PHOMI — Original Wood", "PHOMI — Sawtooth Wood", "PHOMI — Spliced Wood",
+  "PHOMI — Polish Concrete Stone", "PHOMI — Rough Surface", "PHOMI — Skyline",
+  "PHOMI — Chiseled Stone", "PHOMI — Oman Linear Stone", "PHOMI — 35 Piece Stone",
+]);
+
 export const PLAN_ACCESS = Object.freeze({
   START: Object.freeze({
     code: "START",
     label: "Старт",
     styles: Object.freeze(["автоподбор", "современный", "скандинавский", "неоклассический", "минимализм"]),
-    materials: Object.freeze(["автоподбор", "штукатурка", "дерево", "фиброцемент", "комбинированная", "панели"]),
+    materials: Object.freeze(["автоподбор", "штукатурка", "дерево", "фиброцемент", "комбинированная", "панели", "гибкая керамика PHOMI", ...PHOMI_MATERIALS]),
     pro: false,
     comparison: false,
     editor: false,
@@ -18,7 +25,7 @@ export const PLAN_ACCESS = Object.freeze({
     ]),
     materials: Object.freeze([
       "автоподбор", "штукатурка", "дерево", "фиброцемент", "комбинированная",
-      "кирпич", "клинкер", "камень", "панели",
+      "кирпич", "клинкер", "камень", "панели", "гибкая керамика PHOMI", ...PHOMI_MATERIALS,
     ]),
     pro: true,
     comparison: true,
@@ -35,7 +42,7 @@ export const PLAN_ACCESS = Object.freeze({
     ]),
     materials: Object.freeze([
       "автоподбор", "штукатурка", "дерево", "фиброцемент", "комбинированная",
-      "кирпич", "клинкер", "камень", "панели", "металл",
+      "кирпич", "клинкер", "камень", "панели", "металл", "гибкая керамика PHOMI", ...PHOMI_MATERIALS,
     ]),
     pro: true,
     comparison: true,
