@@ -23,7 +23,7 @@ function finishInstruction(input, automaticMaterials) {
     ].join(" ");
   }
   if (usesAutomaticPhomiTexture(input.materials)) {
-    const otherMaterials = input.materials.filter((material) => !/^(гибкая керамика PHOMI|PHOMI — автоподбор фактуры ИИ)$/iu.test(String(material).trim()));
+    const otherMaterials = input.materials.filter((material) => !/^(гибкая керамика PHOMI|PHOMI — автоподбор фактуры ИИ|автоподбор|auto)$/iu.test(String(material).trim()));
     return [
       "PHOMI TEXTURE AUTO-SELECTION: Choose the PHOMI facade texture that best fits the requested architectural style, palette and existing house proportions. Use a believable option from the available stone, travertine, concrete or wood texture families and apply it with realistic scale, joints, corners and opening reveals.",
       otherMaterials.length ? `Other required finish materials: ${otherMaterials.join(", ")}.` : "",

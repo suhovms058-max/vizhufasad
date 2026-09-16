@@ -145,6 +145,16 @@ test("PHOMI automatic texture selection receives a specific generator instructio
   assert.doesNotMatch(prompt, /Required finish materials: .*автоподбор фактуры ИИ/u);
 });
 
+test("PHOMI automatic texture selection ignores the generic automatic material marker", () => {
+  const input = normalizeGenerationInput({
+    style: "современный",
+    materials: ["гибкая керамика PHOMI", "PHOMI — автоподбор фактуры ИИ", "автоподбор"],
+  });
+  const prompt = composeGenerationPrompt(input).prompt;
+  assert.match(prompt, /PHOMI TEXTURE AUTO-SELECTION/u);
+  assert.doesNotMatch(prompt, /Other required finish materials: автоподбор/u);
+});
+
 test("generation configuration is disabled by default and selects the measured candidate", () => {
   const config = loadGenerationConfig({});
   assert.equal(config.enabled, false);
