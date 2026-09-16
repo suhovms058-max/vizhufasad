@@ -95,12 +95,14 @@ test("PHOMI textures expand from the material card and leave AI selection option
   const panel = page.locator("#phomi-material-subsystem");
   const auto = page.locator('input[name="materials"][value="PHOMI — автоподбор фактуры ИИ"]');
   const texture = page.locator('input[name="materials"][value="PHOMI — Rome Travertine"]');
+  const genericAuto = page.locator('input[name="materials"][value="автоподбор"]');
   const nextMaterial = page.locator('input[name="materials"][value="фиброцемент"]').locator("xpath=..");
 
   await expect(panel).toBeHidden();
   await phomi.check({ force: true });
   await expect(panel).toBeVisible();
   await expect(auto).not.toBeChecked();
+  await expect(genericAuto).not.toBeChecked();
   const positions = await page.evaluate(() => {
     const card = document.querySelector('input[value="гибкая керамика PHOMI"]')?.closest("label")?.getBoundingClientRect();
     const expanded = document.querySelector("#phomi-material-subsystem")?.getBoundingClientRect();
@@ -115,6 +117,13 @@ test("PHOMI textures expand from the material card and leave AI selection option
   await texture.check({ force: true });
   await expect(texture).toBeChecked();
   await expect(auto).not.toBeChecked();
+  await genericAuto.check({ force: true });
+  await expect(phomi).not.toBeChecked();
+  await expect(auto).not.toBeChecked();
+  await expect(texture).not.toBeChecked();
+  await expect(panel).toBeHidden();
+  await phomi.check({ force: true });
+  await texture.check({ force: true });
   await phomi.uncheck({ force: true });
   await expect(panel).toBeHidden();
   await expect(texture).not.toBeChecked();

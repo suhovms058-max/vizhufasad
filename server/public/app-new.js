@@ -284,6 +284,7 @@
     const phomiSubsystem = form.querySelector("#phomi-material-subsystem");
     const phomiChoices = [...form.querySelectorAll('#phomi-material-subsystem input[name="materials"]')];
     const phomiAutoChoice = form.querySelector('input[name="materials"][value="PHOMI — автоподбор фактуры ИИ"]');
+    const genericAutoChoice = form.querySelector('input[name="materials"][value="автоподбор"]');
     const storageKey = `vizhufasad:stage10:draft:${projectId}`;
     const wizardStorageKey = `${storageKey}:step`;
     const wizardSteps = [...form.querySelectorAll("[data-wizard-step]")];
@@ -333,15 +334,25 @@
       phomiSubsystem.classList.toggle("hidden", !phomiToggle.checked);
       phomiToggle.setAttribute("aria-expanded", String(phomiToggle.checked));
     };
-    phomiToggle?.addEventListener("change", () => updatePhomiSubsystem({ clear: true }));
+    phomiToggle?.addEventListener("change", () => {
+      if (phomiToggle.checked && genericAutoChoice) genericAutoChoice.checked = false;
+      updatePhomiSubsystem({ clear: true });
+    });
     phomiChoices.forEach((input) => input.addEventListener("change", () => {
       if (input.checked && phomiToggle) {
         phomiToggle.checked = true;
+        if (genericAutoChoice) genericAutoChoice.checked = false;
         if (input === phomiAutoChoice) phomiChoices.forEach((choice) => { if (choice !== input) choice.checked = false; });
         else if (phomiAutoChoice) phomiAutoChoice.checked = false;
       }
       updatePhomiSubsystem();
     }));
+    genericAutoChoice?.addEventListener("change", () => {
+      if (!genericAutoChoice.checked || !phomiToggle) return;
+      phomiToggle.checked = false;
+      phomiChoices.forEach((input) => { input.checked = false; });
+      updatePhomiSubsystem();
+    });
 
     const configuration = () => {
       const data = new FormData(form);
