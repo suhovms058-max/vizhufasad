@@ -9,7 +9,8 @@ import { createAuthPagesRouter } from "../src/auth/pages.mjs";
 import { createLegalPagesRouter } from "../src/legal/pages.mjs";
 import { createWalletPagesRouter } from "../src/wallet/pages.mjs";
 
-const baseUrl = "http://127.0.0.1:4173";
+const e2ePort = Number(process.env.E2E_PORT || 4173);
+const baseUrl = `http://127.0.0.1:${e2ePort}`;
 const statuses = ["queued", "preprocessing", "generating", "quality_check_pending", "completed"];
 let statusIndex = 0;
 let favorite = false;
@@ -47,6 +48,17 @@ const authPagesService = {
     return { ok: true, challengeId: "challenge-e2e" };
   },
   async sessionFromRequest() { return { id: "session-e2e", user_id: "owner-e2e", email: "owner@example.test" }; },
+  async loginWithPassword(input) {
+    return input.password === "correct-password"
+      ? { ok: true, token: "password-session", user: { id: "owner-e2e", email: input.email } }
+      : { ok: false, reason: "INVALID_CREDENTIALS" };
+  },
+  async passwordStatus() { return { configured: false }; },
+  async setPassword(input) {
+    return input.password === input.passwordConfirmation
+      ? { ok: true }
+      : { ok: false, reason: "PASSWORD_CONFIRMATION_MISMATCH" };
+  },
   cookieOptions() { return {}; },
   clearCookieOptions() { return {}; },
 };
@@ -55,6 +67,8 @@ const authPagesConfig = {
   requestLimit: 100,
   verifyLimit: 100,
   cookieName: "vizhufasad_e2e",
+  passwordMinLength: 10,
+  passwordMaxLength: 128,
 };
 const projectService = {
   async list() { return [project()]; }, async open() { return project(); },
@@ -167,4 +181,4 @@ app.use(createWalletPagesRouter({
   authService, walletService, paymentService,
   paymentConfig: { enabled: true, password3: null },
 }));
-app.listen(4173, "127.0.0.1");
+app.listen(e2ePort, "127.0.0.1");

@@ -1,6 +1,6 @@
 import { expect, test } from "@playwright/test";
 
-test("tariffs keep offer and promo controls readable", async ({ page }) => {
+test("tariffs keep offer and partner-code controls readable", async ({ page }) => {
     await page.goto("/app/balance?plan=OPTIMUM#plan-OPTIMUM");
     await page.waitForLoadState("networkidle");
 
@@ -28,11 +28,10 @@ test("tariffs keep offer and promo controls readable", async ({ page }) => {
       expect(item.scrollWidth).toBeLessThanOrEqual(Math.ceil(item.labelWidth));
     }
 
-    await expect(page.locator(".promo-disclosure input")).toHaveCount(6);
-    await expect(page.locator(".promo-disclosure input:visible")).toHaveCount(0);
-    await page.locator(".promo-disclosure summary").first().click();
-    await expect(page.locator(".promo-disclosure input:visible")).toHaveCount(1);
-    await expect(page.getByText("Промокоды предназначены для партнёров ресурса").first()).toBeVisible();
+    const partnerCode = page.getByLabel("Партнёрский код");
+    await expect(partnerCode).toBeVisible();
+    await expect(partnerCode).toHaveAttribute("placeholder", "VF-P-XXXX-XXXX-XXXX");
+    await expect(page.getByText("Для партнёров по договору")).toBeVisible();
 
     const overflow = await page.evaluate(() => document.documentElement.scrollWidth - document.documentElement.clientWidth);
     expect(overflow).toBeLessThanOrEqual(1);

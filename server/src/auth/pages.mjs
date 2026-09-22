@@ -32,15 +32,20 @@ function page(title, body, { cabinet = false, narrow = false } = {}) {
 function loginForm(message = "", nextPath = "/app") {
   const next = safeNext(nextPath);
   const personalData = legalDocument("personal-data-consent");
-  return page("Вход", `<section class="panel auth-card"><p class="eyebrow">Личный кабинет</p><h1>Вход по email</h1>
+  return page("Вход", `<section class="panel auth-card"><p class="eyebrow">Личный кабинет</p><h1>Войти в кабинет</h1>
     ${message ? `<p class="notice error" role="alert">${escapeHtml(message)}</p>` : ""}
-    <p class="muted">Получите одноразовый код. Пароль и телефон не требуются.</p>
-    <form class="form-stack" method="post" action="/auth/login"><input type="hidden" name="next" value="${escapeHtml(next)}"><label>Email
+    <p class="muted">Если вы уже создали пароль, используйте обычный вход. Первый вход и восстановление доступа выполняются по коду из письма.</p>
+    <form class="form-stack auth-method" method="post" action="/auth/password/login"><input type="hidden" name="next" value="${escapeHtml(next)}">
+      <h2>Email и пароль</h2><label>Email<input name="email" type="email" autocomplete="email" inputmode="email" required maxlength="254" placeholder="name@example.ru"></label>
+      <label>Пароль<input name="password" type="password" autocomplete="current-password" required maxlength="128"></label>
+      <button type="submit">Войти в личный кабинет</button></form>
+    <div class="auth-separator"><span>или</span></div>
+    <form id="code-login" class="form-stack auth-method" method="post" action="/auth/login"><input type="hidden" name="next" value="${escapeHtml(next)}"><h2>Первый вход или восстановление</h2><label>Email
       <input name="email" type="email" autocomplete="email" inputmode="email" required maxlength="254" placeholder="name@example.ru"></label>
       <input type="hidden" name="personalDataVersion" value="${personalData.revision}">
       <input type="hidden" name="personalDataHash" value="${personalData.hash}">
       <label class="confirm consent-confirm"><input type="checkbox" name="personalDataAccepted" value="yes" required><span>Я даю <a href="/legal/personal-data-consent" target="_blank" rel="noopener">согласие</a> на обработку персональных данных для создания аккаунта и входа в сервис и ознакомился с <a href="/legal/privacy" target="_blank" rel="noopener">Политикой обработки персональных данных</a></span></label>
-      <button type="submit">Получить код</button></form></section>`, { narrow: true });
+      <button type="submit">Получить одноразовый код</button></form></section>`, { narrow: true });
 }
 
 export function createAuthPagesRouter({ service, config }) {
@@ -78,6 +83,24 @@ export function createAuthPagesRouter({ service, config }) {
       if (error.message === "INVALID_EMAIL") {
         return response.status(400).type("html").send(loginForm("Проверьте адрес email.", request.body?.next));
       }
+      return next(error);
+    }
+  });
+
+  router.post("/auth/password/login", requestLimiter, async (request, response, next) => {
+    try {
+      const result = await service.loginWithPassword(request.body || {}, {
+        ip: request.ip, userAgent: request.get("user-agent"),
+      });
+      if (!result.ok) {
+        return response.status(401).type("html").send(loginForm(
+          "Не удалось войти. Проверьте email и пароль или запросите одноразовый код.", request.body?.next,
+        ));
+      }
+      response.cookie(config.cookieName, result.token, service.cookieOptions());
+      service.ensureDeviceCookie?.(request, response);
+      return response.redirect(303, safeNext(request.body?.next));
+    } catch (error) {
       return next(error);
     }
   });
@@ -134,14 +157,49 @@ export function createAuthPagesRouter({ service, config }) {
     `${navigation}<p>Проектов пока нет.</p><p>Здесь появятся автоматические визуализации фасада.</p>`,
     { cabinet: true },
   )));
-  router.get("/app/settings", (request, response) => response.type("html").send(page(
+  const settingsPage = (request, passwordConfigured, message = "", error = false) => page(
     "Настройки",
     `<section class="page-heading"><div><p class="eyebrow">Аккаунт</p><h1>Настройки</h1></div></section>
+     ${message ? `<p class="notice${error ? " error" : ""}" role="${error ? "alert" : "status"}">${escapeHtml(message)}</p>` : ""}
      <section class="panel settings-panel"><p class="muted">Email</p><p><strong>${escapeHtml(request.auth.email)}</strong></p>
+     <h2>${passwordConfigured ? "Изменить пароль" : "Создать пароль"}</h2>
+     <p class="muted">После создания пароля вы сможете входить по email и паролю. Одноразовый код останется способом восстановления доступа.</p>
+     <form class="form-stack" method="post" action="/app/settings/password">
+       <label>Новый пароль<input name="password" type="password" autocomplete="new-password" minlength="${config.passwordMinLength}" maxlength="${config.passwordMaxLength}" required></label>
+       <label>Повторите пароль<input name="passwordConfirmation" type="password" autocomplete="new-password" minlength="${config.passwordMinLength}" maxlength="${config.passwordMaxLength}" required></label>
+       <p class="muted">От ${config.passwordMinLength} до ${config.passwordMaxLength} символов. Можно использовать длинную фразу.</p>
+       <button type="submit">${passwordConfigured ? "Сохранить новый пароль" : "Создать пароль"}</button>
+     </form>
      <div class="actions"><form method="post" action="/app/logout"><button type="submit">Выйти</button></form>
      <form method="post" action="/app/account/delete" onsubmit="return confirm('Удалить аккаунт, проекты и файлы? Восстановить их будет невозможно.')"><button class="danger" type="submit">Удалить аккаунт и данные</button></form></div></section>`,
     { cabinet: true },
-  )));
+  );
+  router.get("/app/settings", async (request, response, next) => {
+    try {
+      const status = await service.passwordStatus(request.auth.user_id);
+      return response.type("html").send(settingsPage(request, status.configured));
+    } catch (error) {
+      return next(error);
+    }
+  });
+  router.post("/app/settings/password", async (request, response, next) => {
+    try {
+      const status = await service.passwordStatus(request.auth.user_id);
+      const result = await service.setPassword(request.body || {}, request.auth);
+      if (!result.ok) {
+        const messages = {
+          INVALID_PASSWORD: `Пароль должен содержать от ${config.passwordMinLength} до ${config.passwordMaxLength} символов.`,
+          PASSWORD_CONFIRMATION_MISMATCH: "Пароли не совпадают.",
+          RECENT_LOGIN_REQUIRED: "Для защиты аккаунта снова войдите по одноразовому коду, затем создайте пароль.",
+        };
+        return response.status(result.reason === "RECENT_LOGIN_REQUIRED" ? 403 : 400).type("html")
+          .send(settingsPage(request, status.configured, messages[result.reason] || "Не удалось сохранить пароль.", true));
+      }
+      return response.type("html").send(settingsPage(request, true, "Пароль сохранён. Теперь можно входить по email и паролю."));
+    } catch (error) {
+      return next(error);
+    }
+  });
   router.post("/app/logout", async (request, response, next) => {
     try {
       await service.repository.revokeSession(request.auth.user_id, request.auth.id, "auth.logout");

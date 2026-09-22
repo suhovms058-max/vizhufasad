@@ -102,6 +102,7 @@ test("quality repository persists at most two assessments and reports durable me
     );
     const rows = await repository.listForGeneration(data.generationId);
     assert.deepEqual(rows.map((row) => row.decision), ["retry_required", "rejected_refund"]);
+    await pool.query("update generations set status = 'failed_refunded' where id = $1", [data.generationId]);
     const metrics = await repository.qualityMetrics();
     assert.ok(metrics.retry_required >= 1);
     assert.ok(metrics.rejected_refunded >= 1);

@@ -28,13 +28,13 @@ test("personal-data consent is required before the first email POST", async ({ p
   );
   await page.getByRole("button", { name: "Только необходимые cookie" }).click();
 
-  await page.locator('input[name="email"]').fill("e2e@example.test");
-  await page.getByRole("button", { name: "Получить код" }).click();
+  await page.locator('#code-login input[name="email"]').fill("e2e@example.test");
+  await page.getByRole("button", { name: "Получить одноразовый код" }).click();
   await expect.poll(() => emailPosts.length).toBe(0);
   await expect(consent).toBeFocused();
 
   await consent.check();
-  await page.getByRole("button", { name: "Получить код" }).click();
+  await page.getByRole("button", { name: "Получить одноразовый код" }).click();
   await expect(page).toHaveURL(/\/auth\/verify\?challenge=challenge-e2e/u);
   expect(emailPosts).toHaveLength(1);
   expect(emailPosts[0]).toContain("personalDataAccepted=yes");

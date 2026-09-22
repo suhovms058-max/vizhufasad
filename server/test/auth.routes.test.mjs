@@ -46,10 +46,22 @@ function fixture(overrides = {}) {
         session: { id: "session-1", expires_at: new Date("2026-08-01T00:00:00Z") },
       };
     },
+    async loginWithPassword(input) {
+      if (input?.password !== "correct-password") return { ok: false, reason: "INVALID_CREDENTIALS" };
+      return { ok: true, token: "password-session-token", user: { id: "user-1", email: input.email } };
+    },
+    async passwordStatus() { return { configured: true }; },
+    async setPassword(input) {
+      if (input.password !== input.passwordConfirmation) {
+        return { ok: false, reason: "PASSWORD_CONFIRMATION_MISMATCH" };
+      }
+      return { ok: true };
+    },
     async sessionFromRequest(request) {
       if (!request.headers.cookie?.includes("session=valid")) return null;
       return {
         id: "session-1", user_id: "user-1", email: "user@example.com",
+        created_at: new Date("2026-07-01T00:00:00Z"),
         expires_at: new Date("2026-08-01T00:00:00Z"),
       };
     },
@@ -67,6 +79,8 @@ function fixture(overrides = {}) {
     verifyLimit: 2,
     rateWindowMs: 60_000,
     cookieName: "session",
+    passwordMinLength: 10,
+    passwordMaxLength: 128,
   };
   const app = express();
   app.set("trust proxy", 1);
@@ -98,6 +112,9 @@ test("email login and verification pages use the responsive cabinet design", asy
     assert.match(loginHtml, /\/assets\/app-ui\.css/u);
     assert.match(loginHtml, /class="panel auth-card"/u);
     assert.match(loginHtml, /autocomplete="email"/u);
+    assert.match(loginHtml, /action="\/auth\/password\/login"/u);
+    assert.match(loginHtml, /autocomplete="current-password"/u);
+    assert.match(loginHtml, /Первый вход или восстановление/u);
     assert.match(loginHtml, /name="personalDataAccepted" value="yes" required/u);
     assert.match(loginHtml, /\/legal\/personal-data-consent/u);
     assert.match(loginHtml, /\/legal\/privacy/u);
@@ -116,6 +133,50 @@ test("email login and verification pages use the responsive cabinet design", asy
     assert.match(verifyHtml, /<span>Подтверждаю, что мне исполнилось 18 лет<\/span>/u);
     assert.doesNotMatch(verifyHtml, /name="personalDataAccepted"/u);
     assert.doesNotMatch(verifyHtml, /name="(?:agreementAccepted|ageConfirmed)"[^>]*checked/u);
+  });
+});
+
+test("password login opens the requested cabinet page and keeps errors generic", async () => {
+  const { app } = fixture();
+  await withServer(app, async (baseUrl) => {
+    const success = await fetch(`${baseUrl}/auth/password/login`, {
+      method: "POST", redirect: "manual",
+      headers: { "content-type": "application/x-www-form-urlencoded" },
+      body: new URLSearchParams({
+        email: "user@example.com", password: "correct-password", next: "/app/settings",
+      }),
+    });
+    assert.equal(success.status, 303);
+    assert.equal(success.headers.get("location"), "/app/settings");
+    assert.match(success.headers.get("set-cookie"), /session=password-session-token/u);
+
+    const failed = await fetch(`${baseUrl}/auth/password/login`, {
+      method: "POST",
+      headers: { "content-type": "application/x-www-form-urlencoded" },
+      body: new URLSearchParams({ email: "missing@example.com", password: "wrong-password" }),
+    });
+    assert.equal(failed.status, 401);
+    assert.match(await failed.text(), /Проверьте email и пароль/u);
+  });
+});
+
+test("authenticated settings exposes password creation and validates confirmation", async () => {
+  const { app } = fixture();
+  await withServer(app, async (baseUrl) => {
+    const settings = await fetch(`${baseUrl}/app/settings`, { headers: { cookie: "session=valid" } });
+    const html = await settings.text();
+    assert.equal(settings.status, 200);
+    assert.match(html, /action="\/app\/settings\/password"/u);
+    assert.match(html, /minlength="10" maxlength="128"/u);
+
+    const mismatch = await fetch(`${baseUrl}/app/settings/password`, {
+      method: "POST", headers: {
+        cookie: "session=valid", "content-type": "application/x-www-form-urlencoded",
+      },
+      body: new URLSearchParams({ password: "a-long-password", passwordConfirmation: "different-password" }),
+    });
+    assert.equal(mismatch.status, 400);
+    assert.match(await mismatch.text(), /Пароли не совпадают/u);
   });
 });
 

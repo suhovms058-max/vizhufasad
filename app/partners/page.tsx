@@ -16,7 +16,7 @@ export default function PartnersPage() {
   return <main className="seoPage partnerPage">
     <header className="seoHeader shell">
       <a className="logo" href="/"><span className="logoMark">ВФ</span><span>ВИЖУФАСАД<small>AI-ВИЗУАЛИЗАЦИЯ ФАСАДОВ</small></span></a>
-      <nav aria-label="Основная навигация"><a href="/gallery">Примеры</a><a href="/styles">Стили</a><a href="/#pricing">Тарифы</a><a className="seoHeaderCta" href="#partner-contact">Как заключить договор</a></nav>
+      <nav aria-label="Основная навигация"><a href="/gallery">Примеры</a><a href="/styles">Стили</a><a href="/#pricing">Тарифы</a><a className="seoHeaderCta" href="/app">Личный кабинет</a><a className="seoHeaderCta" href="#partner-contact">Как заключить договор</a></nav>
     </header>
 
     <section className="seoHero partnerHero">
@@ -79,7 +79,7 @@ export default function PartnersPage() {
 
     <section className="partnerFinal" id="partner-contact"><div className="shell"><p className="eyebrow light"><span /> ПРЯМОЙ КОНТАКТ С ВЛАДЕЛЬЦЕМ</p><h2>Заключить партнёрский договор</h2><p>Отправьте письмо Максиму Сухову. Укажите компанию или ФИО, ИНН, контактное лицо, телефон и предполагаемое количество ВФ-коинов. В ответ вы получите согласованные условия и договор для подписания.</p><div className="partnerContactPanel"><span>Почта для партнёрских обращений</span><a className="partnerEmail" href={`mailto:${contactEmail}`}>{contactEmail}</a><small>Если почтовая программа не открылась, скопируйте адрес и напишите с корпоративной или личной почты.</small></div><div className="partnerContactActions"><a className="button lightButton" href={mailto}>Открыть готовое письмо</a><a className="button partnerOutlineButton" href="/documents/vizhufasad-partner-contract-template.pdf" target="_blank" rel="noopener">Посмотреть договор</a></div></div></section>
 
-    <footer className="seoFooter shell"><a href="/">Главная</a><a href="/gallery">Примеры</a><a href="/styles">Каталог стилей</a><a href="/#pricing">Тарифы</a><a href="/legal">Правовая информация</a><a href="/legal/privacy">Конфиденциальность</a></footer>
+    <footer className="seoFooter shell"><a href="/">Главная</a><a href="/app">Личный кабинет</a><a href="/gallery">Примеры</a><a href="/styles">Каталог стилей</a><a href="/#pricing">Тарифы</a><a href="/legal">Правовая информация</a><a href="/legal/privacy">Конфиденциальность</a></footer>
     <JsonLd data={{ "@context": "https://schema.org", "@type": "WebPage", name: "Партнёрская программа ВИЖУФАСАД", url: `${siteOrigin}/partners`, description: "Прямое договорное сотрудничество с ВИЖУФАСАД для компаний фасадной отрасли." }} />
   </main>;
 }

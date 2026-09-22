@@ -77,6 +77,18 @@ export class GenerationQualityRepository {
     return result.rows[0] ?? null;
   }
 
+  async markAcceptedFallback(assessmentId) {
+    const result = await this.pool.query(
+      `update generation_quality_assessments
+       set decision = 'accepted_fallback', updated_at = now()
+       where id = $1 and status = 'completed'
+         and decision in ('retry_required', 'rejected_refund')
+       returning *`,
+      [assessmentId],
+    );
+    return result.rows[0] ?? null;
+  }
+
   async listForGeneration(generationId) {
     const result = await this.pool.query(
       `select * from generation_quality_assessments
@@ -105,7 +117,9 @@ export class GenerationQualityRepository {
         count(*) filter (where assessment_number = 1 and decision = 'passed')::int as first_pass,
         count(*) filter (where assessment_number = 1 and decision = 'retry_required')::int as retry_required,
         count(*) filter (where assessment_number = 2 and decision = 'passed')::int as retry_passed,
-        count(*) filter (where assessment_number = 2 and decision = 'rejected_refund')::int as rejected_refunded,
+        count(*) filter (where assessment_number = 2 and decision = 'rejected_refund'
+          and exists (select 1 from generations g where g.id = generation_id and g.status = 'failed_refunded'))::int as rejected_refunded,
+        count(*) filter (where decision = 'accepted_fallback')::int as accepted_fallback,
         (select count(*)::int from wallet_transactions transaction
           where transaction.type = 'generation_refund'
             and exists (

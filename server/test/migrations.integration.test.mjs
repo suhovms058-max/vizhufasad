@@ -13,6 +13,7 @@ const expected = new Set([
   "promo_codes", "promo_redemptions", "owner_access_codes", "owner_access_redemptions",
   "partner_credit_codes",
   "legal_acceptances", "free_trial_entitlements", "free_trial_risk_events",
+  "password_credentials",
 ]);
 
 test("applied migration exposes all required PostgreSQL tables", { skip: !enabled }, async () => {

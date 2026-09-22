@@ -184,6 +184,126 @@ export class AuthRepository {
     return session ?? null;
   }
 
+  async findPasswordCredential(email) {
+    const result = await this.pool.query(
+      `select u.id as user_id, u.email, u.status, u.account_deletion_requested_at,
+        c.password_hash, c.salt, c.algorithm, c.parameters,
+        c.failed_attempts, c.locked_until
+       from users u left join password_credentials c on c.user_id = u.id
+       where lower(u.email) = lower($1)`,
+      [email],
+    );
+    return result.rows[0] ?? null;
+  }
+
+  async findPasswordCredentialByUserId(userId) {
+    const result = await this.pool.query(
+      `select user_id, password_hash, algorithm, created_at, updated_at
+       from password_credentials where user_id = $1`,
+      [userId],
+    );
+    return result.rows[0] ?? null;
+  }
+
+  async recordPasswordFailure(userId, { maxAttempts, lockedUntil }) {
+    if (!userId) return;
+    await this.pool.query(
+      `update password_credentials set
+        failed_attempts = failed_attempts + 1,
+        locked_until = case when failed_attempts + 1 >= $2 then $3 else locked_until end,
+        updated_at = now()
+       where user_id = $1`,
+      [userId, maxAttempts, lockedUntil],
+    );
+    await this.pool.query(
+      `insert into audit_logs (actor_user_id, action, entity_type, entity_id, details)
+       values ($1, 'auth.password_rejected', 'user', $1, '{}'::jsonb)`,
+      [userId],
+    );
+  }
+
+  async authenticateWithPassword(input) {
+    const client = await this.pool.connect();
+    try {
+      await client.query("begin");
+      const userResult = await client.query(
+        `select u.id, u.email, u.status, u.account_deletion_requested_at, c.locked_until
+         from users u join password_credentials c on c.user_id = u.id
+         where u.id = $1 for update of u, c`,
+        [input.userId],
+      );
+      const user = userResult.rows[0];
+      if (!user || user.status !== "active" || user.account_deletion_requested_at
+        || (user.locked_until && new Date(user.locked_until) > input.now)) {
+        await client.query("commit");
+        return { ok: false, reason: "INVALID_CREDENTIALS" };
+      }
+      await client.query(
+        "update password_credentials set failed_attempts = 0, locked_until = null, updated_at = now() where user_id = $1",
+        [user.id],
+      );
+      const sessionResult = await client.query(
+        `insert into auth_sessions
+          (user_id, token_hash, request_ip_hash, user_agent, expires_at, last_seen_at)
+         values ($1, $2, $3, $4, $5, now()) returning id, created_at, expires_at`,
+        [user.id, input.tokenHash, input.requestIpHash, input.userAgent, input.expiresAt],
+      );
+      await client.query(
+        `insert into audit_logs (actor_user_id, action, entity_type, entity_id, details)
+         values ($1, 'auth.password_login_succeeded', 'auth_session', $2, '{}'::jsonb)`,
+        [user.id, sessionResult.rows[0].id],
+      );
+      await client.query("commit");
+      return { ok: true, user, session: sessionResult.rows[0] };
+    } catch (error) {
+      await client.query("rollback");
+      throw error;
+    } finally {
+      client.release();
+    }
+  }
+
+  async setPasswordCredential(userId, credential, { currentSessionId = null } = {}) {
+    const client = await this.pool.connect();
+    try {
+      await client.query("begin");
+      const existing = await client.query(
+        "select user_id from password_credentials where user_id = $1 for update",
+        [userId],
+      );
+      await client.query(
+        `insert into password_credentials
+          (user_id, password_hash, salt, algorithm, parameters, failed_attempts, locked_until)
+         values ($1, $2, $3, $4, $5::jsonb, 0, null)
+         on conflict (user_id) do update set
+          password_hash = excluded.password_hash, salt = excluded.salt,
+          algorithm = excluded.algorithm, parameters = excluded.parameters,
+          failed_attempts = 0, locked_until = null, updated_at = now()`,
+        [userId, credential.passwordHash, credential.salt, credential.algorithm,
+          JSON.stringify(credential.parameters)],
+      );
+      if (existing.rowCount && currentSessionId) {
+        await client.query(
+          `update auth_sessions set revoked_at = now()
+           where user_id = $1 and id <> $2 and revoked_at is null`,
+          [userId, currentSessionId],
+        );
+      }
+      await client.query(
+        `insert into audit_logs (actor_user_id, action, entity_type, entity_id, details)
+         values ($1, $2, 'user', $1, '{}'::jsonb)`,
+        [userId, existing.rowCount ? "auth.password_changed" : "auth.password_created"],
+      );
+      await client.query("commit");
+      return { created: !existing.rowCount };
+    } catch (error) {
+      await client.query("rollback");
+      throw error;
+    } finally {
+      client.release();
+    }
+  }
+
   async listSessions(userId) {
     const result = await this.pool.query(
       `select id, user_agent, created_at, last_seen_at, expires_at

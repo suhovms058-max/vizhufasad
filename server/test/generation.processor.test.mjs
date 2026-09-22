@@ -10,7 +10,7 @@ async function jpeg(color = "#d8c7aa") {
   }).jpeg().toBuffer();
 }
 
-function qualityResult(decision, number) {
+function qualityResult(decision, number, overrides = {}) {
   return {
     decision,
     overallScore: decision === "passed" ? 9000 : 5000,
@@ -21,6 +21,7 @@ function qualityResult(decision, number) {
     policyVersion: "facade-quality-policy-v1",
     provider: "quality-mock", model: "quality-model",
     providerRequestId: `quality-${number}`,
+    ...overrides,
   };
 }
 
@@ -29,6 +30,7 @@ function harness({
   attemptsMade = 0,
   attempts = 3,
   qualityDecisions = ["passed"],
+  qualityResults = [],
   existingCandidate = false,
   generationKind = "standard",
   providerKinds,
@@ -42,6 +44,7 @@ function harness({
   let status = "queued";
   let attemptNumber = 0;
   let qualityNumber = 0;
+  const assessmentInputs = new Map();
   const generation = {
     id: "11111111-1111-4111-8111-111111111111",
     project_id: "22222222-2222-4222-8222-222222222222",
@@ -100,17 +103,29 @@ function harness({
     async listForGeneration() { return []; },
     async startAssessment(input) {
       qualityNumber = input.assessmentNumber;
+      assessmentInputs.set(`quality-${qualityNumber}`, input);
       events.push(["quality-start", qualityNumber]);
-      return { id: `quality-${qualityNumber}` };
+      return { id: `quality-${qualityNumber}`, ...input };
     },
-    async completeAssessment(_id, result) {
+    async completeAssessment(id, result) {
       events.push(["quality-complete", result.decision]);
-      return { id: `quality-${qualityNumber}`, policy_version: result.policyVersion };
+      const input = assessmentInputs.get(id);
+      return {
+        id, policy_version: result.policyVersion, decision: result.decision,
+        diagnostic_key: input.diagnosticKey, failure_reasons: result.failureReasons,
+        overall_score: result.overallScore,
+      };
+    },
+    async markAcceptedFallback(id) {
+      events.push(["quality-fallback", id]);
+      const input = assessmentInputs.get(id);
+      return { id, policy_version: "facade-quality-policy-v4", diagnostic_key: input.diagnosticKey };
     },
     async markProviderUnavailable() { events.push(["quality-unavailable"]); },
   };
   const qualityOrchestrator = {
     async assess({ assessmentNumber }) {
+      if (qualityResults[assessmentNumber - 1]) return qualityResults[assessmentNumber - 1];
       const decision = qualityDecisions[assessmentNumber - 1] || "rejected_refund";
       return qualityResult(decision, assessmentNumber);
     },
@@ -261,6 +276,45 @@ test("second quality rejection hides the result and refunds once", async () => {
   assert.equal(events.filter((event) => event[0] === "refund").length, 1);
   assert.equal(events.some((event) => event[0] === "commit"), false);
   assert.equal(events.filter((event) => event[0] === "provider").length, 2);
+});
+
+test("two soft misses publish the best retained candidate without a third paid generation", async () => {
+  const { processor, job, events, getStatus } = harness({
+    qualityResults: [
+      qualityResult("retry_required", 1, {
+        overallScore: 7_400,
+        failureReasons: ["position_changed_detected", "overall_below_threshold"],
+      }),
+      qualityResult("rejected_refund", 2, {
+        overallScore: 6_900,
+        failureReasons: ["perspective_below_threshold", "overall_below_threshold"],
+      }),
+    ],
+  });
+  const result = await processor.process(job);
+  assert.equal(getStatus(), "completed");
+  assert.equal(result.quality, "accepted_fallback");
+  assert.deepEqual(events.find((event) => event[0] === "quality-fallback"), ["quality-fallback", "quality-1"]);
+  assert.equal(events.filter((event) => event[0] === "provider").length, 2);
+  assert.equal(events.filter((event) => event[0] === "commit").length, 1);
+  assert.equal(events.some((event) => event[0] === "refund"), false);
+});
+
+test("fallback remains fail closed when either candidate violates architecture", async () => {
+  const { processor, job, events, getStatus } = harness({
+    qualityResults: [
+      qualityResult("retry_required", 1, {
+        overallScore: 9_000, failureReasons: ["roof_changed_detected"],
+      }),
+      qualityResult("rejected_refund", 2, {
+        overallScore: 8_800, failureReasons: ["unfinished_facade_detected"],
+      }),
+    ],
+  });
+  await assert.rejects(processor.process(job), /GENERATION_QUALITY_REJECTED/);
+  assert.equal(getStatus(), "failed_refunded");
+  assert.equal(events.some((event) => event[0] === "quality-fallback"), false);
+  assert.equal(events.filter((event) => event[0] === "refund").length, 1);
 });
 
 test("retryable provider error marks retrying and does not refund before final queue attempt", async () => {

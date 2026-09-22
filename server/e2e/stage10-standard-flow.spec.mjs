@@ -61,7 +61,7 @@ test("photo settings to checked Standard result survives navigation and fits vie
   await expect(page.getByText("Фото подходит")).toBeVisible();
   await page.getByLabel("Выбранный стиль").selectOption("скандинавский");
   await page.getByRole("button", { name: "Продолжить" }).click();
-  const woodMaterial = page.getByLabel("дерево");
+  const woodMaterial = page.locator('input[name="materials"][value="дерево"]');
   await expect(woodMaterial).toBeVisible();
   await woodMaterial.scrollIntoViewIfNeeded();
   await woodMaterial.check({ force: true });
@@ -99,7 +99,7 @@ test("PHOMI textures expand from the material card and leave AI selection option
   const nextMaterial = page.locator('input[name="materials"][value="фиброцемент"]').locator("xpath=..");
 
   await expect(panel).toBeHidden();
-  await phomi.check({ force: true });
+  await phomi.locator("xpath=..").click();
   await expect(panel).toBeVisible();
   await expect(auto).not.toBeChecked();
   await expect(genericAuto).not.toBeChecked();
@@ -122,9 +122,9 @@ test("PHOMI textures expand from the material card and leave AI selection option
   await expect(auto).not.toBeChecked();
   await expect(texture).not.toBeChecked();
   await expect(panel).toBeHidden();
-  await phomi.check({ force: true });
+  await phomi.locator("xpath=..").click();
   await texture.check({ force: true });
-  await phomi.uncheck({ force: true });
+  await phomi.locator("xpath=..").click();
   await expect(panel).toBeHidden();
   await expect(texture).not.toBeChecked();
   await expect.poll(() => page.evaluate(() => document.documentElement.scrollWidth <= document.documentElement.clientWidth)).toBe(true);

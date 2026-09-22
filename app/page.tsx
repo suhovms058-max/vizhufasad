@@ -212,6 +212,7 @@ export default function App() {
           <a href="#examples">Примеры</a>
           <a href="#faq">Вопросы</a>
         </nav>
+        <a className="cabinetLink" href="/app">Личный кабинет</a>
       </header>
 
       <section className="hero shell" id="top">
@@ -450,7 +451,7 @@ export default function App() {
           <div className="logo"><span className="logoMark">ВФ</span><span>ВИЖУФАСАД<small>ВИЗУАЛИЗАЦИЯ ФАСАДОВ ПО ФОТО</small></span></div>
           <p>Визуализация отделки домов и строений по всей России.</p>
         </div>
-        <nav className="footerGroup" aria-label="Разделы сайта"><strong>Сервис</strong><a href="#pricing">Тарифы</a><a href="#faq">Вопросы</a><a href="/gallery">Примеры</a><a href="/partners">Партнёрам</a></nav>
+        <nav className="footerGroup" aria-label="Разделы сайта"><strong>Сервис</strong><a href="/app">Личный кабинет</a><a href="#pricing">Тарифы</a><a href="#faq">Вопросы</a><a href="/gallery">Примеры</a><a href="/partners">Партнёрам</a></nav>
         <nav className="footerGroup" aria-label="Полезные материалы"><strong>Материалы</strong><a href="/styles">Каталог стилей</a><a href="/visualizaciya-fasada-po-foto">Фасад по фото</a><a href="/stili-i-materialy-fasada">Стили и материалы</a></nav>
         <nav className="footerGroup" aria-label="Правовая информация"><strong>Документы</strong><a href="/legal">Правовая информация</a><a href="/legal/offer">Публичная оферта</a><a href="/legal/refunds">Возвраты</a><a href="/legal/privacy">Конфиденциальность</a><button type="button" className="footerPrivacyButton" data-privacy-settings>Настройки конфиденциальности</button></nav>
         <address className="footerOwner"><strong>Исполнитель</strong><span>Сухов Максим Сергеевич</span><span>Самозанятый, плательщик НПД</span><span>ИНН 583712808341</span><a href="mailto:vizhufasad0058@bk.ru">vizhufasad0058@bk.ru</a></address>

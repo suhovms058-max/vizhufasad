@@ -1,5 +1,8 @@
 import { defineConfig } from "@playwright/test";
 
+const e2ePort = Number(process.env.E2E_PORT || 4173);
+const e2eBaseUrl = `http://127.0.0.1:${e2ePort}`;
+
 export default defineConfig({
   testDir: "./e2e",
   fullyParallel: false,
@@ -9,7 +12,7 @@ export default defineConfig({
   timeout: 45_000,
   expect: { timeout: 8_000 },
   use: {
-    baseURL: "http://127.0.0.1:4173",
+    baseURL: e2eBaseUrl,
     browserName: "chromium",
     channel: process.env.PLAYWRIGHT_CHANNEL || undefined,
     headless: true,
@@ -24,7 +27,7 @@ export default defineConfig({
   ],
   webServer: {
     command: "node e2e/fixture-server.mjs",
-    url: "http://127.0.0.1:4173/__health",
+    url: `${e2eBaseUrl}/__health`,
     reuseExistingServer: false,
     timeout: 30_000,
   },

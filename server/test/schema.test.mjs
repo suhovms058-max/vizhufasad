@@ -16,7 +16,7 @@ const requiredTables = [
   "action_costs",
   "generation_upscales", "generation_comparisons", "generation_comparison_items",
   "project_generation_selections",
-  "product_events", "free_trial_entitlements", "free_trial_risk_events",
+  "product_events", "free_trial_entitlements", "free_trial_risk_events", "password_credentials",
 ];
 
 test("migrations create every required table", () => {
@@ -78,6 +78,8 @@ test("migrations include foreign keys, indexes, invariants and timestamp default
   assert.match(migration, /'TOPUP_3'.*74700.*3/s);
   assert.match(migration, /'photo_assessment'.*0/s);
   assert.match(migration, /lower\("email"\)/);
+  assert.match(migration, /password_credentials.*ON DELETE cascade/s);
+  assert.match(migration, /generation_quality_decision.*accepted_fallback/s);
   assert.doesNotMatch(migration, /code_hash.*DEFAULT/);
   assert.doesNotMatch(migration, /manual_review|operator_pending/);
 });

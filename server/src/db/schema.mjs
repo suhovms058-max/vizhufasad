@@ -41,7 +41,7 @@ export const generationQualityStatus = pgEnum("generation_quality_status", [
   "processing", "completed", "provider_unavailable",
 ]);
 export const generationQualityDecision = pgEnum("generation_quality_decision", [
-  "passed", "retry_required", "rejected_refund",
+  "passed", "retry_required", "rejected_refund", "accepted_fallback",
 ]);
 export const transactionType = pgEnum("wallet_transaction_type", [
   "free_bonus", "purchase", "generation_charge", "generation_refund",

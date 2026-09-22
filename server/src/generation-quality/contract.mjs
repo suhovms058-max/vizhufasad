@@ -1,9 +1,9 @@
 export const GENERATION_QUALITY_SCHEMA_VERSION = "generation-quality-assessment-v3";
 export const GENERATION_QUALITY_PROMPT_VERSION = "facade-quality-compare-v5";
-export const GENERATION_QUALITY_POLICY_VERSION = "facade-quality-policy-v3";
+export const GENERATION_QUALITY_POLICY_VERSION = "facade-quality-policy-v4";
 
 export const QUALITY_DECISIONS = Object.freeze([
-  "passed", "retry_required", "rejected_refund",
+  "passed", "retry_required", "rejected_refund", "accepted_fallback",
 ]);
 
 export const QUALITY_SCORE_NAMES = Object.freeze([

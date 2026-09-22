@@ -1,6 +1,6 @@
 import {
-  createChallengeId, createLoginCode, createSessionToken, hashAuthValue,
-  normalizeEmail, parseCookies,
+  createChallengeId, createLoginCode, createSessionToken, hashAuthValue, hashPassword,
+  normalizeEmail, parseCookies, validatePassword, verifyPassword,
 } from "./crypto.mjs";
 import { personalDataConsentFromInput, verificationConsentsFromInput } from "../legal/documents.mjs";
 
@@ -11,6 +11,10 @@ export class AuthService {
     this.config = config;
     this.legalAcceptanceRepository = legalAcceptanceRepository;
     this.clock = clock;
+    this.dummyCredential = hashPassword("dummy-password-not-used", {
+      minimum: this.config.passwordMinLength || 10,
+      maximum: this.config.passwordMaxLength || 128,
+    });
   }
 
   requestHash(value, namespace) {
@@ -72,6 +76,77 @@ export class AuthService {
       });
     }
     return { ...result, token };
+  }
+
+  async loginWithPassword(input, context = {}) {
+    let email;
+    try {
+      email = normalizeEmail(input?.email);
+    } catch {
+      email = "invalid@example.invalid";
+    }
+    const rawPassword = String(input?.password ?? "");
+    const passwordWithinBounds = rawPassword.length >= 1
+      && rawPassword.length <= (this.config.passwordMaxLength || 128);
+    const credential = await this.repository.findPasswordCredential(email);
+    const checkedCredential = credential?.password_hash ? credential : await this.dummyCredential;
+    const matches = await verifyPassword(passwordWithinBounds ? rawPassword : "invalid-password", checkedCredential);
+    const now = this.clock();
+    const unavailable = !credential || !credential.password_hash || credential.status !== "active"
+      || credential.account_deletion_requested_at
+      || (credential.locked_until && new Date(credential.locked_until) > now);
+    if (!matches || unavailable) {
+      if (credential?.password_hash && !unavailable) {
+        await this.repository.recordPasswordFailure(credential.user_id, {
+          maxAttempts: this.config.passwordMaxAttempts,
+          lockedUntil: new Date(now.getTime() + this.config.passwordLockSeconds * 1000),
+        });
+      }
+      return { ok: false, reason: "INVALID_CREDENTIALS" };
+    }
+    const token = createSessionToken();
+    const result = await this.repository.authenticateWithPassword({
+      userId: credential.user_id,
+      tokenHash: hashAuthValue(this.config.hashSecret, "session", token),
+      requestIpHash: this.requestHash(context.ip, "request-ip"),
+      userAgent: String(context.userAgent || "").slice(0, 256) || null,
+      expiresAt: new Date(now.getTime() + this.config.sessionTtlSeconds * 1000),
+      now,
+    });
+    return result.ok ? { ...result, token } : result;
+  }
+
+  async passwordStatus(userId) {
+    const credential = await this.repository.findPasswordCredentialByUserId?.(userId);
+    return { configured: Boolean(credential?.password_hash) };
+  }
+
+  async setPassword(input, session) {
+    if (!session?.user_id) return { ok: false, reason: "AUTH_REQUIRED" };
+    if (String(input?.password || "") !== String(input?.passwordConfirmation || "")) {
+      return { ok: false, reason: "PASSWORD_CONFIRMATION_MISMATCH" };
+    }
+    let password;
+    try {
+      password = validatePassword(input?.password, {
+        minimum: this.config.passwordMinLength,
+        maximum: this.config.passwordMaxLength,
+      });
+    } catch {
+      return { ok: false, reason: "INVALID_PASSWORD" };
+    }
+    const createdAt = new Date(session.created_at || 0);
+    if (!Number.isFinite(createdAt.getTime()) || this.clock().getTime() - createdAt.getTime() > 30 * 60 * 1000) {
+      return { ok: false, reason: "RECENT_LOGIN_REQUIRED" };
+    }
+    const credential = await hashPassword(password, {
+      minimum: this.config.passwordMinLength,
+      maximum: this.config.passwordMaxLength,
+    });
+    const result = await this.repository.setPasswordCredential(session.user_id, credential, {
+      currentSessionId: session.id,
+    });
+    return { ok: true, ...result };
   }
 
   cookieOptions() {

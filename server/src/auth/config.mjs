@@ -38,6 +38,12 @@ export function loadAuthConfig(environment = process.env) {
     throw new Error("SMTP_USER, SMTP_PASSWORD and AUTH_EMAIL_FROM are required in SMTP auth mail mode");
   }
 
+  const passwordMinLength = integer(environment.AUTH_PASSWORD_MIN_LENGTH, 10, "AUTH_PASSWORD_MIN_LENGTH", 8);
+  const passwordMaxLength = integer(environment.AUTH_PASSWORD_MAX_LENGTH, 128, "AUTH_PASSWORD_MAX_LENGTH", 32);
+  if (passwordMinLength > passwordMaxLength) {
+    throw new Error("AUTH_PASSWORD_MIN_LENGTH must not exceed AUTH_PASSWORD_MAX_LENGTH");
+  }
+
   return {
     production,
     mailMode,
@@ -49,6 +55,10 @@ export function loadAuthConfig(environment = process.env) {
     verifyLimit: integer(environment.AUTH_CODE_VERIFY_LIMIT, 10, "AUTH_CODE_VERIFY_LIMIT"),
     rateWindowMs: integer(environment.AUTH_RATE_WINDOW_MS, 15 * 60 * 1000, "AUTH_RATE_WINDOW_MS"),
     sessionTtlSeconds: integer(environment.AUTH_SESSION_TTL_SECONDS, 30 * 24 * 60 * 60, "AUTH_SESSION_TTL_SECONDS"),
+    passwordMinLength,
+    passwordMaxLength,
+    passwordMaxAttempts: integer(environment.AUTH_PASSWORD_MAX_ATTEMPTS, 5, "AUTH_PASSWORD_MAX_ATTEMPTS"),
+    passwordLockSeconds: integer(environment.AUTH_PASSWORD_LOCK_SECONDS, 15 * 60, "AUTH_PASSWORD_LOCK_SECONDS"),
     cookieName: environment.AUTH_COOKIE_NAME || "vizhufasad_session",
     deviceCookieName: environment.FREE_TRIAL_DEVICE_COOKIE_NAME || "vizhufasad_device",
     deviceTtlSeconds: integer(environment.FREE_TRIAL_DEVICE_TTL_SECONDS, 180 * 24 * 60 * 60, "FREE_TRIAL_DEVICE_TTL_SECONDS"),

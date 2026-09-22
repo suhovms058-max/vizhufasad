@@ -1,7 +1,9 @@
 import assert from "node:assert/strict";
 import test from "node:test";
 import { loadAuthConfig } from "../src/auth/config.mjs";
-import { hashAuthValue, normalizeEmail, parseCookies } from "../src/auth/crypto.mjs";
+import {
+  hashAuthValue, hashPassword, normalizeEmail, parseCookies, validatePassword, verifyPassword,
+} from "../src/auth/crypto.mjs";
 import { AuthService } from "../src/auth/service.mjs";
 import { legalDocument } from "../src/legal/documents.mjs";
 
@@ -28,6 +30,9 @@ test("production cannot use console auth mail", () => {
 
 test("auth config requires a strong server-side hash secret", () => {
   assert.throws(() => loadAuthConfig({ AUTH_HASH_SECRET: "short" }), /at least 32/);
+  assert.throws(() => loadAuthConfig({
+    AUTH_HASH_SECRET: secret, AUTH_PASSWORD_MIN_LENGTH: "64", AUTH_PASSWORD_MAX_LENGTH: "32",
+  }), /must not exceed/);
 });
 
 test("email normalization and cookie parsing do not require a phone", () => {
@@ -37,6 +42,57 @@ test("email normalization and cookie parsing do not require a phone", () => {
     vizhufasad_session: "abc/123",
   });
   assert.throws(() => normalizeEmail("not-an-email"), /INVALID_EMAIL/);
+});
+
+test("password credentials use scrypt with a unique salt and reject invalid bounds", async () => {
+  const first = await hashPassword("длинный пароль 2026", { minimum: 10, maximum: 128 });
+  const second = await hashPassword("длинный пароль 2026", { minimum: 10, maximum: 128 });
+  assert.equal(first.algorithm, "scrypt-v1");
+  assert.notEqual(first.salt, second.salt);
+  assert.notEqual(first.passwordHash, second.passwordHash);
+  assert.equal(await verifyPassword("длинный пароль 2026", {
+    password_hash: first.passwordHash, salt: first.salt, algorithm: first.algorithm,
+    parameters: first.parameters,
+  }), true);
+  assert.equal(await verifyPassword("неверный пароль", {
+    password_hash: first.passwordHash, salt: first.salt, algorithm: first.algorithm,
+    parameters: first.parameters,
+  }), false);
+  assert.throws(() => validatePassword("короткий", { minimum: 10, maximum: 128 }), /INVALID_PASSWORD/);
+});
+
+test("password login stays generic and locks repeated failures without exposing the account", async () => {
+  const credential = await hashPassword("правильный пароль", { minimum: 10, maximum: 128 });
+  let failures = 0;
+  const repository = {
+    async findPasswordCredential(email) {
+      if (email === "user@example.com") return {
+        user_id: "user-1", email, status: "active", locked_until: null,
+        password_hash: credential.passwordHash, salt: credential.salt,
+        algorithm: credential.algorithm, parameters: credential.parameters,
+      };
+      return null;
+    },
+    async recordPasswordFailure() { failures += 1; },
+    async authenticateWithPassword() {
+      return { ok: true, user: { id: "user-1", email: "user@example.com" }, session: { id: "session-1" } };
+    },
+  };
+  const service = new AuthService({ repository, mailer: {}, config: {
+    hashSecret: secret, passwordMinLength: 10, passwordMaxLength: 128,
+    passwordMaxAttempts: 5, passwordLockSeconds: 900, sessionTtlSeconds: 30 * 24 * 60 * 60,
+  }, clock: () => new Date("2026-09-22T12:00:00Z") });
+
+  assert.deepEqual(await service.loginWithPassword({ email: "missing@example.com", password: "неверный пароль" }), {
+    ok: false, reason: "INVALID_CREDENTIALS",
+  });
+  assert.deepEqual(await service.loginWithPassword({ email: "user@example.com", password: "неверный пароль" }), {
+    ok: false, reason: "INVALID_CREDENTIALS",
+  });
+  assert.equal(failures, 1);
+  const success = await service.loginWithPassword({ email: "user@example.com", password: "правильный пароль" });
+  assert.equal(success.ok, true);
+  assert.match(success.token, /^[A-Za-z0-9_-]+$/u);
 });
 
 test("request stores only a code hash and sends the short-lived code", async () => {

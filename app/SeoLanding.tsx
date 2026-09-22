@@ -38,7 +38,7 @@ export function SeoLanding({
       <header className="seoJournalHeader">
         <div className="shell">
           <a className="logo" href="/"><span className="logoMark">ВФ</span><span>ВИЖУФАСАД<small>ЖУРНАЛ О ФАСАДАХ</small></span></a>
-          <nav aria-label="Основная навигация"><a href="/styles">Стили</a><a href="/gallery">Реальные примеры</a><a href="/">О сервисе</a></nav>
+          <nav aria-label="Основная навигация"><a href="/styles">Стили</a><a href="/gallery">Реальные примеры</a><a href="/">О сервисе</a><a href="/app">Личный кабинет</a></nav>
         </div>
       </header>
       <section className="seoJournalCover">
@@ -63,7 +63,7 @@ export function SeoLanding({
         {related.length > 0 && <section className="seoRelated seoJournalRelated"><div><span className="eyebrow"><i /> Следующая страница журнала</span><h2>Продолжите исследование</h2></div><div className="seoRelatedGrid">{related.map((item) => <a key={item.href} href={item.href}><strong>{item.label}</strong><span>{item.description}</span><b>Читать материал <em>→</em></b></a>)}</div></section>}
         <aside className="seoConcept"><strong>Важно</strong><p>ВИЖУФАСАД создаёт концепцию внешнего вида. Это не рабочий строительный проект, не смета и не расчёт материалов.</p></aside>
       </article>
-      <footer className="seoFooter shell"><a href="/gallery">Примеры</a><a href="/styles">Каталог стилей</a><a href="/visualizaciya-fasada-po-foto">Фасад по фото</a><a href="/stili-i-materialy-fasada">Стили и материалы</a><a href="/partners">Партнёрам</a><a href="/legal/privacy">Конфиденциальность</a></footer>
+      <footer className="seoFooter shell"><a href="/app">Личный кабинет</a><a href="/gallery">Примеры</a><a href="/styles">Каталог стилей</a><a href="/visualizaciya-fasada-po-foto">Фасад по фото</a><a href="/stili-i-materialy-fasada">Стили и материалы</a><a href="/partners">Партнёрам</a><a href="/legal/privacy">Конфиденциальность</a></footer>
       <JsonLd data={{
         "@context": "https://schema.org",
         "@type": "BreadcrumbList",
@@ -76,7 +76,7 @@ export function SeoLanding({
   return <main className={["seoPage", className].filter(Boolean).join(" ")}>
     <header className="seoHeader shell">
       <a className="logo" href="/"><span className="logoMark">ВФ</span><span>ВИЖУФАСАД<small>AI-ВИЗУАЛИЗАЦИЯ ФАСАДОВ</small></span></a>
-      <nav aria-label="Основная навигация"><a href="/gallery">Примеры</a><a href="/styles">Стили</a><a href="/#pricing">Тарифы</a><a className="seoHeaderCta" href="/app/new">Создать проект</a></nav>
+      <nav aria-label="Основная навигация"><a href="/gallery">Примеры</a><a href="/styles">Стили</a><a href="/#pricing">Тарифы</a><a className="seoHeaderCta" href="/app">Личный кабинет</a><a className="seoHeaderCta" href="/app/new">Создать проект</a></nav>
     </header>
     <section className="seoHero">
       <div className={`shell seoHeroGrid${visual ? " hasVisual" : ""}`}><div><nav className="seoBreadcrumb" aria-label="Хлебные крошки">{breadcrumbItems.map((item, index) => <span key={item.path}>{index > 0 && <i aria-hidden="true">/</i>}{index < breadcrumbItems.length - 1 ? <a href={item.path}>{item.name}</a> : <span>{item.name}</span>}</span>)}</nav><div className="eyebrow light"><span /> {eyebrow}</div><h1>{title}</h1><p>{lead}</p>
@@ -90,7 +90,7 @@ export function SeoLanding({
       {related.length > 0 && <section className="seoRelated"><div><span className="eyebrow"><i /> Продолжите выбор</span><h2>Читайте по теме</h2></div><div className="seoRelatedGrid">{related.map((item) => <a key={item.href} href={item.href}><strong>{item.label}</strong><span>{item.description}</span><b>Открыть материал →</b></a>)}</div></section>}
       <aside className="seoConcept"><strong>Важно</strong><p>ВИЖУФАСАД создаёт концепцию внешнего вида. Это не рабочий строительный проект, не смета и не расчёт материалов.</p></aside>
     </div>
-    <footer className="seoFooter shell"><a href="/gallery">Примеры</a><a href="/styles">Каталог стилей</a><a href="/visualizaciya-fasada-po-foto">Фасад по фото</a><a href="/stili-i-materialy-fasada">Стили и материалы</a><a href="/partners">Партнёрам</a><a href="/legal/privacy">Конфиденциальность</a></footer>
+    <footer className="seoFooter shell"><a href="/app">Личный кабинет</a><a href="/gallery">Примеры</a><a href="/styles">Каталог стилей</a><a href="/visualizaciya-fasada-po-foto">Фасад по фото</a><a href="/stili-i-materialy-fasada">Стили и материалы</a><a href="/partners">Партнёрам</a><a href="/legal/privacy">Конфиденциальность</a></footer>
     <JsonLd data={{
       "@context": "https://schema.org",
       "@type": "BreadcrumbList",

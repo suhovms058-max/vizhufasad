@@ -31,6 +31,10 @@ test("login code is one-time and creates user, wallet and revocable session", { 
     sessionTtlSeconds: 3600,
     cookieName: "session",
     cookieSecure: false,
+    passwordMinLength: 10,
+    passwordMaxLength: 128,
+    passwordMaxAttempts: 5,
+    passwordLockSeconds: 900,
   };
   const service = new AuthService({
     repository,
@@ -80,6 +84,19 @@ test("login code is one-time and creates user, wallet and revocable session", { 
       [requested.challengeId],
     );
     assert.equal(linkedConsent.rows[0].user_id, first.user.id);
+
+    const passwordSaved = await service.setPassword({
+      password: "integration-password-2026",
+      passwordConfirmation: "integration-password-2026",
+    }, { ...first.session, user_id: first.user.id });
+    assert.equal(passwordSaved.ok, true);
+    assert.deepEqual(await service.passwordStatus(first.user.id), { configured: true });
+    const passwordLogin = await service.loginWithPassword({
+      email, password: "integration-password-2026",
+    }, { ip: "127.0.0.1", userAgent: "node-password-test" });
+    assert.equal(passwordLogin.ok, true);
+    assert.equal(passwordLogin.user.id, first.user.id);
+    assert.ok(await service.sessionFromRequest({ headers: { cookie: `session=${passwordLogin.token}` } }));
 
     const repeated = await service.verifyCode({
       ...accountConsents,
@@ -145,6 +162,9 @@ test("login code is one-time and creates user, wallet and revocable session", { 
     }, { ip: "127.0.0.1" });
     assert.equal(rejectedDeletionLogin.ok, false);
     assert.equal(rejectedDeletionLogin.reason, "ACCOUNT_UNAVAILABLE");
+    assert.deepEqual(await service.loginWithPassword({
+      email, password: "integration-password-2026",
+    }), { ok: false, reason: "INVALID_CREDENTIALS" });
   } finally {
     const user = await pool.query("select id from users where email = $1", [email]);
     if (user.rows[0]) {

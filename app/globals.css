@@ -35,6 +35,8 @@ nav a:hover { opacity: 1; color: white; }
 .headerCta { border: 1px solid rgba(245,234,220,.34); color: var(--cream); background: rgba(255,255,255,.035); display: flex; align-items: center; gap: 10px; min-height: 44px; padding: 0 16px; cursor: pointer; font-size: 12px; font-weight: 600; transition: border-color .2s, background .2s, color .2s; }
 .headerCta:hover { border-color: var(--copper-bright); background: var(--copper); color: white; }
 .headerCta svg { width: 17px; }
+.cabinetLink { min-height: 44px; padding: 0 16px; display: inline-flex; align-items: center; justify-content: center; border: 1px solid rgba(245,234,220,.34); color: var(--cream); font-size: 12px; font-weight: 700; white-space: nowrap; }
+.cabinetLink:hover { border-color: var(--copper-bright); background: var(--copper); color: #fff; }
 
 .hero { position: relative; display: grid; grid-template-columns: .8fr 1.25fr; min-height: 760px; align-items: center; gap: 70px; padding-block: 72px 80px; color: var(--cream); background: var(--basalt); box-shadow: 0 0 0 100vmax var(--basalt); clip-path: inset(0 -100vmax); }
 .eyebrow { display: flex; align-items: center; gap: 11px; font-size: 10px; font-weight: 600; letter-spacing: .2em; color: #5b5d57; }
@@ -382,6 +384,7 @@ h2 { font-size: clamp(48px, 5vw, 76px); margin-top: 24px; }
   .shell { width: min(100% - 24px, 620px); }
   .section { padding-block: 84px; }
   .header { height: 64px; }
+  .cabinetLink { min-height: 40px; padding-inline: 11px; font-size: 11px; }
   .headerCta { font-size: 0; width: 42px; height: 42px; padding: 0; justify-content: center; border-color: rgba(245,234,220,.3); }
   .headerCta svg { width: 18px; }
   .logo { font-size: 12px; }

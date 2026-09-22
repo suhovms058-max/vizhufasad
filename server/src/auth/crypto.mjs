@@ -1,4 +1,9 @@
-import { createHmac, randomBytes, randomInt, randomUUID, timingSafeEqual } from "node:crypto";
+import { createHmac, randomBytes, randomInt, randomUUID, scrypt as scryptCallback, timingSafeEqual } from "node:crypto";
+import { promisify } from "node:util";
+
+const scrypt = promisify(scryptCallback);
+export const PASSWORD_ALGORITHM = "scrypt-v1";
+export const PASSWORD_PARAMS = Object.freeze({ N: 16_384, r: 8, p: 1, keyLength: 64, maxmem: 64 * 1024 * 1024 });
 
 const emailPattern = /^[^\s@]+@[^\s@]+\.[^\s@]+$/u;
 
@@ -17,6 +22,39 @@ export function createChallengeId() {
 
 export function createSessionToken() {
   return randomBytes(32).toString("base64url");
+}
+
+export function validatePassword(value, { minimum = 10, maximum = 128 } = {}) {
+  const password = String(value ?? "");
+  if (password.length < minimum || password.length > maximum) throw new Error("INVALID_PASSWORD");
+  return password;
+}
+
+export async function hashPassword(value, options = {}) {
+  const password = validatePassword(value, options);
+  const salt = randomBytes(16);
+  const derived = await scrypt(password, salt, PASSWORD_PARAMS.keyLength, PASSWORD_PARAMS);
+  return {
+    algorithm: PASSWORD_ALGORITHM,
+    salt: salt.toString("base64url"),
+    passwordHash: Buffer.from(derived).toString("base64url"),
+    parameters: { N: PASSWORD_PARAMS.N, r: PASSWORD_PARAMS.r, p: PASSWORD_PARAMS.p, keyLength: PASSWORD_PARAMS.keyLength },
+  };
+}
+
+export async function verifyPassword(value, credential) {
+  const password = String(value ?? "");
+  const salt = Buffer.from(String(credential?.salt || ""), "base64url");
+  const expected = Buffer.from(String(credential?.password_hash || credential?.passwordHash || ""), "base64url");
+  const parameters = credential?.parameters || PASSWORD_PARAMS;
+  if (credential?.algorithm !== PASSWORD_ALGORITHM || salt.length !== 16 || expected.length !== PASSWORD_PARAMS.keyLength) {
+    return false;
+  }
+  const derived = await scrypt(password, salt, PASSWORD_PARAMS.keyLength, {
+    N: Number(parameters.N || PASSWORD_PARAMS.N), r: Number(parameters.r || PASSWORD_PARAMS.r),
+    p: Number(parameters.p || PASSWORD_PARAMS.p), maxmem: PASSWORD_PARAMS.maxmem,
+  });
+  return timingSafeEqual(Buffer.from(derived), expected);
 }
 
 export function hashAuthValue(secret, namespace, value) {

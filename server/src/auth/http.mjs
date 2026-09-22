@@ -100,6 +100,34 @@ export function createAuthRouter({ service, config }) {
     }
   });
 
+  router.post("/password/login", requestIpLimiter, requestEmailLimiter, async (request, response, next) => {
+    try {
+      const result = await service.loginWithPassword(request.body || {}, context(request, service));
+      if (!result.ok) return authError(response, 401, "INVALID_CREDENTIALS");
+      response.cookie(config.cookieName, result.token, service.cookieOptions());
+      service.ensureDeviceCookie?.(request, response);
+      return response.json({
+        user: { id: result.user.id, email: result.user.email },
+        session: { id: result.session.id, expiresAt: result.session.expires_at },
+      });
+    } catch (error) {
+      return next(error);
+    }
+  });
+
+  router.post("/password", requireSession, async (request, response, next) => {
+    try {
+      const result = await service.setPassword(request.body || {}, request.auth);
+      if (!result.ok) {
+        const status = result.reason === "RECENT_LOGIN_REQUIRED" ? 403 : 400;
+        return authError(response, status, result.reason);
+      }
+      return response.status(result.created ? 201 : 200).json({ configured: true });
+    } catch (error) {
+      return next(error);
+    }
+  });
+
   router.get("/me", requireSession, (request, response) => response.json({
     user: { id: request.auth.user_id, email: request.auth.email },
     session: { id: request.auth.id, expiresAt: request.auth.expires_at },

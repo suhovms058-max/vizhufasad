@@ -11,6 +11,7 @@ import {
   normalizeGenerationInput,
 } from "./contract.mjs";
 import { composeGenerationPrompt } from "./prompt.mjs";
+import { bestFallbackAssessment } from "../generation-quality/delivery-policy.mjs";
 
 function outputDimensions(width, height) {
   const sourceWidth = Math.max(1, Number(width));
@@ -259,7 +260,7 @@ export class GenerationProcessor {
         : null;
       const dimensions = outputDimensions(generation.source_width, generation.source_height);
       const previous = await this.qualityRepository.listForGeneration(generationId);
-      const alreadyPassed = previous.find((assessment) => assessment.decision === "passed");
+      const alreadyPassed = previous.find((assessment) => ["passed", "accepted_fallback"].includes(assessment.decision));
       if (alreadyPassed?.diagnostic_key) {
         const candidateImage = await this.storage.getPrivateObjectBuffer(
           alreadyPassed.diagnostic_key,
@@ -281,6 +282,9 @@ export class GenerationProcessor {
         ?.failure_reasons || [];
       let retryObservation = previous.find((assessment) => assessment.decision === "retry_required")
         ?.vlm_result || null;
+      const fallbackAssessments = previous.filter((assessment) => (
+        ["retry_required", "rejected_refund"].includes(assessment.decision)
+      ));
       for (; candidateNumber <= 2; candidateNumber += 1) {
         await job.updateProgress({ stage: "generating", percent: candidateNumber === 1 ? 45 : 60 });
         let candidate = await this.repository.findCandidateForAssessment(generationId, candidateNumber);
@@ -359,6 +363,7 @@ export class GenerationProcessor {
           return { generationId, status: "completed" };
         }
         if (quality.decision === "retry_required" && candidateNumber === 1) {
+          fallbackAssessments.push(completedAssessment);
           retryReasons = quality.failureReasons;
           retryObservation = quality.vlmResult;
           const retrying = await this.repository.transition(
@@ -371,6 +376,27 @@ export class GenerationProcessor {
           );
           if (!preprocessing) throw new GenerationQualityError("QUALITY_RETRY_STATE_CONFLICT");
           continue;
+        }
+        fallbackAssessments.push(completedAssessment);
+        const fallback = bestFallbackAssessment(fallbackAssessments);
+        if (fallback) {
+          const accepted = await this.qualityRepository.markAcceptedFallback(fallback.id);
+          if (!accepted) throw new GenerationQualityError("QUALITY_FALLBACK_STATE_CONFLICT");
+          const fallbackImage = fallback.diagnostic_key === candidate.result_key
+            ? candidateImage
+            : await this.storage.getPrivateObjectBuffer(
+              fallback.diagnostic_key,
+              this.config.resultMaxBytes,
+            );
+          const finalized = await this.finalizePassingCandidate({
+            generation,
+            candidateImage: fallbackImage,
+            candidateKey: fallback.diagnostic_key,
+            qualityAssessment: accepted,
+          });
+          publicResultKey = finalized.resultKey;
+          await job.updateProgress({ stage: "completed", percent: 100 });
+          return { generationId, status: "completed", quality: "accepted_fallback" };
         }
         await this.refundAndFail(generation, "GENERATION_QUALITY_REJECTED");
         throw new UnrecoverableError("GENERATION_QUALITY_REJECTED");
