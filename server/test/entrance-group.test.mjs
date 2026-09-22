@@ -21,9 +21,24 @@ test("entrance observation becomes a geometry lock and design brief", () => {
   const entrance = entranceGroupObservation(assessment);
   const instruction = entranceGroupPromptInstruction(entrance);
   assert.equal(entrance.spanRatio, 0.68);
+  assert.equal(entrance.imageSpanRatio, 0.68);
   assert.match(instruction, /exact footprint, span, depth, height/u);
   assert.match(instruction, /Redesign and fully finish/u);
   assert.match(instruction, /never shorten, enlarge, remove/u);
+});
+
+test("control bounds override an implausibly narrow textual span estimate", () => {
+  const entrance = entranceGroupObservation({
+    observation: {
+      ...assessment.observation,
+      entranceGroupBounds: { left: 0.245, top: 0.72, right: 0.65, bottom: 0.82 },
+      entranceGroupSpanRatio: 0.15,
+    },
+  });
+  assert.equal(entrance.reportedSpanRatio, 0.15);
+  assert.ok(Math.abs(entrance.imageSpanRatio - 0.405) < 0.0001);
+  assert.ok(Math.abs(entrance.spanRatio - 0.405) < 0.0001);
+  assert.match(entranceGroupPromptInstruction(entrance), /Trust the protected rectangle/u);
 });
 
 test("clear entrance bounds produce a second spatial reference without changing dimensions", async () => {

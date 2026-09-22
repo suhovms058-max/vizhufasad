@@ -16,10 +16,14 @@ export function entranceGroupObservation(sourceAssessment) {
   };
   if (Object.values(bounds).some((value) => value == null)
     || bounds.right - bounds.left < 0.05 || bounds.bottom - bounds.top < 0.05) return null;
+  const reportedSpanRatio = finiteUnit(observation.entranceGroupSpanRatio) ?? 0;
+  const imageSpanRatio = bounds.right - bounds.left;
   return Object.freeze({
     type: String(observation.entranceGroupType || "other"),
     bounds: Object.freeze(bounds),
-    spanRatio: finiteUnit(observation.entranceGroupSpanRatio) ?? 0,
+    reportedSpanRatio,
+    imageSpanRatio,
+    spanRatio: Math.max(reportedSpanRatio, imageSpanRatio),
     confidence: finiteUnit(observation.entranceGroupConfidence) ?? 0,
     description: String(observation.entranceGroupDescription || "").trim().slice(0, 240),
   });
@@ -27,11 +31,15 @@ export function entranceGroupObservation(sourceAssessment) {
 
 export function entranceGroupPromptInstruction(entrance) {
   if (!entrance) return "";
-  const percent = Math.round(entrance.spanRatio * 100);
+  const imagePercent = Math.round(entrance.imageSpanRatio * 100);
+  const reportedPercent = Math.round(entrance.reportedSpanRatio * 100);
   return [
     "ENTRANCE GROUP GEOMETRY LOCK — non-negotiable:",
     entrance.description || "An existing entrance platform and stair are visible in the source.",
-    percent ? `Its visible width is approximately ${percent}% of the facade.` : "",
+    imagePercent ? `The protected rectangle spans approximately ${imagePercent}% of the source-image width.` : "",
+    reportedPercent && Math.abs(reportedPercent - imagePercent) <= 10
+      ? `The visual preflight estimated approximately ${reportedPercent}% of the facade.`
+      : "Trust the protected rectangle and source pixels if a textual width estimate conflicts with them.",
     "Keep its exact footprint, span, depth, height, platform edges, stair direction, step arrangement, supports and connection to every exterior door.",
     "Redesign and fully finish its visible surfaces to match the facade: apply coherent materials, colors, plinth treatment, step finish, railings, handrails and lighting where appropriate.",
     "Do not leave raw concrete unfinished, but never shorten, enlarge, remove, move or replace the platform with direct steps.",
