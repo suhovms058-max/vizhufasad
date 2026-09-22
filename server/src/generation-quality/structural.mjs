@@ -138,7 +138,7 @@ const protectedZoneDefinitions = Object.freeze({
 });
 
 export async function analyzeStructuralSimilarity(sourceImage, candidateImage, {
-  allowedChanges = {},
+  allowedChanges = {}, entranceGroup = null,
 } = {}) {
   const [sourcePixels, candidatePixels] = await Promise.all([
     luminance(sourceImage), luminance(candidateImage),
@@ -146,14 +146,20 @@ export async function analyzeStructuralSimilarity(sourceImage, candidateImage, {
   const sourceEdges = edgeMap(sourcePixels);
   const candidateEdges = edgeMap(candidatePixels);
   const zones = {};
-  for (const [name, zone] of Object.entries(protectedZoneDefinitions)) {
+  const zoneDefinitions = {
+    ...protectedZoneDefinitions,
+    ...(entranceGroup?.bounds ? { entranceGroup: entranceGroup.bounds } : {}),
+  };
+  for (const [name, zone] of Object.entries(zoneDefinitions)) {
     if (allowedChanges[name] === true) continue;
-    const segmented = ["roof", "windows", "doors", "balconiesTerraces"].includes(name);
+    const segmented = ["roof", "windows", "doors", "balconiesTerraces", "entranceGroup"].includes(name);
     zones[name] = Math.round((segmented
       ? segmentedEdgeScore(sourceEdges, candidateEdges, zone, 4, name === "roof" ? 1 : 2)
       : tolerantEdgeScore(sourceEdges, candidateEdges, zone)) * 10_000);
   }
-  const zoneValues = Object.values(zones);
+  const zoneValues = Object.entries(zones)
+    .filter(([name]) => name !== "entranceGroup")
+    .map(([, score]) => score);
   const sourceDensity = edgeDensity(sourceEdges, {});
   const candidateDensity = edgeDensity(candidateEdges, {});
   return Object.freeze({

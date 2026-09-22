@@ -252,9 +252,14 @@ test("a paid request whose recovery id cannot be persisted is never submitted ag
   assert.equal(events.some((event) => event[0] === "retrying"), false);
 });
 
-test("first quality rejection triggers one free stricter candidate and then passes", async () => {
+test("eligible finish rejection triggers one stricter candidate and then passes", async () => {
   const { processor, job, events, getStatus } = harness({
-    qualityDecisions: ["retry_required", "passed"],
+    qualityResults: [
+      qualityResult("retry_required", 1, {
+        failureReasons: ["finish_below_threshold", "unfinished_facade_detected"],
+      }),
+      qualityResult("passed", 2),
+    ],
   });
   await processor.process(job);
   assert.equal(getStatus(), "completed");
@@ -267,9 +272,25 @@ test("first quality rejection triggers one free stricter candidate and then pass
   assert.equal(events.some((event) => event[0] === "refund"), false);
 });
 
+test("architectural rejection refunds after one provider call instead of buying a blind retry", async () => {
+  const { processor, job, events, getStatus } = harness({
+    qualityResults: [qualityResult("retry_required", 1, {
+      overallScore: 8_400,
+      failureReasons: ["entrance_group_changed_detected", "spatial_layout_below_threshold"],
+    })],
+  });
+  await assert.rejects(processor.process(job), /GENERATION_ARCHITECTURE_REJECTED/);
+  assert.equal(getStatus(), "failed_refunded");
+  assert.equal(events.filter((event) => event[0] === "provider").length, 1);
+  assert.equal(events.filter((event) => event[0] === "refund").length, 1);
+});
+
 test("second quality rejection hides the result and refunds once", async () => {
   const { processor, job, events, getStatus } = harness({
-    qualityDecisions: ["retry_required", "rejected_refund"],
+    qualityResults: [
+      qualityResult("retry_required", 1, { failureReasons: ["artifacts_below_threshold"] }),
+      qualityResult("rejected_refund", 2, { failureReasons: ["artifacts_below_threshold"] }),
+    ],
   });
   await assert.rejects(processor.process(job), /GENERATION_QUALITY_REJECTED/);
   assert.equal(getStatus(), "failed_refunded");
@@ -311,7 +332,7 @@ test("fallback remains fail closed when either candidate violates architecture",
       }),
     ],
   });
-  await assert.rejects(processor.process(job), /GENERATION_QUALITY_REJECTED/);
+  await assert.rejects(processor.process(job), /GENERATION_ARCHITECTURE_REJECTED/);
   assert.equal(getStatus(), "failed_refunded");
   assert.equal(events.some((event) => event[0] === "quality-fallback"), false);
   assert.equal(events.filter((event) => event[0] === "refund").length, 1);

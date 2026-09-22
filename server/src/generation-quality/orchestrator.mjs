@@ -26,7 +26,7 @@ function evaluate({ observation, structural, allowedChanges, thresholds, assessm
       .map(([name, value]) => [name, basisPoints(value)]),
   );
   const protectedNames = [
-    "floors", "roof", "windows", "doors", "balconiesTerraces", "position", "perspective",
+    "floors", "roof", "windows", "doors", "balconiesTerraces", "entranceGroup", "position", "perspective",
   ].filter((name) => allowedChanges[name] !== true);
   const protectedVlm = average(protectedNames.map((name) => vlm[name]));
   const overallScore = Math.round(
@@ -60,6 +60,7 @@ function evaluate({ observation, structural, allowedChanges, thresholds, assessm
     windows_changed: ["windows", "windows_changed_detected"],
     doors_changed: ["doors", "doors_changed_detected"],
     balconies_terraces_changed: ["balconiesTerraces", "balconies_terraces_changed_detected"],
+    entrance_group_changed: ["entranceGroup", "entrance_group_changed_detected"],
     position_changed: ["position", "position_changed_detected"],
     perspective_changed: ["perspective", "perspective_changed_detected"],
   };
@@ -82,6 +83,14 @@ function evaluate({ observation, structural, allowedChanges, thresholds, assessm
     || structural.protectedZones < thresholds.protectedZones
   )) failures.push("spatial_layout_below_threshold");
   if (structural.protectedZones < thresholds.protectedZones) failures.push("protected_zones_below_threshold");
+  const entranceZoneScore = Number(structural.zones?.entranceGroup ?? 10_000);
+  if (entranceZoneScore < thresholds.entranceGroup && (
+    vlm.entranceGroup < thresholds.protectedElement
+    || (
+      structural.spatialLayout < thresholds.spatialLayout
+      && structural.protectedZones < thresholds.protectedZones
+    )
+  )) failures.push("entrance_group_geometry_below_threshold");
   if (vlm.artifacts < thresholds.artifacts) failures.push("artifacts_below_threshold");
   if (vlm.style < thresholds.style) failures.push("style_below_threshold");
   if (vlm.finish < thresholds.finish) failures.push("finish_below_threshold");
@@ -120,9 +129,9 @@ export class GenerationQualityOrchestrator {
     this.validate = ajv.compile(VLM_QUALITY_RESULT_SCHEMA);
   }
 
-  async assess({ sourceImage, candidateImage, input, allowedChanges, assessmentNumber }) {
-    const structural = await this.structuralAnalyzer(sourceImage, candidateImage, { allowedChanges });
-    const qualityPrompt = composeGenerationQualityPrompt({ input, allowedChanges });
+  async assess({ sourceImage, candidateImage, input, allowedChanges, assessmentNumber, entranceGroup = null }) {
+    const structural = await this.structuralAnalyzer(sourceImage, candidateImage, { allowedChanges, entranceGroup });
+    const qualityPrompt = composeGenerationQualityPrompt({ input, allowedChanges, entranceGroup });
     const route = [];
     if (this.config.primary !== "none") route.push({ name: this.config.primary, attempts: this.config.primaryAttempts });
     if (this.config.fallback !== "none") route.push({ name: this.config.fallback, attempts: 1 });

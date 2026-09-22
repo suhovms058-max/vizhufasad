@@ -20,6 +20,7 @@ const recommendationByReason = {
   roof_cropped: "Включите в кадр крышу целиком и оставьте немного пространства над ней.",
   house_cropped: "Поместите дом в кадр целиком, не обрезая стены и основные границы.",
   low_confidence: "Сделайте более прямой и полный снимок одного фасада при хорошем освещении.",
+  entrance_group_unclear: "Снимите вход, лестницу и площадку целиком; при сложной форме добавьте ракурс сбоку.",
 };
 
 function unique(values) {
@@ -52,6 +53,15 @@ export function decidePhotoAssessment(technical, observation) {
     blocking.push(issues.has("too_bright") ? "too_bright" : "too_dark");
   } else if (observation.lighting === "acceptable") {
     warnings.push(issues.has("too_bright") ? "too_bright" : "too_dark");
+  }
+  if (observation.entranceGroupPresent) {
+    const unclearEntrance = observation.entranceGroupVisibility === "not_visible"
+      || observation.entranceGroupConfidence < 0.55;
+    const uncertainEntrance = observation.entranceGroupVisibility === "partial"
+      || observation.entranceGroupConfidence < 0.75
+      || issues.has("entrance_group_unclear");
+    if (unclearEntrance) blocking.push("entrance_group_unclear");
+    else if (uncertainEntrance) warnings.push("entrance_group_unclear");
   }
   if (observation.confidence < 0.6) blocking.push("low_confidence");
 

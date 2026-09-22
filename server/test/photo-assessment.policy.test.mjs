@@ -35,6 +35,13 @@ const baseObservation = {
   sharpness: "good",
   lighting: "good",
   roofCrop: "none",
+  entranceGroupPresent: true,
+  entranceGroupVisibility: "clear",
+  entranceGroupType: "landing",
+  entranceGroupBounds: { left: 0.2, top: 0.62, right: 0.68, bottom: 0.95 },
+  entranceGroupSpanRatio: 0.48,
+  entranceGroupConfidence: 0.92,
+  entranceGroupDescription: "Входная площадка и лестница полностью видны.",
   confidence: 0.94,
   issueCodes: [],
 };
@@ -98,4 +105,15 @@ test("contradictory blur code does not reject an otherwise sharp construction ph
   assert.equal(result.decision, "accepted_with_warning");
   assert.deepEqual(result.technicalResult.policy.blockingReasons, []);
   assert.deepEqual(result.technicalResult.policy.ignoredIssueCodes, ["roof_cropped", "blurred"]);
+});
+
+test("unclear entrance platform requires a second view before generation", () => {
+  const result = decidePhotoAssessment(baseTechnical, {
+    ...baseObservation,
+    entranceGroupVisibility: "not_visible",
+    entranceGroupConfidence: 0.3,
+    issueCodes: ["entrance_group_unclear"],
+  });
+  assert.equal(result.decision, "retake_required");
+  assert.ok(result.technicalResult.policy.blockingReasons.includes("entrance_group_unclear"));
 });

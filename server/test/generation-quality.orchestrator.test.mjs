@@ -6,7 +6,7 @@ import { GenerationQualityError } from "../src/generation-quality/contract.mjs";
 function observation(overrides = {}) {
   return {
     sameHouse: 0.96, floors: 0.95, roof: 0.94, windows: 0.93, doors: 0.92,
-    balconiesTerraces: 0.91, position: 0.95, perspective: 0.94,
+    balconiesTerraces: 0.91, entranceGroup: 0.93, position: 0.95, perspective: 0.94,
     sourceWindowCount: 3, candidateWindowCount: 3,
     sourceDoorCount: 1, candidateDoorCount: 1,
     artifacts: 0.92, style: 0.9, finish: 0.9, detectedChanges: [], summary: "Pass",
@@ -20,6 +20,7 @@ const config = {
   thresholds: {
     overall: 7600, sameHouse: 8500, protectedElement: 7000,
     roofContours: 8800, contours: 6800, spatialLayout: 7000, protectedZones: 6800,
+    entranceGroup: 6000,
     artifacts: 7500, style: 6500, finish: 7800,
   },
 };
@@ -58,6 +59,16 @@ test("gross roof change requests first retry and second rejection", async () => 
   assert.equal(first.decision, "retry_required");
   assert.equal(second.decision, "rejected_refund");
   assert.ok(first.failureReasons.includes("roof_below_threshold"));
+});
+
+test("changed entrance platform is a hard quality failure even when the house volume matches", async () => {
+  const result = await orchestrator(observation({
+    entranceGroup: 0.3,
+    detectedChanges: ["entrance_group_changed"],
+  })).assess(request);
+  assert.equal(result.decision, "retry_required");
+  assert.ok(result.failureReasons.includes("entranceGroup_below_threshold"));
+  assert.ok(result.failureReasons.includes("entrance_group_changed_detected"));
 });
 
 test("painted raw blockwork is retried and then rejected even when geometry is preserved", async () => {

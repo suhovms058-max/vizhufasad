@@ -1,4 +1,5 @@
 import { GENERATION_PROMPT_VERSION } from "./contract.mjs";
+import { entranceGroupPromptInstruction } from "../entrance-group.mjs";
 
 const modeInstructions = {
   gentle: "Use a restrained design language while preserving the exact architecture. Gentle means restrained styling only: it never permits retaining a raw structural wall surface as the final facade.",
@@ -66,7 +67,7 @@ const editScopeLabels = {
 };
 
 export function composeGenerationPrompt(input, {
-  qualityRetryReasons = [], edit = null,
+  qualityRetryReasons = [], edit = null, entranceGroup = null,
 } = {}) {
   const automaticMaterials = input.materials.length === 0
     || input.materials.every((material) => /^(автоподбор|auto)$/iu.test(String(material).trim()));
@@ -97,6 +98,10 @@ export function composeGenerationPrompt(input, {
     "STRUCTURAL LOCK: Keep the exact same house, storey count, roof, viewpoint and position. Keep every original window, door, balcony, terrace, structural post and canopy in the identical count, size, shape and pixel position. Never add, remove, move, resize or duplicate any of them.",
     "ROOF SILHOUETTE LOCK: Preserve every roof ridge, gable or hip angle, eave, overhang and roof-to-wall boundary in the exact same pixel position. Change facade finishes only; never alter the roof contour or its geometry.",
     "OPENING LOCK: Before applying any finish, inventory every visible original window and door from left to right. Keep the identical count, type, size and pixel position. Never add an opening to a blank wall, remove an opening or duplicate an opening.",
+    entranceGroupPromptInstruction(entranceGroup),
+    entranceGroup
+      ? "SPATIAL REFERENCE: IMAGE 2 is the same sanitized source photo with a cyan rectangle around the protected entrance group. Use it only to locate the platform and stairs. Do not reproduce the cyan rectangle. Redesign finishes inside it while preserving the exact outlined construction geometry."
+      : "ENTRANCE GROUP LOCK: Preserve the exact footprint, span, depth, height, platform edges, stair direction and step arrangement of every visible porch, landing or entrance terrace. Fully finish its surfaces to match the facade; never replace a broad platform with short direct steps.",
     "COMPLETION STANDARD: Resolve the whole visible facade as a coherent finished object. Complete wall finishes; external corners and material transitions; cornice/eaves, fascia and soffit lining; the plinth/base; window and door reveals, sills and flashings; and the finish of every already-existing column, post or support. Add realistic gutters and downpipes only where they normally attach to the existing roof, without changing roof geometry. Preserve existing porch, canopy and support positions while giving their visible surfaces a finished material treatment.",
     "SAFETY COMPLETION: Inspect the existing architecture and automatically add realistic guardrails or handrails only where an already-existing accessible elevated platform, balcony opening, porch edge, exterior stair or dangerous level change would normally require fall protection. Match the required facade style, materials and palette. Do not invent a new balcony, terrace, platform, stair, opening or support in order to place a railing.",
     "Use believable construction thickness, seams, junctions, shadow gaps, caps and drainage details. No raw blockwork, exposed unfinished concrete, primer-only surfaces, floating cladding or flat paint-only treatment when the client selected finish materials.",

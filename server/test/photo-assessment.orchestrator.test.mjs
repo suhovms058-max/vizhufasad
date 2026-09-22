@@ -19,6 +19,13 @@ const observation = {
   sharpness: "good",
   lighting: "good",
   roofCrop: "none",
+  entranceGroupPresent: true,
+  entranceGroupVisibility: "clear",
+  entranceGroupType: "terrace_platform",
+  entranceGroupBounds: { left: 0.12, top: 0.58, right: 0.78, bottom: 0.94 },
+  entranceGroupSpanRatio: 0.66,
+  entranceGroupConfidence: 0.93,
+  entranceGroupDescription: "Широкая входная площадка со ступенями справа.",
   confidence: 0.95,
   issueCodes: [],
 };

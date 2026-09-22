@@ -4,10 +4,10 @@ import { YandexGenerationQualityProvider } from "../src/generation-quality/provi
 
 const observation = {
   sameHouse: 0.95, floors: 0.98, roof: 0.9, windows: 0.91, doors: 0.92,
-  balconiesTerraces: 0.93, position: 0.97, perspective: 0.96,
+  balconiesTerraces: 0.93, entranceGroup: 0.94, position: 0.97, perspective: 0.96,
   sourceWindowCount: 3, candidateWindowCount: 3,
   sourceDoorCount: 1, candidateDoorCount: 1,
-  artifacts: 0.88, style: 0.85, detectedChanges: [], summary: "Same house",
+  artifacts: 0.88, style: 0.85, finish: 0.9, detectedChanges: [], summary: "Same house",
 };
 
 test("Yandex provider sends two images and strict JSON schema without leaking keys", async () => {

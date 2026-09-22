@@ -76,6 +76,7 @@ export function loadGenerationQualityConfig(environment = process.env) {
       contours: integer(environment, "GENERATION_QUALITY_MIN_CONTOURS", 6800, 0, 10_000),
       spatialLayout: integer(environment, "GENERATION_QUALITY_MIN_SPATIAL_LAYOUT", 7000, 0, 10_000),
       protectedZones: integer(environment, "GENERATION_QUALITY_MIN_PROTECTED_ZONES", 6800, 0, 10_000),
+      entranceGroup: integer(environment, "GENERATION_QUALITY_MIN_ENTRANCE_GROUP", 6000, 0, 10_000),
       artifacts: integer(environment, "GENERATION_QUALITY_MIN_ARTIFACTS", 7500, 0, 10_000),
       style: integer(environment, "GENERATION_QUALITY_MIN_STYLE", 6500, 0, 10_000),
       finish: integer(environment, "GENERATION_QUALITY_MIN_FINISH", 7800, 0, 10_000),

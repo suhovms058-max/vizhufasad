@@ -28,6 +28,13 @@ const acceptedObservation = {
   sharpness: "good",
   lighting: "good",
   roofCrop: "none",
+  entranceGroupPresent: true,
+  entranceGroupVisibility: "clear",
+  entranceGroupType: "landing",
+  entranceGroupBounds: { left: 0.22, top: 0.6, right: 0.72, bottom: 0.96 },
+  entranceGroupSpanRatio: 0.5,
+  entranceGroupConfidence: 0.93,
+  entranceGroupDescription: "Входная площадка и ступени полностью видны.",
   confidence: 0.94,
   issueCodes: [],
 };

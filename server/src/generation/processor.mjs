@@ -12,6 +12,10 @@ import {
 } from "./contract.mjs";
 import { composeGenerationPrompt } from "./prompt.mjs";
 import { bestFallbackAssessment } from "../generation-quality/delivery-policy.mjs";
+import { automaticQualityRetryPolicy } from "../generation-quality/retry-policy.mjs";
+import {
+  createEntranceControlReference, entranceGroupObservation,
+} from "../entrance-group.mjs";
 
 function outputDimensions(width, height) {
   const sourceWidth = Math.max(1, Number(width));
@@ -90,7 +94,7 @@ export class GenerationProcessor {
 
   async generateCandidate({
     generation, sourceImage, maskImage, input, candidateNumber, retryReasons,
-    retryObservation, dimensions, signal,
+    retryObservation, dimensions, signal, entranceGroup, entranceControlImage,
   }) {
     const generating = await this.repository.transition(
       generation.id,
@@ -104,6 +108,7 @@ export class GenerationProcessor {
     const prompt = composeGenerationPrompt(input, {
       qualityRetryReasons: retryReasons,
       qualityRetryObservation: retryObservation,
+      entranceGroup,
       edit,
     });
     let lastError;
@@ -142,6 +147,8 @@ export class GenerationProcessor {
         const providerResult = await provider.generate({
           sourceImage,
           sourceMimeType: "image/jpeg",
+          controlImage: entranceControlImage,
+          controlMimeType: "image/jpeg",
           maskImage,
           maskMimeType: generation.edit_mask_mime_type || "image/png",
           prompt: prompt.prompt,
@@ -259,6 +266,10 @@ export class GenerationProcessor {
         ? await this.storage.getPrivateObjectBuffer(generation.edit_mask_key, 5 * 1024 * 1024)
         : null;
       const dimensions = outputDimensions(generation.source_width, generation.source_height);
+      const entranceGroup = entranceGroupObservation(generation.source_assessment);
+      const entranceControlImage = generation.kind === "edit"
+        ? null
+        : await createEntranceControlReference(sourceImage, entranceGroup);
       const previous = await this.qualityRepository.listForGeneration(generationId);
       const alreadyPassed = previous.find((assessment) => ["passed", "accepted_fallback"].includes(assessment.decision));
       if (alreadyPassed?.diagnostic_key) {
@@ -277,11 +288,14 @@ export class GenerationProcessor {
         return { generationId, status: "completed" };
       }
 
-      let candidateNumber = previous.some((assessment) => assessment.decision === "retry_required") ? 2 : 1;
-      let retryReasons = previous.find((assessment) => assessment.decision === "retry_required")
-        ?.failure_reasons || [];
-      let retryObservation = previous.find((assessment) => assessment.decision === "retry_required")
-        ?.vlm_result || null;
+      const previousRetry = previous.find((assessment) => assessment.decision === "retry_required");
+      if (previousRetry && !automaticQualityRetryPolicy(previousRetry.failure_reasons).eligible) {
+        await this.refundAndFail(generation, "GENERATION_ARCHITECTURE_REJECTED");
+        throw new UnrecoverableError("GENERATION_ARCHITECTURE_REJECTED");
+      }
+      let candidateNumber = previousRetry ? 2 : 1;
+      let retryReasons = previousRetry?.failure_reasons || [];
+      let retryObservation = previousRetry?.vlm_result || null;
       const fallbackAssessments = previous.filter((assessment) => (
         ["retry_required", "rejected_refund"].includes(assessment.decision)
       ));
@@ -300,6 +314,7 @@ export class GenerationProcessor {
           prompt = composeGenerationPrompt(input, {
             qualityRetryReasons: retryReasons,
             qualityRetryObservation: retryObservation,
+            entranceGroup,
             edit: generation.kind === "edit"
               ? { scope: generation.edit_scope, command: generation.edit_prompt }
               : null,
@@ -307,7 +322,7 @@ export class GenerationProcessor {
         } else {
           const generated = await this.generateCandidate({
             generation, sourceImage, maskImage, input, candidateNumber, retryReasons,
-            retryObservation,
+            retryObservation, entranceGroup, entranceControlImage,
             dimensions, signal: workerSignal,
           });
           candidate = generated.attempt;
@@ -341,7 +356,7 @@ export class GenerationProcessor {
         let quality;
         try {
           quality = await this.qualityOrchestrator.assess({
-            sourceImage, candidateImage, input, allowedChanges,
+            sourceImage, candidateImage, input, allowedChanges, entranceGroup,
             assessmentNumber: candidateNumber,
           });
         } catch (error) {
@@ -364,6 +379,11 @@ export class GenerationProcessor {
         }
         if (quality.decision === "retry_required" && candidateNumber === 1) {
           fallbackAssessments.push(completedAssessment);
+          const retryPolicy = automaticQualityRetryPolicy(quality.failureReasons);
+          if (!retryPolicy.eligible) {
+            await this.refundAndFail(generation, "GENERATION_ARCHITECTURE_REJECTED");
+            throw new UnrecoverableError("GENERATION_ARCHITECTURE_REJECTED");
+          }
           retryReasons = quality.failureReasons;
           retryObservation = quality.vlmResult;
           const retrying = await this.repository.transition(

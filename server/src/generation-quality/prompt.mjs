@@ -1,6 +1,6 @@
 import { GENERATION_QUALITY_PROMPT_VERSION } from "./contract.mjs";
 
-export function composeGenerationQualityPrompt({ input, allowedChanges }) {
+export function composeGenerationQualityPrompt({ input, allowedChanges, entranceGroup = null }) {
   const protectedElements = Object.entries(allowedChanges)
     .filter(([, allowed]) => !allowed)
     .map(([name]) => name)
@@ -19,6 +19,10 @@ export function composeGenerationQualityPrompt({ input, allowedChanges }) {
       "Before scoring windows and doors, inventory every architectural opening in each image from left to right. Count one opening per outer wall opening or outer frame. Sashes, panes, mullions, reflections and gaps between railing bars are never separate windows. A glazed exterior door is a door, not a window. Return the four separate integer counts sourceWindowCount, candidateWindowCount, sourceDoorCount and candidateDoorCount.",
       "A blank wall in IMAGE 1 must remain a blank wall in IMAGE 2. If the count, type, size or position of any protected opening changed, score that criterion below 0.70 and include windows_changed or doors_changed. Do not excuse an opening change because the overall house still looks similar.",
       "An already-existing projecting slab or platform beneath an upper exterior door/opening is an existing balcony or terrace even when unfinished and missing a railing in IMAGE 1. Adding only a guardrail or handrail to that same existing geometry is acceptable safety finishing: keep balconiesTerraces at 1 and do not report balconies_terraces_changed. Report a balcony/terrace change only if the slab, platform, opening, footprint or position itself was created, removed, enlarged, reduced or moved.",
+      "Score entranceGroup separately. Preserve the original porch, landing, stairs and entrance terrace footprint, visible span, depth, height, edges, stair direction, step arrangement, supports and connection to the exterior doors. New cladding, step finish, railings, handrails and lighting are design improvements, not geometry changes. If a broad landing or terrace is shortened, removed or replaced with direct steps, score entranceGroup below 0.70 and include entrance_group_changed.",
+      entranceGroup
+        ? `The source-photo preflight identified this entrance group: ${entranceGroup.description || entranceGroup.type}; approximate facade span ${Math.round(entranceGroup.spanRatio * 100)}%. Use this only as a location and geometry reminder.`
+        : "",
       "Do not interpret a railing, its bars, or the view through it as a new or missing window. Do not treat facade material, color, cornice finish, soffits, trims, plinth, gutters or support cladding as structural changes.",
       "Ignore removable construction clutter, tools, stored materials, bicycles, vehicles and landscaping changes when judging the house geometry.",
       `Protected criteria: ${protectedElements || "same house and artifacts only"}.`,

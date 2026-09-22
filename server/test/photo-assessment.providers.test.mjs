@@ -15,6 +15,13 @@ const observation = {
   sharpness: "good",
   lighting: "good",
   roofCrop: "none",
+  entranceGroupPresent: false,
+  entranceGroupVisibility: "not_visible",
+  entranceGroupType: "none",
+  entranceGroupBounds: { left: 0, top: 0, right: 0, bottom: 0 },
+  entranceGroupSpanRatio: 0,
+  entranceGroupConfidence: 0.9,
+  entranceGroupDescription: "Входная группа не видна",
   confidence: 0.95,
   issueCodes: [],
 };

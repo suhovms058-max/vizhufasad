@@ -175,6 +175,28 @@ test("Seedream retry prompts stay below the GenAPI limit and retain quality lock
   assert.match(compact, /STRICTLY PRESERVE: geometry; windows; doors/u);
 });
 
+test("Seedream receives the source and a separate entrance geometry reference", async () => {
+  let body;
+  const provider = new GenApiGenerationProvider({
+    apiKey: "secret",
+    model: "seedream-v5-pro",
+    fetchImplementation: async (_url, options) => {
+      body = options.body;
+      return Response.json({ error: true }, { status: 422 });
+    },
+  });
+  await assert.rejects(provider.generate({
+    sourceImage: Buffer.from("source"),
+    controlImage: Buffer.from("entrance-control"),
+    prompt: "SPATIAL REFERENCE: IMAGE 2 marks the entrance group.",
+    seed: 1, width: 1024, height: 768,
+  }));
+  const images = body.getAll("image_urls[]");
+  assert.equal(images.length, 2);
+  assert.equal(images[0].type, "image/jpeg");
+  assert.equal(images[1].type, "image/jpeg");
+});
+
 test("Qwen 2511 sends structural negative constraints for facade edits", async () => {
   let body;
   const provider = new GenApiGenerationProvider({

@@ -99,6 +99,9 @@ function compactEditPrompt(prompt, maxBytes = 1900) {
     /^EDIT BOUNDARY:/u,
     /^STRUCTURAL LOCK:/u,
     /^OPENING LOCK:/u,
+    /^ENTRANCE GROUP GEOMETRY LOCK/u,
+    /^ENTRANCE GROUP LOCK:/u,
+    /^SPATIAL REFERENCE:/u,
     /^AUTOMATIC QUALITY RETRY:/u,
     /^RETRY OPENING LOCK:/u,
     /^SAFETY COMPLETION:/u,
@@ -144,7 +147,8 @@ function compactMaskPrompt(prompt) {
 }
 
 function createGenerationBody({
-  model, sourceImage, sourceMimeType, maskImage, maskMimeType, prompt, seed, width, height,
+  model, sourceImage, sourceMimeType, controlImage, controlMimeType,
+  maskImage, maskMimeType, prompt, seed, width, height,
 }) {
   const body = new FormData();
   if (maskImage && model !== "bria-genfill") {
@@ -225,6 +229,7 @@ function createGenerationBody({
     body.append("is_sync", "false");
     body.append("prompt", compactSeedreamPrompt(prompt));
     appendSource(body, "image_urls[]", sourceImage, sourceMimeType);
+    if (controlImage) appendSource(body, "image_urls[]", controlImage, controlMimeType, "entrance-control");
     body.append("width", String(width));
     body.append("height", String(height));
     body.append("num_images", "1");
@@ -337,7 +342,8 @@ export class GenApiGenerationProvider {
 
   async generate({
     sourceImage, sourceMimeType = "image/jpeg", maskImage = null,
-    maskMimeType = "image/png", prompt, seed, width, height, signal,
+    maskMimeType = "image/png", controlImage = null, controlMimeType = "image/jpeg",
+    prompt, seed, width, height, signal,
     resumeRequestId = null, onSubmitted = null,
   }) {
     const submittedAt = Date.now();
@@ -347,6 +353,8 @@ export class GenApiGenerationProvider {
         model: this.model,
         sourceImage,
         sourceMimeType,
+        controlImage,
+        controlMimeType,
         maskImage,
         maskMimeType,
         prompt,

@@ -1,6 +1,6 @@
-export const GENERATION_QUALITY_SCHEMA_VERSION = "generation-quality-assessment-v3";
-export const GENERATION_QUALITY_PROMPT_VERSION = "facade-quality-compare-v5";
-export const GENERATION_QUALITY_POLICY_VERSION = "facade-quality-policy-v4";
+export const GENERATION_QUALITY_SCHEMA_VERSION = "generation-quality-assessment-v4";
+export const GENERATION_QUALITY_PROMPT_VERSION = "facade-quality-compare-v6";
+export const GENERATION_QUALITY_POLICY_VERSION = "facade-quality-policy-v5";
 
 export const QUALITY_DECISIONS = Object.freeze([
   "passed", "retry_required", "rejected_refund", "accepted_fallback",
@@ -8,7 +8,7 @@ export const QUALITY_DECISIONS = Object.freeze([
 
 export const QUALITY_SCORE_NAMES = Object.freeze([
   "sameHouse", "floors", "roof", "windows", "doors",
-  "balconiesTerraces", "position", "perspective", "artifacts", "style", "finish",
+  "balconiesTerraces", "entranceGroup", "position", "perspective", "artifacts", "style", "finish",
   "contours", "spatialLayout", "protectedZones",
 ]);
 
@@ -22,6 +22,7 @@ export const VLM_QUALITY_RESULT_SCHEMA = Object.freeze({
     windows: { type: "number", minimum: 0, maximum: 1 },
     doors: { type: "number", minimum: 0, maximum: 1 },
     balconiesTerraces: { type: "number", minimum: 0, maximum: 1 },
+    entranceGroup: { type: "number", minimum: 0, maximum: 1 },
     position: { type: "number", minimum: 0, maximum: 1 },
     perspective: { type: "number", minimum: 0, maximum: 1 },
     artifacts: { type: "number", minimum: 0, maximum: 1 },
@@ -40,6 +41,7 @@ export const VLM_QUALITY_RESULT_SCHEMA = Object.freeze({
         enum: [
           "different_house", "floors_changed", "roof_changed", "windows_changed",
           "doors_changed", "balconies_terraces_changed", "position_changed",
+          "entrance_group_changed",
           "perspective_changed", "severe_artifacts", "style_mismatch", "unfinished_facade",
         ],
       },
@@ -48,7 +50,7 @@ export const VLM_QUALITY_RESULT_SCHEMA = Object.freeze({
   },
   required: [
     "sameHouse", "floors", "roof", "windows", "doors",
-    "balconiesTerraces", "position", "perspective", "artifacts", "style", "finish",
+    "balconiesTerraces", "entranceGroup", "position", "perspective", "artifacts", "style", "finish",
     "sourceWindowCount", "candidateWindowCount", "sourceDoorCount", "candidateDoorCount",
     "detectedChanges", "summary",
   ],
@@ -89,5 +91,6 @@ export function allowedQualityChanges(generationInput = {}) {
     perspective: preserve.perspective === false,
     position: preserve.housePosition === false,
     balconiesTerraces: preserve.balconies === false || preserve.terraces === false,
+    entranceGroup: false,
   });
 }

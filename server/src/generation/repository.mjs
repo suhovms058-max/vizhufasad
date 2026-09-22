@@ -198,10 +198,12 @@ export class GenerationRepository {
     const result = await this.pool.query(
       `select g.*, p.user_id, i.working_storage_key, i.width as source_width,
               i.height as source_height,
+              assessment.technical_result as source_assessment,
               case when g.kind = 'edit' then parent.result_key else i.working_storage_key end as provider_source_key
        from generations g
        join projects p on p.id = g.project_id
        join source_images i on i.id = g.source_image_id
+       left join photo_assessments assessment on assessment.source_image_id = i.id
        left join generations parent on parent.id = g.parent_generation_id
        where g.id = $1 and p.deleted_at is null`,
       [generationId],
