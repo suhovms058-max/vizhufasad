@@ -1,6 +1,7 @@
 import type { ReactNode } from "react";
 import { Bodoni_Moda, Cormorant_Garamond, Inter } from "next/font/google";
 import "./globals.css";
+import "./home-v4.css";
 import { JsonLd } from "./JsonLd";
 
 const siteOrigin = process.env.NEXT_PUBLIC_SITE_ORIGIN || "https://vizhufasad.ru";
