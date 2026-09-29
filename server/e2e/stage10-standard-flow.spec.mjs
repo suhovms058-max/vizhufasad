@@ -5,7 +5,10 @@ import path from "node:path";
 test.beforeEach(async ({ request }) => { await request.post("/__reset"); });
 
 test("upload step is understandable, responsive and rejects a tiny image before network upload", async ({ page }) => {
-  await page.goto("/app/new");
+  const response = await page.goto("/app/new");
+  expect(response.headers()["cache-control"]).toContain("no-store");
+  await expect(page.locator('script[src^="/assets/app-new.js"]'))
+    .toHaveAttribute("src", /app-new\.js\?v=20260929-1$/u);
   await expect(page.getByRole("heading", { name: "Загрузите фотографию дома" })).toBeVisible();
   await expect(page.getByText("Как снять фасад")).toBeVisible();
   await expect(page.getByText("Кредит на этом шаге не списывается.")).toBeVisible();
@@ -19,6 +22,26 @@ test("upload step is understandable, responsive and rejects a tiny image before 
   await expect.poll(() => page.evaluate(() => document.documentElement.scrollWidth <= document.documentElement.clientWidth)).toBe(true);
   const accessibility = await new AxeBuilder({ page }).analyze();
   expect(accessibility.violations.filter((item) => ["critical", "serious"].includes(item.impact))).toEqual([]);
+});
+
+test("stale photo consent asks for a refresh after both confirmations", async ({ page }) => {
+  await page.route("**/api/projects/*/images/upload-intent", async (route) => {
+    await route.fulfill({
+      status: 409,
+      contentType: "application/json",
+      body: JSON.stringify({ error: "PHOTO_PROCESSING_CONSENT_STALE" }),
+    });
+  });
+
+  await page.goto("/app/new?project=project-e2e&replace=1");
+  await page.locator("#photo-input").setInputFiles(path.resolve("../public/process-house-before.webp"));
+  await page.locator("#photo-processing-consent").check();
+  await page.locator("#photo-usage-rights").check();
+  await page.getByRole("button", { name: "Заменить и проверить фото" }).click();
+
+  await expect(page.locator("#message")).toContainText("Условия согласия обновились");
+  await expect(page.locator("#upload-button")).toHaveText("Обновить страницу");
+  await expect(page.locator("#upload-button")).toBeEnabled();
 });
 
 test("upload recovers when the proxy times out while automatic assessment continues", async ({ page }) => {
@@ -62,7 +85,7 @@ test("photo settings to checked Standard result survives navigation and fits vie
   await page.getByLabel("Что важно учесть").fill("Отделать карниз и существующие опоры");
   await page.getByLabel(/Подтверждаю списание 1 кредита/u).check();
   await expect.poll(() => page.evaluate(() => document.documentElement.scrollWidth <= document.documentElement.clientWidth)).toBe(true);
-  await page.getByRole("button", { name: "Запустить Standard" }).click();
+  await page.getByRole("button", { name: /Создать Standard/u }).click();
   await expect(page).toHaveURL(/\/app\/projects\/project-e2e\/generations\/[0-9a-f-]{36}$/u);
   await expect(page.getByRole("heading", { name: "Фасад готов" })).toBeVisible({ timeout: 15_000 });
   await expect(page.getByText("скандинавский")).toBeVisible();

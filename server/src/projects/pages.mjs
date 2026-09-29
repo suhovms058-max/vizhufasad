@@ -5,6 +5,8 @@ import {
 } from "../legal/photo-consent.mjs";
 import { ProjectError } from "./service.mjs";
 
+const APP_ASSET_VERSION = "20260929-1";
+
 const STYLES = [
   "современный", "минимализм", "скандинавский", "барнхаус", "шале",
   "классический", "неоклассический", "контемпорари", "лофт", "тёмный хай-тек",
@@ -68,13 +70,13 @@ function page(title, body, { scripts = [] } = {}) {
   return `<!doctype html><html lang="ru"><head><meta charset="utf-8">
   <meta name="viewport" content="width=device-width,initial-scale=1">
   <meta name="color-scheme" content="dark"><title>${escapeHtml(title)} — ВИЖУФАСАД</title>
-  <link rel="stylesheet" href="/assets/app-ui.css"></head><body>
+  <link rel="stylesheet" href="/assets/app-ui.css?v=${APP_ASSET_VERSION}"></head><body>
   <a class="skip-link" href="#main">К содержанию</a>
   <header class="app-header"><a class="brand" href="/app">ВИЖУФАСАД</a>
     <nav aria-label="Основная навигация"><a href="/app">Мои проекты</a><a href="/app/new">Новый проект</a>
     <a href="/app/balance">Баланс</a><a href="/app/settings">Настройки</a></nav></header>
   <main id="main" class="app-main">${body}</main>
-  ${["/assets/product-analytics.js", ...scripts].map((src) => `<script src="${src}" defer></script>`).join("")}</body></html>`;
+  ${["/assets/product-analytics.js", ...scripts].map((src) => `<script src="${src}?v=${APP_ASSET_VERSION}" defer></script>`).join("")}</body></html>`;
 }
 
 function statusLabel(status) {
@@ -353,6 +355,14 @@ export function createProjectPagesRouter({
     pro: generationConfig.proEnabled === true,
     editor: generationConfig.editorEnabled === true,
     upscale: upscaleConfig.enabled === true,
+  });
+  router.use("/app", (_request, response, next) => {
+    response.set({
+      "Cache-Control": "no-store, max-age=0",
+      Pragma: "no-cache",
+      Expires: "0",
+    });
+    next();
   });
   router.use("/app", createRequireSession(authService, { html: true }));
   router.use(express.urlencoded({ extended: false, limit: "8kb" }));

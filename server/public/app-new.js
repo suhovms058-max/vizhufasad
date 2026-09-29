@@ -53,6 +53,7 @@
     STANDARD_GENERATION_DISABLED: "Standard-генерация пока не включена на этом сервере.",
     PRO_GENERATION_DISABLED: "Pro пока не включён: модель должна пройти реальную проверку качества.",
     PHOTO_PROCESSING_CONSENT_REQUIRED: "Подтвердите отдельное согласие на обработку фотографии.",
+    PHOTO_PROCESSING_CONSENT_STALE: "Условия согласия обновились. Нажмите «Обновить страницу», затем снова выберите фото и подтвердите обе отметки.",
   };
 
   async function request(url, options = {}) {
@@ -176,6 +177,10 @@
       xhr.send(file);
     });
     const run = async () => {
+      if (button.dataset.reloadRequired === "true") {
+        location.reload();
+        return;
+      }
       if (!selectedFile || !title.value.trim()) return;
       if (!processingConsent.checked || !usageRights.checked) {
         show("Подтвердите согласие на обработку фотографии и право её использовать.", "error");
@@ -224,6 +229,10 @@
       } catch (error) {
         progress.classList.add("hidden");
         show(errors[error.code] || "Не удалось обработать фотографию. Проверьте файл и повторите.", "error");
+        if (error.code === "PHOTO_PROCESSING_CONSENT_STALE") {
+          button.dataset.reloadRequired = "true";
+          button.textContent = "Обновить страницу";
+        }
         updateUploadButton();
       }
     };
