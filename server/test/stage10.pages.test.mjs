@@ -41,7 +41,7 @@ async function render(path, { status = "completed", plan = null } = {}) {
   await new Promise((resolve) => server.once("listening", resolve));
   try {
     const response = await fetch(`http://127.0.0.1:${server.address().port}${path}`);
-    return { status: response.status, html: await response.text() };
+    return { status: response.status, headers: response.headers, html: await response.text() };
   } finally { await new Promise((resolve) => server.close(resolve)); }
 }
 
@@ -69,8 +69,9 @@ test("/app/new renders the complete generation settings path from catalog data",
 });
 
 test("/app/new explains the private free photo check before upload", async () => {
-  const { status, html } = await render("/app/new");
+  const { status, headers, html } = await render("/app/new");
   assert.equal(status, 200);
+  assert.equal(headers.get("cache-control"), "no-store, max-age=0");
   for (const text of ["Загрузите фотографию дома", "бесплатно", "Дом целиком", "Минимум 640×420", "Как мы защищаем фотографии", "документоподобный снимок будет отклонён", "с большим количеством текста будет отклонён"]) {
     assert.match(html, new RegExp(text, "u"));
   }
@@ -81,6 +82,7 @@ test("/app/new explains the private free photo check before upload", async () =>
     assert.match(html, /data-rights-hash="[a-f0-9]{64}"/u);
   assert.match(html, /id="photo-usage-rights"/u);
   assert.match(html, /\/legal\/photo-processing-consent/u);
+  assert.match(html, /app-new\.js\?v=20260929-1/u);
   assert.match(html, /id="remove-photo"/u);
   assert.doesNotMatch(html, /телефон|специалист|отправить заявку/iu);
 });

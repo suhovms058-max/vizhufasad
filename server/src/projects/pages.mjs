@@ -58,6 +58,7 @@ const STYLE_OPTIONS = [
   },
 ];
 const SELECTION_ASSET_VERSION = "20260825-2";
+const APP_ASSET_VERSION = "20260929-1";
 const MATERIALS = [
   ["штукатурка", "Ровная матовая поверхность", "/material-plaster.webp"],
   ["кирпич", "Тёплая кладка с заметным швом", "/material-brick.webp"],
@@ -124,13 +125,13 @@ function page(title, body, { scripts = [] } = {}) {
   return `<!doctype html><html lang="ru"><head><meta charset="utf-8">
   <meta name="viewport" content="width=device-width,initial-scale=1">
   <meta name="color-scheme" content="dark"><title>${escapeHtml(title)} — ВИЖУФАСАД</title>
-  <link rel="shortcut icon" href="/favicon-32x32.png"><link rel="icon" href="/favicon.svg" type="image/svg+xml"><link rel="icon" href="/favicon-32x32.png" type="image/png" sizes="32x32"><link rel="stylesheet" href="/assets/app-ui.css"></head><body>
+  <link rel="shortcut icon" href="/favicon-32x32.png"><link rel="icon" href="/favicon.svg" type="image/svg+xml"><link rel="icon" href="/favicon-32x32.png" type="image/png" sizes="32x32"><link rel="stylesheet" href="/assets/app-ui.css?v=${APP_ASSET_VERSION}"></head><body>
   <a class="skip-link" href="#main">К содержанию</a>
   <header class="app-header"><a class="brand brand-home" href="/" aria-label="Вернуться на главную страницу"><svg viewBox="0 0 24 24" aria-hidden="true"><path d="M3 11.5 12 4l9 7.5M5.5 10v9h13v-9M9.5 19v-5h5v5"/></svg><span>ВИЖУФАСАД</span></a>
     <nav aria-label="Основная навигация"><a href="/app">Мои проекты</a><a href="/app/new">Новый проект</a>
     <a href="/app/balance">Баланс</a><a href="/app/settings">Настройки</a></nav></header>
   <main id="main" class="app-main">${body}</main><footer class="app-footer"><a href="/legal">Правовая информация</a><a href="/legal/offer">Оплата</a><a href="/legal/privacy">Конфиденциальность</a><button type="button" class="link-button" data-privacy-settings>Настройки конфиденциальности</button></footer>
-  ${["/assets/product-analytics.js", ...scripts].map((src) => `<script src="${src}" defer></script>`).join("")}</body></html>`;
+  ${["/assets/product-analytics.js", ...scripts].map((src) => `<script src="${src}?v=${APP_ASSET_VERSION}" defer></script>`).join("")}</body></html>`;
 }
 
 function statusLabel(status) {
@@ -433,6 +434,12 @@ export function createProjectPagesRouter({
     upscale: upscaleConfig.enabled === true,
   });
   router.use("/app", createRequireSession(authService, { html: true }));
+  router.use("/app", (_request, response, next) => {
+    response.set("Cache-Control", "no-store, max-age=0");
+    response.set("Pragma", "no-cache");
+    response.set("Expires", "0");
+    next();
+  });
   router.use(express.urlencoded({ extended: false, limit: "8kb" }));
 
   router.get(["/app", "/app/projects"], async (request, response, next) => {
