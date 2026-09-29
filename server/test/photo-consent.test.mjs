@@ -40,7 +40,7 @@ const uploadInput = {
 const validConsent = { accepted: true, version: PHOTO_PROCESSING_CONSENT_VERSION, hash: PHOTO_PROCESSING_CONSENT_HASH };
 const validRights = { accepted: true, version: PHOTO_USAGE_RIGHTS_VERSION, hash: PHOTO_USAGE_RIGHTS_HASH };
 
-test("photo upload intent requires the current standalone consent", async () => {
+test("photo upload intent distinguishes missing and stale standalone consent", async () => {
   const { service, createdImages } = setup();
   await assert.rejects(
     service.createUploadIntent("user-1", "project-1", uploadInput),
@@ -53,7 +53,9 @@ test("photo upload intent requires the current standalone consent", async () => 
       ...uploadInput,
       consent: { accepted: true, version: "outdated", hash: "outdated" }, rights: validRights,
     }),
-    (error) => error instanceof ProjectError && error.code === "PHOTO_PROCESSING_CONSENT_REQUIRED",
+    (error) => error instanceof ProjectError
+      && error.code === "PHOTO_PROCESSING_CONSENT_STALE"
+      && error.status === 409,
   );
   assert.equal(createdImages.length, 0);
 });

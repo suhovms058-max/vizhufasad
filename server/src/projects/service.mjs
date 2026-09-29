@@ -129,8 +129,11 @@ export class ProjectService {
 
   async createUploadIntent(userId, projectId, input) {
     await this.open(userId, projectId);
-    if (!isCurrentPhotoConsent(input.consent)) {
+    if (input.consent?.accepted !== true) {
       throw new ProjectError("PHOTO_PROCESSING_CONSENT_REQUIRED", 422);
+    }
+    if (!isCurrentPhotoConsent(input.consent)) {
+      throw new ProjectError("PHOTO_PROCESSING_CONSENT_STALE", 409);
     }
     if (!isCurrentPhotoRights(input.rights)) {
       throw new ProjectError("PHOTO_USAGE_RIGHTS_REQUIRED", 422);
