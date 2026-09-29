@@ -1,4 +1,5 @@
 import { expect, test } from "@playwright/test";
+import path from "node:path";
 
 test.beforeEach(async ({ page, request }) => {
   await request.post("/__reset");
@@ -74,9 +75,12 @@ test("analytics remains fail closed until explicit opt-in and stops after withdr
 });
 
 test("photo upload explains document blocking without preselecting either consent", async ({ page }) => {
-  await page.goto("/app/new");
+  const response = await page.goto("/app/new");
   await page.waitForLoadState("networkidle");
 
+  expect(response.headers()["cache-control"]).toContain("no-store");
+  await expect(page.locator('script[src^="/assets/app-new.js"]'))
+    .toHaveAttribute("src", /app-new\.js\?v=20260929-1$/u);
   await expect(page.locator("#photo-processing-consent")).not.toBeChecked();
   await expect(page.locator("#photo-usage-rights")).not.toBeChecked();
   await expect(page.getByText("документоподобный снимок будет отклонён", { exact: false })).toBeVisible();
@@ -89,4 +93,26 @@ test("photo upload explains document blocking without preselecting either consen
     () => document.documentElement.scrollWidth > document.documentElement.clientWidth,
   );
   expect(overflowsHorizontally).toBe(false);
+});
+
+test("stale photo consent asks for a refresh after both confirmations", async ({ page }) => {
+  await page.route("**/api/projects/*/images/upload-intent", async (route) => {
+    await route.fulfill({
+      status: 409,
+      contentType: "application/json",
+      body: JSON.stringify({ error: "PHOTO_PROCESSING_CONSENT_STALE" }),
+    });
+  });
+
+  await page.goto("/app/new?project=project-e2e&replace=1");
+  await page.locator("#photo-input").setInputFiles(
+    path.resolve(process.cwd(), "../public/facade-styles/barnhaus-01.webp"),
+  );
+  await page.locator("#photo-processing-consent").check();
+  await page.locator("#photo-usage-rights").check();
+  await page.locator("#upload-button").click();
+
+  await expect(page.locator("#message")).toContainText("Условия согласия обновились");
+  await expect(page.locator("#upload-button")).toHaveText("Обновить страницу");
+  await expect(page.locator("#upload-button")).toBeEnabled();
 });
