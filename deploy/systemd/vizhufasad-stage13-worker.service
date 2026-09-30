@@ -1,0 +1,28 @@
+[Unit]
+Description=VIZHUFASAD Stage 13 Preview Worker
+After=network-online.target docker.service vizhufasad-stage13-api.service
+Wants=network-online.target
+Requires=docker.service
+
+[Service]
+Type=simple
+User=www-data
+Group=www-data
+WorkingDirectory=/opt/vizhufasad-stage13/server
+EnvironmentFile=/opt/vizhufasad-stage13/server/.env
+Environment=XDG_CACHE_HOME=/var/cache/vizhufasad-stage13
+ExecStart=/usr/bin/node /opt/vizhufasad-stage13/server/worker.mjs
+Restart=on-failure
+RestartSec=5
+TimeoutStopSec=90
+KillSignal=SIGTERM
+UMask=0077
+NoNewPrivileges=true
+PrivateTmp=true
+ProtectSystem=strict
+ProtectHome=true
+CacheDirectory=vizhufasad-stage13
+ReadWritePaths=/opt/vizhufasad-stage13/server/data
+
+[Install]
+WantedBy=multi-user.target

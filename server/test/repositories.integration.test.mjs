@@ -27,10 +27,10 @@ test("active tariff repository reads the effective public catalog", { skip: !ena
     assert.deepEqual(
       plans.map(({ code, priceMinor, credits }) => ({ code, priceMinor, credits })),
       [
-        { code: "FREE", priceMinor: 0, credits: 2 },
-        { code: "START", priceMinor: 79000, credits: 25 },
-        { code: "OPTIMUM", priceMinor: 129000, credits: 60 },
-        { code: "MAXIMUM", priceMinor: 349000, credits: 240 },
+        { code: "FREE", priceMinor: 0, credits: 1 },
+        { code: "START", priceMinor: 79000, credits: 4 },
+        { code: "OPTIMUM", priceMinor: 129000, credits: 8 },
+        { code: "MAXIMUM", priceMinor: 349000, credits: 25 },
       ],
     );
   } finally {

@@ -36,12 +36,12 @@ const statusLabels = {
 function page(body) {
   return `<!doctype html><html lang="ru"><head><meta charset="utf-8">
   <meta name="viewport" content="width=device-width,initial-scale=1">
-  <meta name="color-scheme" content="light"><title>Баланс и тарифы — ВИЖУФАСАД</title>
+  <meta name="color-scheme" content="dark"><title>Баланс и тарифы — ВИЖУФАСАД</title>
   <link rel="stylesheet" href="/assets/app-ui.css"></head><body><a class="skip-link" href="#main">К содержанию</a>
   <header class="app-header"><a class="brand" href="/app">ВИЖУФАСАД</a><nav aria-label="Основная навигация">
   <a href="/app">Мои проекты</a><a href="/app/new">Новый проект</a><a href="/app/balance" aria-current="page">Баланс</a><a href="/app/settings">Настройки</a></nav></header>
   <main id="main" class="app-main">${body}</main><footer class="app-footer"><a href="/legal/offer">Условия оплаты</a>
-  <a href="/legal/privacy">Конфиденциальность</a><a href="/legal/refunds">Возвраты</a></footer></body></html>`;
+  <a href="/legal/privacy">Конфиденциальность</a><a href="/legal/refunds">Возвраты</a></footer><script src="/assets/product-analytics.js" defer></script></body></html>`;
 }
 
 function returnNotice(query) {
@@ -54,6 +54,9 @@ function returnNotice(query) {
       REFUND_OPERATION_KEY_UNAVAILABLE: "Автоматический возврат ещё недоступен: Robokassa не передала идентификатор операции.",
     };
     return `<div class="notice error" role="alert">${escapeHtml(messages[query.payment_error] || "Операцию выполнить не удалось. Баланс не изменён.")}</div>`;
+  }
+  if (query.payment_cancel === "ok") {
+    return '<div class="notice success" role="status">Платёжный сеанс отменён. Можно запустить новую оплату.</div>';
   }
   if (query.refund === "pending") {
     return '<div class="notice success" role="status">Запрос возврата передан в Robokassa. Итоговый статус появится в истории.</div>';
@@ -81,15 +84,18 @@ export function createWalletPagesRouter({ authService, walletService, paymentSer
         walletService.history(request.auth.user_id, 20),
         paymentHistoryPromise,
       ]);
+      const standardCost = Number(catalog.actions.find((action) => action.code === "standard_generation")?.credits || 1);
       const tariffs = catalog.tariffs.map((tariff) => `<article class="panel tariff-card">
         <h3>${escapeHtml(tariff.name)}</h3><p><strong>${escapeHtml(rubles(tariff.priceMinor))}</strong></p>
         <p>${escapeHtml(creditsLabel(tariff.credits))}</p>
+        <p class="tariff-outcome"><strong>До ${escapeHtml(Math.floor(tariff.credits / standardCost))} Standard-вариантов</strong><br>
+        <span class="muted">или используйте кредиты для Pro, доработок и 4K по стоимости действий ниже</span></p>
         ${paymentConfig?.enabled && tariff.priceMinor > 0 ? `<form method="post" action="/app/payments/checkout">
           <input type="hidden" name="tariffPlanId" value="${escapeHtml(tariff.id)}">
           <input type="hidden" name="idempotencyKey" value="${randomUUID()}">
           <label for="promo-${escapeHtml(tariff.id)}">Промокод, если есть</label>
           <input id="promo-${escapeHtml(tariff.id)}" name="promoCode" maxlength="32" autocomplete="off">
-          <p><button type="submit">Перейти к оплате</button></p></form>` : ""}
+          <p><button type="submit" data-analytics-event="payment_checkout_started" data-analytics-plan="${escapeHtml(tariff.code)}">Перейти к оплате</button></p></form>` : ""}
       </article>`).join("");
       const actions = catalog.actions.map((action) => `<tr><td>${escapeHtml(action.name)}</td>
         <td>${action.credits === 0 ? "Бесплатно" : `${escapeHtml(action.credits)} кр.`}</td></tr>`).join("");
@@ -97,20 +103,30 @@ export function createWalletPagesRouter({ authService, walletService, paymentSer
         <td>${escapeHtml(item.type)}</td><td>${Number(item.amount) > 0 ? "+" : ""}${escapeHtml(item.amount)}</td>
         <td>${escapeHtml(item.balance_after)}</td></tr>`).join("");
       const paymentRows = payments.map((payment) => `<tr>
-        <td>${escapeHtml(new Date(payment.createdAt).toLocaleString("ru-RU"))}</td>
+      <td>${escapeHtml(new Date(payment.createdAt).toLocaleString("ru-RU"))}</td>
         <td>${escapeHtml(payment.tariffName || payment.description)}</td><td>${escapeHtml(rubles(payment.amountMinor))}</td>
         <td>${escapeHtml(statusLabels[payment.status] || payment.status)}</td>
         <td class="optional">${payment.receipts?.length
           ? payment.receipts.map((receipt) => escapeHtml(receipt.status === "succeeded" ? "Чек выдан" : "Чек формирует Robokassa")).join("<br>")
           : "—"}</td>
-        <td>${payment.refundable && paymentConfig.password3 ? `<form method="post" action="/app/payments/${escapeHtml(payment.id)}/refund">
-          <input type="hidden" name="idempotencyKey" value="${randomUUID()}"><button class="secondary" type="submit">Вернуть</button></form>` : ""}</td>
+        <td>${(() => {
+          const actions = [];
+          if (payment.refundable && paymentConfig.password3) {
+            actions.push(`<form method="post" action="/app/payments/${escapeHtml(payment.id)}/refund">
+          <input type="hidden" name="idempotencyKey" value="${randomUUID()}"><button class="secondary" type="submit">Вернуть</button></form>`);
+          }
+          if (["created", "pending", "failed"].includes(payment.status)) {
+            actions.push(`<form method="post" action="/app/payments/${escapeHtml(payment.id)}/cancel">
+              <button class="secondary" type="submit">Отменить</button></form>`);
+          }
+          return actions.length ? actions.join(" ") : "";
+        })()}</td>
       </tr>`).join("");
       return response.type("html").send(page(`${returnNotice(request.query)}
         <section class="page-heading"><div><p class="eyebrow">Кошелёк</p><h1>Баланс и тарифы</h1></div></section>
         <section class="panel balance-card"><p class="muted">Доступно</p>
           <p class="balance-value">${escapeHtml(creditsLabel(wallet.balance))}</p></section>
-        <h2>Пакеты кредитов</h2><div class="tariff-grid">${tariffs}</div>
+        <h2>Пакеты для ваших вариантов</h2><p class="muted">Один Standard-вариант стоит ${escapeHtml(standardCost)} кредит. Вы сами распределяете баланс между генерациями и доступными доработками.</p><div class="tariff-grid">${tariffs}</div>
         <p class="muted">Цена и количество кредитов загружаются из единого серверного справочника.</p>
         ${paymentConfig?.enabled ? "" : '<p class="notice">Платежи временно выключены. Неработающая оплата пользователю не показывается.</p>'}
         <h2>Стоимость действий</h2><div class="table-wrap"><table><tbody>${actions}</tbody></table></div>

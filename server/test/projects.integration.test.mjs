@@ -11,6 +11,9 @@ import * as storage from "../src/infra/storage.mjs";
 import { loadProjectConfig } from "../src/projects/config.mjs";
 import { ProjectRepository } from "../src/projects/repository.mjs";
 import { ProjectError, ProjectService } from "../src/projects/service.mjs";
+import { PHOTO_PROCESSING_CONSENT_VERSION } from "../src/legal/photo-consent.mjs";
+
+const photoConsent = { accepted: true, version: PHOTO_PROCESSING_CONSENT_VERSION };
 
 const enabled = [
   "DATABASE_URL", "S3_ENDPOINT", "S3_ACCESS_KEY_ID", "S3_SECRET_ACCESS_KEY", "S3_BUCKET",
@@ -55,7 +58,14 @@ test("project ownership, direct upload, sanitization, cleanup and deletion work"
       filename: "facade.jpg",
       mimeType: "image/jpeg",
       byteSize: photo.length,
+      consent: photoConsent,
     });
+    const consentRow = await pool.query(
+      "select consent_version, consented_at from source_images where id = $1",
+      [intent.image.id],
+    );
+    assert.equal(consentRow.rows[0].consent_version, PHOTO_PROCESSING_CONSENT_VERSION);
+    assert.ok(consentRow.rows[0].consented_at);
     const upload = await fetch(intent.upload.url, {
       method: "PUT",
       headers: { ...intent.upload.headers, "Content-Length": String(photo.length) },
@@ -89,6 +99,7 @@ test("project ownership, direct upload, sanitization, cleanup and deletion work"
       filename: "pretends-to-be-jpeg.jpg",
       mimeType: "image/jpeg",
       byteSize: png.length,
+      consent: photoConsent,
     });
     const mismatchUpload = await fetch(mismatchIntent.upload.url, {
       method: "PUT",
@@ -107,6 +118,7 @@ test("project ownership, direct upload, sanitization, cleanup and deletion work"
       filename: "stale.jpg",
       mimeType: "image/jpeg",
       byteSize: photo.length,
+      consent: photoConsent,
     });
     await pool.query(
       "update source_images set upload_expires_at = now() - interval '48 hours' where id = $1",

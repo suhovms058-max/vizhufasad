@@ -23,7 +23,7 @@ export function loadWalletConfig(environment = process.env) {
       false,
       "FEATURE_PAYMENTS_ENABLED",
     ),
-    freeBonusCredits: 2,
+    freeBonusCredits: 1,
   };
   return config;
 }

@@ -16,6 +16,7 @@ const requiredTables = [
   "action_costs",
   "generation_upscales", "generation_comparisons", "generation_comparison_items",
   "project_generation_selections",
+  "product_events",
 ];
 
 test("migrations create every required table", () => {
@@ -36,6 +37,9 @@ test("migrations include foreign keys, indexes, invariants and timestamp default
   assert.match(migration, /'uploading', 'uploaded', 'processing', 'ready', 'invalid', 'deleted'/);
   assert.match(migration, /"thumbnail_storage_key"/);
   assert.match(migration, /"upload_expires_at"/);
+  assert.match(migration, /"consent_version"/);
+  assert.match(migration, /"consented_at"/);
+  assert.match(migration, /legacy-pre-2026-08-22/);
   assert.match(migration, /photo_assessment_decision.*accepted_with_warning/);
   assert.match(migration, /photo_assessments_source_image_uidx/);
   assert.match(migration, /wallet_transaction_type.*free_bonus.*generation_charge.*generation_refund/s);
@@ -52,9 +56,15 @@ test("migrations include foreign keys, indexes, invariants and timestamp default
   assert.match(migration, /generations_edit_shape_chk/);
   assert.match(migration, /generation_upscales_dimensions_chk/);
   assert.match(migration, /generation_comparison_items_position_chk/);
+  assert.match(migration, /product_events_name_created_idx/);
+  assert.match(migration, /product_events_path_length_chk/);
   assert.match(migration, /'START'.*79000.*25/s);
   assert.match(migration, /'OPTIMUM'.*129000.*60/s);
   assert.match(migration, /'MAXIMUM'.*349000.*240/s);
+  assert.match(migration, /'FREE'.*Одна пробная визуализация.*0.*1/s);
+  assert.match(migration, /'START'.*4 визуализации.*79000.*4/s);
+  assert.match(migration, /'OPTIMUM'.*8 визуализаций.*129000.*8/s);
+  assert.match(migration, /'MAXIMUM'.*25 визуализаций.*349000.*25/s);
   assert.match(migration, /'photo_assessment'.*0/s);
   assert.match(migration, /lower\("email"\)/);
   assert.doesNotMatch(migration, /code_hash.*DEFAULT/);

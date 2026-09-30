@@ -34,6 +34,8 @@ function harness({
   providerKinds,
   editMask = false,
   resumableRequestId = null,
+  providerSubmits = false,
+  persistProviderRequestFails = false,
 } = {}) {
   const events = [];
   let status = "queued";
@@ -69,7 +71,10 @@ function harness({
       events.push(["resumed", resumableRequestId]);
       return { id: "attempt-resumed", seed: 7, provider_request_id: resumableRequestId };
     },
-    async attachProviderRequest(_id, requestId) { return requestId; },
+    async attachProviderRequest(_id, requestId) {
+      if (persistProviderRequestFails) throw new Error("DATABASE_TEMPORARILY_UNAVAILABLE");
+      return requestId;
+    },
     async startAttempt(input) {
       events.push(["attempt", input.candidateNumber]);
       return { id: `attempt-${attemptNumber}` };
@@ -128,6 +133,7 @@ function harness({
       const event = ["provider", Boolean(input.maskImage)];
       if (input.resumeRequestId) event.push(input.resumeRequestId);
       events.push(event);
+      if (providerSubmits) await input.onSubmitted("paid-request-not-persisted");
       if (providerError) throw providerError;
       return {
         provider: "mock", jobId: `job-${attemptNumber}`, model: "mock-edit",
@@ -195,6 +201,18 @@ test("worker restart resumes the persisted GenAPI request instead of creating an
   assert.deepEqual(events.find((event) => event[0] === "resumed"), ["resumed", "paid-request-42"]);
   assert.deepEqual(events.find((event) => event[0] === "provider"), ["provider", false, "paid-request-42"]);
   assert.equal(events.some((event) => event[0] === "attempt"), false);
+});
+
+test("a paid request whose recovery id cannot be persisted is never submitted again", async () => {
+  const { processor, job, events, getStatus } = harness({
+    providerSubmits: true,
+    persistProviderRequestFails: true,
+  });
+  await assert.rejects(processor.process(job), /GENAPI_REQUEST_ID_PERSIST_FAILED/);
+  assert.equal(getStatus(), "failed_refunded");
+  assert.equal(events.filter((event) => event[0] === "provider").length, 1);
+  assert.equal(events.filter((event) => event[0] === "refund").length, 1);
+  assert.equal(events.some((event) => event[0] === "retrying"), false);
 });
 
 test("first quality rejection triggers one free stricter candidate and then passes", async () => {

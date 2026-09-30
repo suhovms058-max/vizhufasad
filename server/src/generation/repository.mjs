@@ -337,13 +337,16 @@ export class GenerationRepository {
   async failAttempt(attemptId, error) {
     await this.pool.query(
       `update generation_attempts set status = $2, error_code = $3,
-        error_details = $4, finished_at = now()
+        error_details = $4, actual_cost_minor = coalesce(actual_cost_minor, $5),
+        cost_currency = coalesce(cost_currency, $6), finished_at = now()
        where id = $1 and status in ('started', 'retryable_failed')`,
       [
         attemptId,
         error.retryable ? "retryable_failed" : "terminal_failed",
         String(error.code || "GENERATION_PROVIDER_FAILED").slice(0, 120),
         error.details == null ? {} : { provider: String(error.details).slice(0, 500) },
+        Number.isInteger(error.actualCostMinor) ? error.actualCostMinor : null,
+        error.costCurrency || null,
       ],
     );
   }

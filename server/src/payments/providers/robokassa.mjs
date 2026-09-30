@@ -41,8 +41,8 @@ export class RobokassaPaymentProvider {
         tax: "none",
       }],
     });
-    const successUrl = `${this.config.siteOrigin}/app/balance`;
-    const failUrl = `${this.config.siteOrigin}/app/balance`;
+    const successUrl = this.config.successUrl;
+    const failUrl = this.config.failUrl;
     const encodedReceipt = encodeURIComponent(receipt);
     const signatureParts = [this.config.merchantLogin, outSum, invId, encodedReceipt];
     if (this.config.result2Url) signatureParts.push(this.config.result2Url);

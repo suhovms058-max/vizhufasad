@@ -1,7 +1,7 @@
 import assert from "node:assert/strict";
 import test from "node:test";
 import express from "express";
-import { createCatalogRouter, createWalletRouter } from "../src/wallet/http.mjs";
+import { createCatalogRouter, createPublicCatalogRouter, createWalletRouter } from "../src/wallet/http.mjs";
 
 async function withServer(callback) {
   const service = {
@@ -25,6 +25,7 @@ async function withServer(callback) {
   const app = express();
   app.use("/api/wallet", createWalletRouter({ authService, walletService: service }));
   app.use("/api/catalog", createCatalogRouter({ authService, walletService: service }));
+  app.use("/api/public/catalog", createPublicCatalogRouter({ walletService: service }));
   const server = app.listen(0, "127.0.0.1");
   await new Promise((resolve) => server.once("listening", resolve));
   try {
@@ -37,6 +38,9 @@ async function withServer(callback) {
 test("wallet and catalog API require a session and expose one catalog source", async () => {
   await withServer(async (baseUrl) => {
     assert.equal((await fetch(`${baseUrl}/api/wallet`)).status, 401);
+    const publicCatalog = await (await fetch(`${baseUrl}/api/public/catalog`)).json();
+    assert.equal(publicCatalog.tariffs[0].priceMinor, 79_000);
+    assert.equal("features" in publicCatalog, false);
     const headers = { Authorization: "session" };
     const wallet = await (await fetch(`${baseUrl}/api/wallet`, { headers })).json();
     const history = await (await fetch(`${baseUrl}/api/wallet/transactions`, { headers })).json();

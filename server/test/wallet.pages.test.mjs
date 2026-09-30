@@ -10,13 +10,13 @@ test("balance page uses catalog data and exposes no payment action", async () =>
     },
   };
   const walletService = {
-    async summary() { return { balance: 2 }; },
+    async summary() { return { balance: 1 }; },
     async history() {
       return [{
         id: "bonus",
         type: "free_bonus",
-        amount: 2,
-        balance_after: 2,
+        amount: 1,
+        balance_after: 1,
         created_at: new Date("2026-07-29T00:00:00Z"),
       }];
     },
@@ -26,7 +26,7 @@ test("balance page uses catalog data and exposes no payment action", async () =>
           code: "START",
           name: "Старт",
           priceMinor: 79_000,
-          credits: 25,
+          credits: 4,
         }],
         actions: [{ code: "standard_generation", name: "Standard", credits: 1 }],
         features: { payments: false },
@@ -41,7 +41,7 @@ test("balance page uses catalog data and exposes no payment action", async () =>
     const response = await fetch(`http://127.0.0.1:${server.address().port}/app/balance`);
     const html = await response.text();
     assert.equal(response.status, 200);
-    assert.match(html, /2 кредита/);
+    assert.match(html, /1 кредит/);
     assert.match(html, /790(?:\s|&nbsp;)*₽/);
     assert.match(html, /Standard/);
     assert.match(html, /\/assets\/app-ui\.css/);
@@ -60,8 +60,8 @@ test("enabled balance page offers checkout only for paid tariffs and shows owner
     async catalog() {
       return {
         tariffs: [
-          { id: "free-id", name: "Бесплатный", priceMinor: 0, credits: 2 },
-          { id: "start-id", name: "Старт", priceMinor: 79_000, credits: 25 },
+          { id: "free-id", name: "Бесплатный", priceMinor: 0, credits: 1 },
+          { id: "start-id", name: "Старт", priceMinor: 79_000, credits: 4 },
         ],
         actions: [],
       };

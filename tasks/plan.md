@@ -1,30 +1,54 @@
-# Implementation Plan: Stage 12 Pro, editor, 4K and comparison
+# План этапа 13 и редизайна ВИЖУФАСАД
 
-## Outcome
+## Цель
 
-Add paid Pro generation, protected text/mask edits, verified 4K export and comparison of up to four completed variants. Reuse the existing queue, wallet, private S3 storage and mandatory automatic quality control. Keep every incomplete feature disabled by default.
+Довести сайт до понятного, убедительного и измеримого запуска, сохранив завершённые продуктовые этапы 1–12, действующие API, автоматическую проверку фото, очередь, генерацию, quality control, кошелёк и платежи.
 
-## Architecture decisions
+## Защищаемые ограничения
 
-- Standard, Pro and edits remain generation records; `parent_generation_id` forms the version tree.
-- 4K is a separate asynchronous upscale task linked to an approved completed generation.
-- Every paid action uses its existing action code and a unique wallet reservation; provider failure refunds that reservation idempotently.
-- Custom masks are private S3 objects; generated and upscaled files use short-lived owner-checked URLs.
-- Comparison access is derived server-side from a paid Optimum/Maximum entitlement.
-- Provider capabilities stay disabled until official documentation and a measured live smoke confirm them.
+- Только автоматическая визуализация фасадов, без дизайнера, оператора и ручной проверки.
+- Геометрия, этажность, окна, двери и кровля сохраняются, пока пользователь явно не разрешил изменение.
+- Результат — концепция, а не строительный проект, смета или расчёт материалов.
+- Публичная версия обновляется только после локальной сборки, тестов и визуальной проверки.
+- Не публикуются вымышленные отзывы, рейтинги, сроки, скидки или статистика клиентов.
 
-## Vertical slices
+## Блок 1 — текущий редизайн
 
-1. Durable model: generation kind, version links, edit scopes, 4K tasks and comparisons.
-2. Pro: selected provider, 2-credit queue path and the existing quality control.
-3. Editor: text/scoped/mask edits, protected zones, version tree and 1-credit refund-safe action.
-4. 4K: separate provider/task, real output dimensions, artifact checks and 1-credit refund-safe action.
-5. Comparison: up to four variants, Optimum/Maximum gate, winner, favorites and private collage.
-6. Release: approved-budget live smokes, final complete tests/build/E2E and documentation.
+1. Сохранить утверждённый первый экран, карусель одного дома и публичную проверку фото.
+2. Добавить обязательное, версионируемое согласие перед передачей исходного фото в приватное объектное хранилище и AI-обработку.
+3. Перестроить `/app/new` в пошаговый визуальный мастер: качество Standard/Pro, стиль, материалы и палитра, ограничения, режим и подтверждение стоимости.
+4. Сохранить черновик, доступность, клавиатурное управление, `prefers-reduced-motion` и адаптивность.
 
-## External gates
+## Блок 2 — экономика и выход на доход
 
-- A new explicit spending limit is required before paid GenAPI smoke tests.
-- Pro, edit and 4K stay disabled until their individual live smokes pass.
-- Stage 13 is out of scope.
+После блока 1 применить выводы задачи «Оценить доход проекта» отдельным проверяемым изменением:
 
+- не запускать платную рекламу до измерения полной себестоимости успешной генерации;
+- не копировать количество кредитов RoomGPT при другой себестоимости;
+- показать тарифы через понятный результат и стоимость действий, а не только через число кредитов;
+- добавить безопасную аналитику воронки и себестоимости без фото, персональных данных и платёжных идентификаторов;
+- подготовить SEO-посадочные страницы и партнёрское B2B-предложение без услуг специалиста;
+- определить контрольные ворота для рекламного теста: успешная оплата, фактический CAC, валовая прибыль и повторные покупки.
+
+Изменение цен и состава тарифов требует отдельного расчёта по фактической себестоимости и подтверждения владельца перед публикацией.
+
+## Блок 3 — оставшиеся этапы редизайна
+
+1. Реальные статусы генерации и восстановление после reload.
+2. Рабочее пространство результата и сравнение вариантов.
+3. Галерея только из разрешённых реальных или явно маркированных демонстрационных кейсов.
+4. Контент доверия: ограничения AI, хранение фото, безопасность и FAQ.
+5. Коммерческая подача тарифов и короткие функциональные микровзаимодействия.
+6. Mobile/a11y/performance на 360, 390, 768, 1366 и 1440 px.
+7. Аналитика воронки и контролируемые feature flags.
+
+## Блок 4 — SEO, rich results и выпуск
+
+- Добавить корректные JSON-LD-сущности только для реально представленного контента: `Organization`, `WebSite`, `WebApplication`/`SoftwareApplication`, `BreadcrumbList` на вложенных публичных страницах и подходящие `Offer` только при совпадении с базой тарифов.
+- Не размечать вымышленные `Review`, `AggregateRating`, наличие или цену, которых нет на странице.
+- Проверить JSON-LD валидатором Schema.org и официальным Rich Results Test; наличие разметки не считать гарантией расширенного отображения.
+- Выполнить регрессию, E2E, Lighthouse, резервную копию, staging-проверку, cache busting и подготовить откат.
+
+## Текущий инкремент
+
+Объединить незавершённый редизайн с завершённой веткой этапа 12, разрешить конфликты без потери функций Pro/editor/4K/comparison, затем реализовать согласие на фото и визуальный мастер `/app/new`.

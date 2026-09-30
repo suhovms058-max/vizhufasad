@@ -8,25 +8,32 @@ function escapeHtml(value) {
     .replaceAll('"', "&quot;").replaceAll("'", "&#39;");
 }
 
+function safeNext(value, fallback = "/app") {
+  const path = String(value || "");
+  return path.startsWith("/app") && !path.startsWith("//") && !path.includes("\\") ? path : fallback;
+}
+
 function page(title, body, { cabinet = false, narrow = false } = {}) {
   const navigation = cabinet
     ? `<nav aria-label="Основная навигация"><a href="/app">Мои проекты</a><a href="/app/new">Новый проект</a>
        <a href="/app/balance">Баланс</a><a href="/app/settings">Настройки</a></nav>`
     : `<nav aria-label="Основная навигация"><a href="/">На главную</a></nav>`;
   return `<!doctype html><html lang="ru"><head><meta charset="utf-8">
-    <meta name="viewport" content="width=device-width,initial-scale=1"><meta name="color-scheme" content="light">
+    <meta name="viewport" content="width=device-width,initial-scale=1"><meta name="color-scheme" content="dark">
     <title>${escapeHtml(title)} — ВИЖУФАСАД</title><link rel="stylesheet" href="/assets/app-ui.css"></head><body>
     <a class="skip-link" href="#main">К содержанию</a><header class="app-header"><a class="brand" href="/">ВИЖУФАСАД</a>${navigation}</header>
     <main id="main" class="app-main${narrow ? " app-main-narrow" : ""}">${body}</main>
     <footer class="app-footer"><a href="/legal/offer">Условия оплаты</a><a href="/legal/privacy">Конфиденциальность</a><a href="/legal/refunds">Возвраты</a></footer>
+    <script src="/assets/product-analytics.js" defer></script>
     </body></html>`;
 }
 
-function loginForm(message = "") {
+function loginForm(message = "", nextPath = "/app") {
+  const next = safeNext(nextPath);
   return page("Вход", `<section class="panel auth-card"><p class="eyebrow">Личный кабинет</p><h1>Вход по email</h1>
     ${message ? `<p class="notice error" role="alert">${escapeHtml(message)}</p>` : ""}
     <p class="muted">Получите одноразовый код. Пароль и телефон не требуются.</p>
-    <form class="form-stack" method="post" action="/auth/login"><label>Email
+    <form class="form-stack" method="post" action="/auth/login"><input type="hidden" name="next" value="${escapeHtml(next)}"><label>Email
       <input name="email" type="email" autocomplete="email" inputmode="email" required maxlength="254" placeholder="name@example.ru"></label>
       <button type="submit">Получить код</button></form></section>`, { narrow: true });
 }
@@ -49,16 +56,17 @@ export function createAuthPagesRouter({ service, config }) {
   router.use(express.urlencoded({ extended: false, limit: "8kb" }));
 
   router.get("/login", (_request, response) => response.redirect(302, "/auth/login"));
-  router.get("/auth/login", (_request, response) => response.type("html").send(loginForm()));
+  router.get("/auth/login", (request, response) => response.type("html").send(loginForm("", request.query.next)));
   router.post("/auth/login", requestLimiter, async (request, response, next) => {
     try {
       const result = await service.requestCode(request.body?.email, {
         ip: request.ip, userAgent: request.get("user-agent"),
       });
-      return response.redirect(303, `/auth/verify?challenge=${encodeURIComponent(result.challengeId)}`);
+      const next = safeNext(request.body?.next);
+      return response.redirect(303, `/auth/verify?challenge=${encodeURIComponent(result.challengeId)}&next=${encodeURIComponent(next)}`);
     } catch (error) {
       if (error.message === "INVALID_EMAIL") {
-        return response.status(400).type("html").send(loginForm("Проверьте адрес email."));
+        return response.status(400).type("html").send(loginForm("Проверьте адрес email.", request.body?.next));
       }
       return next(error);
     }
@@ -66,9 +74,10 @@ export function createAuthPagesRouter({ service, config }) {
 
   router.get("/auth/verify", (request, response) => {
     const challenge = String(request.query.challenge || "");
+    const next = safeNext(request.query.next);
     response.type("html").send(page("Подтверждение входа", `<section class="panel auth-card">
       <p class="eyebrow">Безопасный вход</p><h1>Введите код</h1><p class="muted">Шестизначный код отправлен на ваш email.</p>
-      <form class="form-stack" method="post" action="/auth/verify"><input type="hidden" name="challengeId" value="${escapeHtml(challenge)}">
+      <form class="form-stack" method="post" action="/auth/verify"><input type="hidden" name="challengeId" value="${escapeHtml(challenge)}"><input type="hidden" name="next" value="${escapeHtml(next)}">
       <label>Код <input class="code-input" name="code" inputmode="numeric" autocomplete="one-time-code" pattern="[0-9]{6}" maxlength="6" required></label>
       <button type="submit">Войти</button></form><p><a href="/auth/login">Запросить новый код</a></p></section>`, { narrow: true }));
   });
@@ -84,7 +93,7 @@ export function createAuthPagesRouter({ service, config }) {
         return response.status(401).type("html").send(page("Код не принят", '<p role="alert">Код неверен, истёк или уже использован.</p><p><a href="/auth/login">Запросить новый код</a></p>'));
       }
       response.cookie(config.cookieName, result.token, service.cookieOptions());
-      return response.redirect(303, "/app");
+      return response.redirect(303, safeNext(request.body?.next));
     } catch (error) {
       return next(error);
     }

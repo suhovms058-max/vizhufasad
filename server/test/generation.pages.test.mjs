@@ -28,7 +28,12 @@ test("project page renders queued generation polling stages without WebSocket", 
   };
   const generationService = {
     async view() {
-      return { id: "generation-1", revision: 1, status: "queued", resultAvailable: false };
+      return {
+        id: "generation-1", revision: 1, status: "queued", resultAvailable: false,
+        config_snapshot: {
+          style: "скандинавский", materials: ["дерево", "камень"], transformationLevel: "gentle",
+        },
+      };
     },
     async list() { return [{ id: "generation-1", revision: 1, status: "queued", created_at: new Date() }]; },
   };
@@ -48,8 +53,15 @@ test("project page renders queued generation polling stages without WebSocket", 
     assert.match(html, /Генерация/);
     assert.match(html, /Проверка/);
     assert.match(html, /Скачивание/);
+    assert.match(html, /generation-source-preview/);
+    assert.match(html, /source\.jpg/);
+    assert.match(html, /скандинавский/);
+    assert.match(html, /дерево, камень/);
+    assert.match(html, /Бережный/);
+    assert.match(html, /актуальный этап сохранится после обновления страницы/);
     assert.match(html, /app-generation\.js/);
     assert.doesNotMatch(html, /WebSocket/iu);
+    assert.doesNotMatch(html, /\b\d{1,3}%\b/u);
   } finally {
     await new Promise((resolve) => server.close(resolve));
   }
