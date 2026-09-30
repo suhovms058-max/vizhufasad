@@ -20,6 +20,7 @@
   };
   const cancellable = new Set(["created", "queued", "retrying"]);
   const terminal = new Set(["completed", "failed_refunded", "cancelled"]);
+  const preChargeFailures = new Set(["FREE_TRIAL_ALREADY_USED", "FREE_TRIAL_REVIEW_REQUIRED"]);
   async function request(url, options = {}) {
     const response = await fetch(url, { ...options, headers: { "Content-Type": "application/json", ...(options.headers || {}) } });
     const body = await response.json().catch(() => ({}));
@@ -27,7 +28,10 @@
     return body;
   }
   function render(generation) {
-    const [active, text] = states[generation.status] || ["analysis", generation.status];
+    const [active, defaultText] = states[generation.status] || ["analysis", generation.status];
+    const text = generation.status === "failed_refunded" && preChargeFailures.has(generation.failure_code)
+      ? "Генерация не запускалась. ВФ-коин не списывался."
+      : defaultText;
     const activeIndex = steps.findIndex((step) => step.dataset.step === active);
     steps.forEach((step, index) => {
       step.classList.toggle("active", index <= activeIndex);

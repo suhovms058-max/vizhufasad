@@ -1,7 +1,15 @@
 import assert from "node:assert/strict";
 import test from "node:test";
 import express from "express";
+import { readFile } from "node:fs/promises";
 import { createProjectPagesRouter } from "../src/projects/pages.mjs";
+
+test("generation status explains pre-charge failures without claiming a refund", async () => {
+  const source = await readFile(new URL("../public/app-generation.js", import.meta.url), "utf8");
+  assert.match(source, /FREE_TRIAL_ALREADY_USED/u);
+  assert.match(source, /FREE_TRIAL_REVIEW_REQUIRED/u);
+  assert.match(source, /Генерация не запускалась\. ВФ-коин не списывался\./u);
+});
 
 test("project page renders queued generation polling stages without WebSocket", async () => {
   const authService = {

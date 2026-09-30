@@ -82,7 +82,7 @@ test("/app/new explains the private free photo check before upload", async () =>
     assert.match(html, /data-rights-hash="[a-f0-9]{64}"/u);
   assert.match(html, /id="photo-usage-rights"/u);
   assert.match(html, /\/legal\/photo-processing-consent/u);
-  assert.match(html, /app-new\.js\?v=20260930-2/u);
+  assert.match(html, /app-new\.js\?v=20260930-3/u);
   assert.match(html, /id="remove-photo"/u);
   assert.doesNotMatch(html, /телефон|специалист|отправить заявку/iu);
 });

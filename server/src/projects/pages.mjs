@@ -58,7 +58,7 @@ const STYLE_OPTIONS = [
   },
 ];
 const SELECTION_ASSET_VERSION = "20260825-2";
-const APP_ASSET_VERSION = "20260930-2";
+const APP_ASSET_VERSION = "20260930-3";
 const MATERIALS = [
   ["штукатурка", "Ровная матовая поверхность", "/material-plaster.webp"],
   ["кирпич", "Тёплая кладка с заметным швом", "/material-brick.webp"],
