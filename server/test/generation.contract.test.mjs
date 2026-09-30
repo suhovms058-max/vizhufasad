@@ -37,6 +37,9 @@ test("generation input defaults to gentle and protects structure", () => {
   assert.match(composed.prompt, /window count/u);
   assert.match(composed.prompt, /fully completed/u);
   assert.match(composed.prompt, /cornice\/eaves/u);
+  assert.match(composed.prompt, /EAVES COMPLETION — mandatory when unfinished/u);
+  assert.match(composed.prompt, /continuous, buildable soffit lining/u);
+  assert.match(composed.prompt, /exact original eave depth/u);
   assert.match(composed.prompt, /every already-existing column/u);
   assert.match(composed.prompt, /штукатурка, дерево/u);
   assert.match(composed.prompt, /#EEE7DB, #3B302A/u);

@@ -50,6 +50,9 @@ test("quality prompt counts outer openings and permits safety railings on existi
   assert.match(prompt, /replaced with direct steps/u);
   assert.match(prompt, /raw aerated-concrete blocks/u);
   assert.match(prompt, /unfinished_facade/u);
+  assert.match(prompt, /underside of every existing roof overhang/u);
+  assert.match(prompt, /continuous realistic soffit lining/u);
+  assert.match(prompt, /required facade completion, not a structural roof change/u);
 });
 
 test("quality config selects Yandex first and fails closed for enabled generation", () => {

@@ -97,6 +97,7 @@ function compactEditPrompt(prompt, maxBytes = 1900) {
   const priorities = [
     /^TASK:/u,
     /^EDIT BOUNDARY:/u,
+    /^EAVES COMPLETION/u,
     /^STRUCTURAL LOCK:/u,
     /^OPENING LOCK:/u,
     /^ENTRANCE GROUP GEOMETRY LOCK/u,

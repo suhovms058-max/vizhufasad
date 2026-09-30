@@ -97,6 +97,7 @@ export function composeGenerationPrompt(input, {
       : "",
     "STRUCTURAL LOCK: Keep the exact same house, storey count, roof, viewpoint and position. Keep every original window, door, balcony, terrace, structural post and canopy in the identical count, size, shape and pixel position. Never add, remove, move, resize or duplicate any of them.",
     "ROOF SILHOUETTE LOCK: Preserve every roof ridge, gable or hip angle, eave, overhang and roof-to-wall boundary in the exact same pixel position. Change facade finishes only; never alter the roof contour or its geometry.",
+    "EAVES COMPLETION — mandatory when unfinished: inspect the underside of every existing roof overhang. If the source shows exposed rafters, battens, membrane, raw sheathing, open gaps or an unlined cornice/eave, cover that same underside with a continuous, buildable soffit lining and finish the fascia to match the requested facade style, materials and palette. Keep the exact original eave depth, thickness, outline, slope and roof geometry. Never leave exposed roof construction visible in the finished result.",
     "OPENING LOCK: Before applying any finish, inventory every visible original window and door from left to right. Keep the identical count, type, size and pixel position. Never add an opening to a blank wall, remove an opening or duplicate an opening.",
     entranceGroupPromptInstruction(entranceGroup),
     entranceGroup

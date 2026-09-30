@@ -1,5 +1,5 @@
 export const GENERATION_QUALITY_SCHEMA_VERSION = "generation-quality-assessment-v4";
-export const GENERATION_QUALITY_PROMPT_VERSION = "facade-quality-compare-v6";
+export const GENERATION_QUALITY_PROMPT_VERSION = "facade-quality-compare-v7";
 export const GENERATION_QUALITY_POLICY_VERSION = "facade-quality-policy-v5";
 
 export const QUALITY_DECISIONS = Object.freeze([

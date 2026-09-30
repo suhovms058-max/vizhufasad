@@ -147,6 +147,7 @@ test("Seedream retry prompts stay below the GenAPI limit and retain quality lock
   const prompt = [
     "TASK: Edit the exact same house.",
     `FILLER: ${"architectural detail ".repeat(400)}`,
+    "EAVES COMPLETION — mandatory when unfinished: add continuous soffit lining without changing the eave geometry.",
     "STRUCTURAL LOCK: Keep the exact same house, storeys, roof, windows and doors.",
     "OPENING LOCK: Keep every source opening in its exact pixel position.",
     "AUTOMATIC QUALITY RETRY: Correct the rejected candidate without changing the house.",
@@ -168,6 +169,7 @@ test("Seedream retry prompts stay below the GenAPI limit and retain quality lock
   const compact = body.get("prompt");
   assert.ok([...compact].length < 5000);
   assert.ok(Buffer.byteLength(compact, "utf8") <= 4800);
+  assert.match(compact, /EAVES COMPLETION — mandatory when unfinished/u);
   assert.match(compact, /STRUCTURAL LOCK: Keep the exact same house/u);
   assert.match(compact, /OPENING LOCK: Keep every source opening/u);
   assert.match(compact, /AUTOMATIC QUALITY RETRY: Correct the rejected candidate/u);
