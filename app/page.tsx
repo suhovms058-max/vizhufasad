@@ -11,6 +11,8 @@ const CABINET_URL = "/app";
 const CATALOG_URL = process.env.NEXT_PUBLIC_CATALOG_URL || "/api/public/catalog";
 const PAYMENTS_ENABLED = process.env.NEXT_PUBLIC_PAYMENTS_ENABLED === "true";
 const SITE_ORIGIN = process.env.NEXT_PUBLIC_SITE_ORIGIN || "https://vizhufasad.ru";
+const CONTACT_PHONE_DISPLAY = "+7 937 412-26-69";
+const CONTACT_PHONE_HREF = "+79374122669";
 
 type PublicTariff = { code: string; priceMinor: number; credits: number };
 type PublicAction = { code: string; credits: number };
@@ -24,6 +26,7 @@ const faqs = [
   ["Форма дома, окна и крыша изменятся?", "Задача сервиса — сохранить геометрию, окна, двери, кровлю и этажность. Перед запуском можно отдельно отметить элементы, которые нельзя менять."],
   ["Какое фото подойдёт?", "Снимок при дневном свете, где дом виден целиком и не перекрыт деревьями или автомобилями. Лучше снимать прямо или под небольшим углом."],
   ["Что будет, если результат исказит дом?", "Результат проходит автоматическую проверку. Сервис делает бесплатный повтор, а если он тоже не проходит проверку — возвращает кредит."],
+  ["Сколько занимает создание визуализации?", "Обычно результат готов в течение 10 минут. При повышенной нагрузке или повторной автоматической обработке срок может увеличиться до 24 часов. Готовый результат появляется в личном кабинете."],
   ["Где хранятся фотографии?", "После отдельного согласия снимок загружается в приватное хранилище и доступен только внутри вашего проекта по временной защищённой ссылке."],
   ["Это готовый строительный проект?", "Нет. Это визуальный способ выбрать направление фасада до покупки материалов. Чертежи, расчёты и спецификации готовит профильный специалист."],
 ];
@@ -187,7 +190,7 @@ export default function HomePage() {
 
       <footer className="vf4-footer">
         <div className="vf4-shell">
-          <div className="vf4-footer-top"><div><a className="vf4-brand" href="#top"><span className="vf4-brand-mark">ВФ</span><span>ВИЖУФАСАД<small>AI-ВИЗУАЛИЗАЦИЯ ФАСАДОВ</small></span></a><p>Визуализация вариантов отделки частных домов и строений по всей России.</p></div><div className="vf4-footer-links"><div><strong>Продукт</strong><a href="#flow">Как это работает</a><a href="#pricing">Тарифы</a><a href="/gallery">Примеры</a><a href="/styles">Каталог стилей</a></div><div><strong>Полезное</strong><a href="/visualizaciya-fasada-po-foto">Фасад по фото</a><a href="/stili-i-materialy-fasada">Стили и материалы</a><a href="/partners">Партнёрам</a><a href="#faq">Вопросы</a></div><div><strong>Информация</strong><a href="/legal/offer">Условия оплаты</a><a href="/legal/privacy">Конфиденциальность</a><a href="/legal/refunds">Возвраты</a><a href="mailto:vizhufasad0058@bk.ru">vizhufasad0058@bk.ru</a></div></div></div>
+          <div className="vf4-footer-top"><div><a className="vf4-brand" href="#top"><span className="vf4-brand-mark">ВФ</span><span>ВИЖУФАСАД<small>AI-ВИЗУАЛИЗАЦИЯ ФАСАДОВ</small></span></a><p>Визуализация вариантов отделки частных домов и строений по всей России.</p></div><div className="vf4-footer-links"><div><strong>Продукт</strong><a href="#flow">Как это работает</a><a href="#pricing">Тарифы</a><a href="/gallery">Примеры</a><a href="/styles">Каталог стилей</a></div><div><strong>Полезное</strong><a href="/visualizaciya-fasada-po-foto">Фасад по фото</a><a href="/stili-i-materialy-fasada">Стили и материалы</a><a href="/partners">Партнёрам</a><a href="#faq">Вопросы</a></div><div><strong>Информация</strong><a href="/legal/offer">Условия оплаты</a><a href="/legal/privacy">Конфиденциальность</a><a href="/legal/refunds">Возвраты</a><a href={`tel:${CONTACT_PHONE_HREF}`}>{CONTACT_PHONE_DISPLAY}</a><a href="mailto:vizhufasad0058@bk.ru">vizhufasad0058@bk.ru</a></div></div></div>
           <div className="vf4-footer-bottom"><span>© 2026 ВИЖУФАСАД · Условия цифровой услуги опубликованы в публичной оферте</span><span>Результат является визуальной концепцией фасада, а не строительным проектом, сметой или точным расчётом материалов.</span></div>
         </div>
       </footer>

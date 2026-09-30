@@ -86,6 +86,7 @@ export function loadPaymentConfig(environment = process.env) {
     merchantInn: String(environment.LEGAL_MERCHANT_INN || "").trim() || null,
     merchantOgrnip: String(environment.LEGAL_MERCHANT_OGRNIP || "").trim() || null,
     merchantEmail: String(environment.LEGAL_MERCHANT_EMAIL || environment.LEADS_EMAIL || "").trim() || null,
+    merchantPhone: String(environment.LEGAL_MERCHANT_PHONE || "").trim() || null,
     merchantStatus: String(environment.LEGAL_MERCHANT_STATUS || "").trim() || null,
     merchantRegistrationDate: String(environment.LEGAL_MERCHANT_REGISTRATION_DATE || "").trim() || null,
     merchantRegistrationAuthority: String(environment.LEGAL_MERCHANT_REGISTRATION_AUTHORITY || "").trim() || null,
@@ -103,6 +104,7 @@ export function loadPaymentConfig(environment = process.env) {
     config.merchantInn = required(environment, "LEGAL_MERCHANT_INN");
     config.merchantOgrnip = required(environment, "LEGAL_MERCHANT_OGRNIP");
     config.merchantEmail = required(environment, "LEGAL_MERCHANT_EMAIL");
+    config.merchantPhone = required(environment, "LEGAL_MERCHANT_PHONE");
     config.merchantStatus = required(environment, "LEGAL_MERCHANT_STATUS");
     config.merchantRegistrationDate = required(environment, "LEGAL_MERCHANT_REGISTRATION_DATE");
     config.merchantRegistrationAuthority = required(environment, "LEGAL_MERCHANT_REGISTRATION_AUTHORITY");

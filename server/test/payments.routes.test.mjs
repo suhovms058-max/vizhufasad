@@ -133,6 +133,7 @@ test("public offer identifies the automated digital service and published mercha
       merchantInn: "000000000000",
       merchantOgrnip: "300000000000000",
       merchantEmail: "merchant@example.test",
+      merchantPhone: "+7 900 000-00-00",
       merchantStatus: "индивидуальный предприниматель, применяющий НПД",
       merchantRegistrationDate: "24.09.2026",
       merchantRegistrationAuthority: "УФНС России по тестовому региону",
@@ -152,6 +153,8 @@ test("public offer identifies the automated digital service and published mercha
     assert.match(html, /ОГРНИП:<\/strong>\s*300000000000000/u);
     assert.match(html, /УФНС России по тестовому региону/u);
     assert.match(html, /Адрес для корреспонденции и претензий/u);
+    assert.match(html, /href="tel:\+79000000000"/u);
+    assert.match(html, /Обычный срок автоматической генерации — до 10 минут/u);
     assert.doesNotMatch(html, /LEGAL_MERCHANT_/u);
     assert.match(html, /самостоятельного автоматического создания/);
     assert.doesNotMatch(html, /дизайнера или оператора[^<]*предоставляет/u);
