@@ -18,10 +18,14 @@ const environment = {
   ROBOKASSA_PASSWORD2: "password-two",
   ROBOKASSA_SIGNATURE_ALGORITHM: "sha256",
   SITE_ORIGIN: "https://stage.example.test",
-  LEGAL_MERCHANT_NAME: "Тестовый Самозанятый",
+  LEGAL_MERCHANT_NAME: "Иванов Иван Иванович",
   LEGAL_MERCHANT_INN: "000000000000",
+  LEGAL_MERCHANT_OGRNIP: "300000000000000",
   LEGAL_MERCHANT_EMAIL: "merchant@example.test",
-  LEGAL_MERCHANT_STATUS: "Самозанятый НПД",
+  LEGAL_MERCHANT_STATUS: "индивидуальный предприниматель, применяющий НПД",
+  LEGAL_MERCHANT_REGISTRATION_DATE: "24.09.2026",
+  LEGAL_MERCHANT_REGISTRATION_AUTHORITY: "УФНС России по тестовому региону",
+  LEGAL_MERCHANT_ADDRESS: "000000, Тестовый адрес",
 };
 
 test("payment config is disabled by default and blocks accidental production test mode", () => {
@@ -33,6 +37,73 @@ test("payment config is disabled by default and blocks accidental production tes
   assert.throws(
     () => loadPaymentConfig({ ...environment, FEATURE_SUBSCRIPTIONS_ENABLED: "true" }),
     /explicit Robokassa approval/,
+  );
+});
+
+test("enabled payments require complete individual-entrepreneur legal details", () => {
+  for (const name of [
+    "LEGAL_MERCHANT_NAME",
+    "LEGAL_MERCHANT_INN",
+    "LEGAL_MERCHANT_OGRNIP",
+    "LEGAL_MERCHANT_EMAIL",
+    "LEGAL_MERCHANT_STATUS",
+    "LEGAL_MERCHANT_REGISTRATION_DATE",
+    "LEGAL_MERCHANT_REGISTRATION_AUTHORITY",
+    "LEGAL_MERCHANT_ADDRESS",
+  ]) {
+    assert.throws(
+      () => loadPaymentConfig({ ...environment, [name]: "" }),
+      new RegExp(`${name} is required`),
+    );
+  }
+  assert.throws(
+    () => loadPaymentConfig({ ...environment, LEGAL_MERCHANT_INN: "123" }),
+    /must contain 12 digits/,
+  );
+  assert.throws(
+    () => loadPaymentConfig({ ...environment, LEGAL_MERCHANT_OGRNIP: "123" }),
+    /must contain 15 digits/,
+  );
+});
+
+test("production payments use only canonical vizhufasad.ru callbacks and redirects", () => {
+  const production = {
+    ...environment,
+    NODE_ENV: "production",
+    PAYMENT_TEST_MODE: "false",
+    SITE_ORIGIN: "https://vizhufasad.ru",
+    ROBOKASSA_RESULT2_URL: "https://vizhufasad.ru/api/payments/webhooks/robokassa/result2",
+    ROBOKASSA_RESULT2_PUBLIC_KEY: "test-public-key",
+  };
+  const config = loadPaymentConfig(production);
+  assert.equal(config.resultUrl, "https://vizhufasad.ru/api/payments/webhooks/robokassa/result");
+  assert.equal(config.result2Url, "https://vizhufasad.ru/api/payments/webhooks/robokassa/result2");
+  assert.equal(config.successUrl, "https://vizhufasad.ru/app/balance");
+  assert.equal(config.failUrl, "https://vizhufasad.ru/app/balance");
+  const checkout = new RobokassaPaymentProvider(config).createCheckout({
+    id: "4e0906df-e5e1-4b2f-8cf9-a7fd4b46b399",
+    provider_payment_id: "100099",
+    amount_minor: 79_000,
+    description: "Production contract test",
+    checkout_expires_at: new Date("2026-09-30T12:00:00Z"),
+  }, { email: "buyer@example.test" });
+  const checkoutUrl = new URL(checkout.url);
+  assert.equal(checkoutUrl.searchParams.get("ResultUrl2"), config.result2Url);
+  assert.equal(checkoutUrl.searchParams.get("SuccessUrl2"), config.successUrl);
+  assert.equal(checkoutUrl.searchParams.get("FailUrl2"), config.failUrl);
+  assert.equal(checkoutUrl.searchParams.has("IsTest"), false);
+
+  assert.throws(
+    () => loadPaymentConfig({ ...production, SITE_ORIGIN: "https://wrong.example" }),
+    /Production payments require SITE_ORIGIN/,
+  );
+  assert.throws(
+    () => loadPaymentConfig({ ...production, ROBOKASSA_RESULT2_URL: "", ROBOKASSA_RESULT2_PUBLIC_KEY: "" }),
+    /require signed Robokassa ResultUrl2/,
+  );
+  assert.throws(
+    () => loadPaymentConfig({ ...production, ROBOKASSA_RESULT2_URL: "https://vizhufasad.ru/wrong" }),
+    /ROBOKASSA_RESULT2_URL must be/,
   );
 });
 

@@ -131,8 +131,12 @@ test("public offer identifies the automated digital service and published mercha
       siteOrigin: "https://stage.example.test",
       merchantName: "Иванов Иван Иванович LEGAL_MERCHANT_INN=000000000000 LEGAL_MERCHANT_EMAIL=merchant@example.test",
       merchantInn: "000000000000",
+      merchantOgrnip: "300000000000000",
       merchantEmail: "merchant@example.test",
-      merchantStatus: "Самозанятый, плательщик НПД",
+      merchantStatus: "индивидуальный предприниматель, применяющий НПД",
+      merchantRegistrationDate: "24.09.2026",
+      merchantRegistrationAuthority: "УФНС России по тестовому региону",
+      merchantAddress: "000000, Тестовый адрес",
     },
   }));
   const server = app.listen(0, "127.0.0.1");
@@ -145,9 +149,24 @@ test("public offer identifies the automated digital service and published mercha
     assert.match(html, /\/assets\/app-ui\.css/u);
     assert.match(html, /class="panel legal-content"/u);
     assert.match(html, /Иванов Иван Иванович/);
+    assert.match(html, /ОГРНИП:<\/strong>\s*300000000000000/u);
+    assert.match(html, /УФНС России по тестовому региону/u);
+    assert.match(html, /Адрес для корреспонденции и претензий/u);
     assert.doesNotMatch(html, /LEGAL_MERCHANT_/u);
     assert.match(html, /самостоятельного автоматического создания/);
     assert.doesNotMatch(html, /дизайнера или оператора[^<]*предоставляет/u);
+
+    const privacyResponse = await fetch(`http://127.0.0.1:${server.address().port}/legal/privacy`);
+    const privacyHtml = await privacyResponse.text();
+    assert.equal(privacyResponse.status, 200);
+    assert.match(privacyHtml, /<strong>Оператор:<\/strong>/u);
+    assert.doesNotMatch(privacyHtml, /<strong>Исполнитель:<\/strong>/u);
+
+    const refundsResponse = await fetch(`http://127.0.0.1:${server.address().port}/legal/refunds`);
+    const refundsHtml = await refundsResponse.text();
+    assert.equal(refundsResponse.status, 200);
+    assert.match(refundsHtml, /статьёй 32 Закона РФ «О защите прав потребителей»/u);
+    assert.match(refundsHtml, /фактически понесённых расходов/u);
   } finally {
     await new Promise((resolve) => server.close(resolve));
   }

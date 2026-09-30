@@ -341,7 +341,7 @@ curl --fail --silent --show-error --location \
 openssl x509 -in /etc/vizhufasad/robokassa-jwtsign.cer -noout -subject -issuer -dates
 ```
 
-Этап 11 добавляет provider-independent платёжный модуль с адаптером Robokassa для самозанятого НПД. Checkout создаёт только сервер по активной версии тарифа из PostgreSQL. Кредиты начисляются один раз после валидного подписанного `ResultURL`; возврат пользователя через `SuccessUrl2` не меняет баланс.
+Этап 11 добавляет provider-independent платёжный модуль с адаптером Robokassa для индивидуального предпринимателя, применяющего НПД. Checkout создаёт только сервер по активной версии тарифа из PostgreSQL. Кредиты начисляются один раз после валидного подписанного `ResultURL`; возврат пользователя через `SuccessUrl2` не меняет баланс.
 
 По умолчанию платежи и подписки выключены. Для локальной проверки без реального списания заполните только `server/.env`, примените миграции и явно включите тестовый магазин:
 
@@ -357,11 +357,17 @@ ROBOKASSA_SIGNATURE_ALGORITHM=sha256
 ROBOKASSA_OPERATION_STATE_URL=https://auth.robokassa.ru/Merchant/WebService/Service.asmx/OpStateExt
 ROBOKASSA_RESULT2_URL=https://ваш_домен/api/payments/webhooks/robokassa/result2
 ROBOKASSA_RESULT2_PUBLIC_KEY_FILE=/etc/vizhufasad/robokassa-jwtsign.cer
-LEGAL_MERCHANT_NAME=ФИО_самозанятого
-LEGAL_MERCHANT_INN=ИНН_самозанятого
+LEGAL_MERCHANT_NAME=ФИО_индивидуального_предпринимателя
+LEGAL_MERCHANT_INN=ИНН_индивидуального_предпринимателя
+LEGAL_MERCHANT_OGRNIP=ОГРНИП
 LEGAL_MERCHANT_EMAIL=email_для_обращений
-LEGAL_MERCHANT_STATUS=Самозанятый, плательщик НПД
+LEGAL_MERCHANT_STATUS=индивидуальный предприниматель, применяющий НПД
+LEGAL_MERCHANT_REGISTRATION_DATE=ДД.ММ.ГГГГ
+LEGAL_MERCHANT_REGISTRATION_AUTHORITY=наименование_регистрирующего_органа
+LEGAL_MERCHANT_ADDRESS=почтовый_адрес_для_корреспонденции_и_претензий
 ```
+
+Для production задайте `SITE_ORIGIN=https://vizhufasad.ru`. В кабинете Robokassa укажите `ResultURL` методом `POST` как `https://vizhufasad.ru/api/payments/webhooks/robokassa/result`. Подписанный `ResultUrl2` должен совпадать с `https://vizhufasad.ru/api/payments/webhooks/robokassa/result2`; `SuccessUrl2` и `FailUrl2` checkout формирует как `https://vizhufasad.ru/app/balance`. Сервер не включает боевые платежи при другом origin, неполных реквизитах ИП или отсутствующем ResultUrl2 с ключом проверки.
 
 В production тестовый режим дополнительно требует осознанного `PAYMENT_ALLOW_TEST_MODE_IN_PRODUCTION=true`. Перед боевым включением установите `PAYMENT_TEST_MODE=false`, замените тестовые Password #1/#2 боевыми и снова проведите контрольный платёж. Для автоматических возвратов отдельно задайте боевой `ROBOKASSA_PASSWORD3`; без него возврат через API недоступен. `OpKey` приходит в проверенном `ResultUrl2`, а при недоставленном уведомлении может быть восстановлен штатным read-only запросом `OpStateExt`. После переключения `PAYMENT_ALLOW_TEST_MODE_IN_PRODUCTION` следует вернуть в `false`. Значения паролей, ИНН и персональные реквизиты не коммитятся.
 
