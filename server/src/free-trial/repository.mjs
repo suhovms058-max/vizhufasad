@@ -38,7 +38,8 @@ export class FreeTrialRepository {
   async hasSpendablePaidCredits(userId, actionCode) {
     const result = await this.pool.query(
       `select coalesce(sum(case
-          when transaction.type in ('purchase', 'subscription') and transaction.status = 'committed'
+          when transaction.type in ('purchase', 'subscription', 'admin_adjustment', 'promo')
+            and transaction.status = 'committed'
             then transaction.amount
           when transaction.type = 'generation_charge' and transaction.status in ('reserved', 'committed')
             and transaction.metadata->>'funding' is distinct from 'free_trial'

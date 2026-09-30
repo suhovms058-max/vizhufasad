@@ -148,6 +148,47 @@ test("purchased VF coins remain usable when the device already used a free trial
   }
 });
 
+test("owner and partner VF coins bypass the free-trial limit", { skip: !enabled }, async () => {
+  const pool = getPool();
+  const repository = new FreeTrialRepository(pool);
+  const first = await fixture(pool, "1212121212121212");
+  const owner = await fixture(pool, "3434343434343434");
+  const partner = await fixture(pool, "5656565656565656");
+  const walletRepository = new WalletRepository(pool);
+  const walletService = new WalletService({
+    repository: walletRepository,
+    config: { walletEnabled: true, tariffCatalogEnabled: true, paymentsEnabled: true, freeBonusEnabled: true, freeBonusCredits: 1 },
+  });
+  const service = new FreeTrialService({ repository, walletService, freeBonusCredits: 1 });
+  try {
+    const firstResult = await repository.authorizeAndReserve({
+      userId: first.userId, sourceImageId: first.imageId, generationId: first.generationId,
+      deviceHash: "shared-funded-device", ipHash: "ip", networkHash: "network",
+      actionCode: "standard_generation", idempotencyKey: `generation:${first.generationId}:reserve`,
+    });
+    assert.equal(firstResult.decision, "allowed");
+
+    for (const [item, type, source] of [
+      [owner, "admin_adjustment", "owner_access_code"],
+      [partner, "promo", "partner_contract"],
+    ]) {
+      await walletService.credit(item.userId, {
+        type, amount: 1, idempotencyKey: `${type}:${item.userId}`,
+        referenceType: "authorized_credit", referenceId: randomUUID(), metadata: { source },
+      });
+      const reservation = await service.reserveStandard(item.userId, {
+        actionCode: "standard_generation", idempotencyKey: `generation:${item.generationId}:reserve`,
+        referenceType: "generation", referenceId: item.generationId, sourceImageId: item.imageId,
+      }, { deviceHash: "shared-funded-device", ipHash: "ip", networkHash: "network" });
+      assert.equal(reservation.transaction.status, "reserved");
+      assert.equal(reservation.transaction.metadata?.funding, undefined);
+    }
+  } finally {
+    await cleanup(pool, [first, owner, partner]);
+    await closeDatabase();
+  }
+});
+
 test("parallel requests on one device reserve at most one free generation", { skip: !enabled }, async () => {
   const pool = getPool();
   const repository = new FreeTrialRepository(pool);
