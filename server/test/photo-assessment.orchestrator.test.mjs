@@ -121,7 +121,7 @@ test("provider config can use GenAPI as the photo-assessment fallback", () => {
   });
   assert.equal(loaded.primary, "yandex");
   assert.equal(loaded.fallback, "genapi");
-  assert.equal(loaded.models.genapi, "gemini-3-5-flash");
+  assert.equal(loaded.models.genapi, "gpt-4.1-mini");
 });
 
 test("production refuses to start without an automatic assessment provider", () => {

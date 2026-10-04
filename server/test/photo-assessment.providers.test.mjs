@@ -100,12 +100,13 @@ test("Yandex provider reports an unfinished chat completion as retryable", async
 test("GenAPI provider uses its OpenAI-compatible multimodal chat endpoint", async () => {
   const provider = new GenApiPhotoAssessmentProvider({
     apiKey: "test-genapi-key",
-    model: "gemini-3-5-flash",
+    model: "gpt-4.1-mini",
     fetchImplementation: async (url, options) => {
       const body = JSON.parse(options.body);
       assert.equal(url, "https://proxy.gen-api.ru/v1/chat/completions");
       assert.equal(options.headers.Authorization, "Bearer test-genapi-key");
-      assert.equal(body.model, "gemini-3-5-flash");
+      assert.equal(body.model, "gpt-4.1-mini");
+      assert.equal(body.max_tokens, 2_000);
       assert.equal(body.reasoning_effort, undefined);
       assert.equal(body.response_format.type, "json_object");
       assert.match(body.messages[0].content[0].text, /Верни JSON строго по этой схеме/u);

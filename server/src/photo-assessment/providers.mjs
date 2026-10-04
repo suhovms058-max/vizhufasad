@@ -131,7 +131,7 @@ function chatRequestBody({ model, image, name }) {
         },
       ],
     }],
-    max_tokens: 1_500,
+    max_tokens: genapi ? 2_000 : 1_500,
     response_format: genapi
       ? { type: "json_object" }
       : {

@@ -63,7 +63,7 @@ export function loadPhotoAssessmentConfig(environment = process.env) {
     }),
     models: {
       yandex: environment.YANDEX_MODEL || "qwen3.6-35b-a3b",
-      genapi: environment.PHOTO_ASSESSMENT_GENAPI_MODEL || "gemini-3-5-flash",
+      genapi: environment.PHOTO_ASSESSMENT_GENAPI_MODEL || "gpt-4.1-mini",
       openai: environment.OPENAI_MODEL || "gpt-4.1-mini",
     },
   };
