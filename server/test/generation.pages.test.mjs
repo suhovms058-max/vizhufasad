@@ -11,6 +11,15 @@ test("generation status explains pre-charge failures without claiming a refund",
   assert.match(source, /Генерация не запускалась\. ВФ-коин не списывался\./u);
 });
 
+test("generation form survives unavailable browser storage and scopes retries to the source image", async () => {
+  const source = await readFile(new URL("../public/app-new.js", import.meta.url), "utf8");
+  assert.match(source, /const safeStorage =/u);
+  assert.match(source, /typeof window\.crypto\?\.randomUUID === "function"/u);
+  assert.match(source, /const keyName = `\$\{legacyKeyName\}:\$\{imageId\}`/u);
+  assert.match(source, /GENERATION_RATE_LIMITED/u);
+  assert.match(source, /Код: \$\{error\.code\}/u);
+});
+
 test("project page renders queued generation polling stages without WebSocket", async () => {
   const authService = {
     async sessionFromRequest() {

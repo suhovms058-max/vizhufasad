@@ -62,6 +62,24 @@
     PHOTO_USAGE_RIGHTS_REQUIRED: "Подтвердите, что вправе использовать выбранную фотографию.",
     FREE_TRIAL_ALREADY_USED: "Пробный запуск уже использован на этом устройстве или для этого объекта.",
     FREE_TRIAL_REVIEW_REQUIRED: "Не удалось подтвердить право на пробный запуск. ВФ-коин не списан.",
+    GENERATION_RATE_LIMITED: "Слишком много запусков за короткое время. Подождите несколько минут и повторите.",
+    GENERATION_SOURCE_NOT_ELIGIBLE: "Фотография проекта изменилась или больше недоступна. Обновите страницу и повторите запуск.",
+    NETWORK_ERROR: "Не удалось связаться с сервером. Проверьте интернет-соединение и повторите запуск.",
+  };
+
+  const safeStorage = {
+    get(key) { try { return localStorage.getItem(key); } catch { return null; } },
+    set(key, value) { try { localStorage.setItem(key, value); return true; } catch { return false; } },
+    remove(key) { try { localStorage.removeItem(key); } catch {} },
+  };
+
+  const createIdempotencyKey = () => {
+    if (typeof window.crypto?.randomUUID === "function") return window.crypto.randomUUID();
+    if (typeof window.crypto?.getRandomValues === "function") {
+      const bytes = window.crypto.getRandomValues(new Uint8Array(16));
+      return [...bytes].map((value) => value.toString(16).padStart(2, "0")).join("");
+    }
+    return `${Date.now().toString(36)}-${Math.random().toString(36).slice(2)}-${Math.random().toString(36).slice(2)}`;
   };
 
   const vfCoinsLabel = (value) => {
@@ -88,8 +106,9 @@
     }
     const body = response.status === 204 ? {} : await response.json().catch(() => ({}));
     if (!response.ok) {
-      const error = new Error(body.error || "REQUEST_FAILED");
-      error.code = body.error || "REQUEST_FAILED";
+      const fallbackCode = response.status === 429 ? "GENERATION_RATE_LIMITED" : "REQUEST_FAILED";
+      const error = new Error(body.error || fallbackCode);
+      error.code = body.error || fallbackCode;
       error.status = response.status;
       throw error;
     }
@@ -302,7 +321,7 @@
     const wizardBack = form.querySelector("#settings-back");
     const wizardNext = form.querySelector("#settings-next");
     let saveTimer;
-    let wizardStep = Math.min(3, Math.max(1, Number(localStorage.getItem(wizardStorageKey)) || 1));
+    let wizardStep = Math.min(3, Math.max(1, Number(safeStorage.get(wizardStorageKey)) || 1));
 
     const showWizardStep = (nextStep, focusHeading = false) => {
       wizardStep = Math.min(3, Math.max(1, nextStep));
@@ -316,7 +335,7 @@
       wizardBack.classList.toggle("hidden", wizardStep === 1);
       wizardNext.classList.toggle("hidden", wizardStep === 3);
       start.classList.toggle("hidden", wizardStep !== 3);
-      localStorage.setItem(wizardStorageKey, String(wizardStep));
+      safeStorage.set(wizardStorageKey, String(wizardStep));
       if (focusHeading) {
         const heading = wizardSteps[wizardStep - 1]?.querySelector("h2");
         heading?.setAttribute("tabindex", "-1");
@@ -399,7 +418,7 @@
     };
     const save = async () => {
       const config = configuration();
-      localStorage.setItem(storageKey, JSON.stringify(config));
+      safeStorage.set(storageKey, JSON.stringify(config));
       draftStatus.textContent = "Сохраняем настройки…";
       await request(`/api/projects/${encodeURIComponent(projectId)}/configuration`, {
         method: "PATCH", body: JSON.stringify(config),
@@ -408,12 +427,12 @@
       return config;
     };
     const scheduleSave = () => {
-      localStorage.setItem(storageKey, JSON.stringify(configuration()));
+      safeStorage.set(storageKey, JSON.stringify(configuration()));
       draftStatus.textContent = "Есть несохранённые изменения";
       clearTimeout(saveTimer);
       saveTimer = setTimeout(() => save().catch(() => { draftStatus.textContent = "Черновик сохранён в этом браузере"; }), 700);
     };
-    try { applyDraft(JSON.parse(localStorage.getItem(storageKey) || "null")); } catch {}
+    try { applyDraft(JSON.parse(safeStorage.get(storageKey) || "null")); } catch {}
     updateStyleCards();
     updatePhomiSubsystem();
     const updateCount = () => { count.textContent = String(wishes.value.length); };
@@ -448,15 +467,17 @@
         const config = await save();
         const kind = new FormData(form).get("generationKind") === "pro" ? "pro" : "standard";
         window.vizhufasadTrack?.("generation_started", { generationKind: kind });
-        const keyName = `vizhufasad:stage12:start:${kind}:${projectId}`;
-        let idempotencyKey = localStorage.getItem(keyName);
-        if (!idempotencyKey) { idempotencyKey = crypto.randomUUID(); localStorage.setItem(keyName, idempotencyKey); }
+        const legacyKeyName = `vizhufasad:stage12:start:${kind}:${projectId}`;
+        const keyName = `${legacyKeyName}:${imageId}`;
+        safeStorage.remove(legacyKeyName);
+        let idempotencyKey = safeStorage.get(keyName);
+        if (!idempotencyKey) { idempotencyKey = createIdempotencyKey(); safeStorage.set(keyName, idempotencyKey); }
         const body = await request(`/api/projects/${encodeURIComponent(projectId)}/generations/${kind}`, {
           method: "POST", headers: { "Idempotency-Key": idempotencyKey },
           body: JSON.stringify({ sourceImageId: imageId, input: config }),
         });
-        localStorage.removeItem(keyName);
-        localStorage.removeItem(wizardStorageKey);
+        safeStorage.remove(keyName);
+        safeStorage.remove(wizardStorageKey);
         location.assign(`/app/projects/${encodeURIComponent(projectId)}/generations/${encodeURIComponent(body.generation.id)}`);
       } catch (error) {
         start.disabled = false;
@@ -471,7 +492,8 @@
           support.textContent = "написать в поддержку";
           message.append(pricing, document.createTextNode(" или "), support, document.createTextNode("."));
         } else {
-          message.textContent = errors[error.code] || "Не удалось запустить генерацию. ВФ-коин не списан или будет автоматически возвращён.";
+          const publicCode = /^[A-Z0-9_]{3,80}$/u.test(String(error.code || "")) ? ` Код: ${error.code}.` : "";
+          message.textContent = errors[error.code] || `Не удалось запустить генерацию. ВФ-коин не списан.${publicCode}`;
         }
       }
     });

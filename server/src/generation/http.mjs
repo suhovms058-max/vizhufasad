@@ -17,6 +17,8 @@ export function createGenerationRouter({ authService, generationService, mutatio
   const limiter = rateLimit({
     windowMs: 15 * 60 * 1000,
     limit: mutationLimit,
+    keyGenerator: (request) => request.auth.user_id,
+    handler: (_request, response) => response.status(429).json({ error: "GENERATION_RATE_LIMITED" }),
     standardHeaders: "draft-8",
     legacyHeaders: false,
   });
@@ -33,6 +35,10 @@ export function createGenerationRouter({ authService, generationService, mutatio
       );
       return response.status(202).json({ generation });
     } catch (error) {
+      console.warn("Generation launch rejected", {
+        kind: "standard", projectId: request.params.projectId,
+        code: error?.code || "GENERATION_FAILED", status: error?.status || 500,
+      });
       try { return respondError(response, error); } catch (unexpected) { return next(unexpected); }
     }
   });
@@ -48,6 +54,10 @@ export function createGenerationRouter({ authService, generationService, mutatio
       );
       return response.status(202).json({ generation });
     } catch (error) {
+      console.warn("Generation launch rejected", {
+        kind: "pro", projectId: request.params.projectId,
+        code: error?.code || "GENERATION_FAILED", status: error?.status || 500,
+      });
       try { return respondError(response, error); } catch (unexpected) { return next(unexpected); }
     }
   });
