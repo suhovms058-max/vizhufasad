@@ -1,8 +1,8 @@
-const providerNames = new Set(["auto", "yandex", "openai", "none"]);
+const providerNames = new Set(["auto", "yandex", "genapi", "openai", "none"]);
 
 function providerName(value, variable) {
   const name = String(value || "auto").trim().toLowerCase();
-  if (!providerNames.has(name)) throw new Error(`${variable} must be auto, yandex, openai or none`);
+  if (!providerNames.has(name)) throw new Error(`${variable} must be auto, yandex, genapi, openai or none`);
   return name;
 }
 
@@ -17,6 +17,7 @@ function integer(value, fallback, { min, max, name }) {
 export function loadPhotoAssessmentConfig(environment = process.env) {
   const configured = {
     yandex: Boolean(environment.YANDEX_API_KEY && environment.YANDEX_FOLDER_ID),
+    genapi: Boolean(environment.GENAPI_API_KEY),
     openai: Boolean(environment.OPENAI_API_KEY),
   };
   const requestedPrimary = providerName(
@@ -24,7 +25,9 @@ export function loadPhotoAssessmentConfig(environment = process.env) {
     "PHOTO_ASSESSMENT_PRIMARY_PROVIDER",
   );
   const primary = requestedPrimary === "auto"
-    ? (configured.yandex ? "yandex" : configured.openai ? "openai" : "none")
+    ? (configured.yandex ? "yandex"
+      : configured.genapi ? "genapi"
+        : configured.openai ? "openai" : "none")
     : requestedPrimary;
   const requestedFallback = providerName(
     environment.PHOTO_ASSESSMENT_FALLBACK_PROVIDER || "auto",
@@ -33,7 +36,9 @@ export function loadPhotoAssessmentConfig(environment = process.env) {
   const fallback = requestedFallback === "auto"
     ? (primary !== "yandex" && configured.yandex
       ? "yandex"
-      : primary !== "openai" && configured.openai ? "openai" : "none")
+      : primary !== "genapi" && configured.genapi
+        ? "genapi"
+        : primary !== "openai" && configured.openai ? "openai" : "none")
     : requestedFallback;
   if (primary !== "none" && !configured[primary]) {
     throw new Error(`${primary.toUpperCase()} photo assessment provider is not configured`);
@@ -58,6 +63,7 @@ export function loadPhotoAssessmentConfig(environment = process.env) {
     }),
     models: {
       yandex: environment.YANDEX_MODEL || "qwen3.6-35b-a3b",
+      genapi: environment.PHOTO_ASSESSMENT_GENAPI_MODEL || "gemini-3-5-flash",
       openai: environment.OPENAI_MODEL || "gpt-4.1-mini",
     },
   };

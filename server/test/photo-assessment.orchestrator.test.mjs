@@ -112,6 +112,18 @@ test("provider config selects a distinct fallback and ignores the deprecated AI_
   assert.equal(loaded.fallback, "openai");
 });
 
+test("provider config can use GenAPI as the photo-assessment fallback", () => {
+  const loaded = loadPhotoAssessmentConfig({
+    NODE_ENV: "development",
+    YANDEX_API_KEY: "configured",
+    YANDEX_FOLDER_ID: "folder",
+    GENAPI_API_KEY: "configured",
+  });
+  assert.equal(loaded.primary, "yandex");
+  assert.equal(loaded.fallback, "genapi");
+  assert.equal(loaded.models.genapi, "gemini-3-5-flash");
+});
+
 test("production refuses to start without an automatic assessment provider", () => {
   assert.throws(
     () => loadPhotoAssessmentConfig({ NODE_ENV: "production" }),
