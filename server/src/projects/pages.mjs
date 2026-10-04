@@ -58,7 +58,7 @@ const STYLE_OPTIONS = [
   },
 ];
 const SELECTION_ASSET_VERSION = "20260825-2";
-const APP_ASSET_VERSION = "20261004-1";
+const APP_ASSET_VERSION = "20261004-2";
 const MATERIALS = [
   ["штукатурка", "Ровная матовая поверхность", "/material-plaster.webp"],
   ["кирпич", "Тёплая кладка с заметным швом", "/material-brick.webp"],
@@ -140,7 +140,7 @@ function statusLabel(status) {
     photo_ready: "Фото готово", photo_validation_queued: "Проверка фото",
     photo_retake_required: "Нужно заменить фото", configuration_required: "Нужны настройки",
     generation_queued: "В очереди", generating: "Генерация", qa_queued: "Автопроверка",
-    qa_failed_retrying: "Повторная генерация", ready: "Результат готов",
+    qa_failed_retrying: "Повторная проверка", ready: "Результат готов",
     failed_terminal: "Не выполнено — ВФ-коин возвращён", deleted: "Удалён",
   })[status] || status;
 }

@@ -29,9 +29,12 @@
   }
   function render(generation) {
     const [active, defaultText] = states[generation.status] || ["analysis", generation.status];
-    const text = generation.status === "failed_refunded" && preChargeFailures.has(generation.failure_code)
-      ? "Генерация не запускалась. ВФ-коин не списывался."
-      : defaultText;
+    const text = generation.status === "retrying"
+      && generation.failure_code === "GENERATION_QUALITY_UNAVAILABLE"
+      ? "Изображение создано. Проверка качества временно недоступна — повторяем только проверку, без новой платной генерации."
+      : generation.status === "failed_refunded" && preChargeFailures.has(generation.failure_code)
+        ? "Генерация не запускалась. ВФ-коин не списывался."
+        : defaultText;
     const activeIndex = steps.findIndex((step) => step.dataset.step === active);
     steps.forEach((step, index) => {
       step.classList.toggle("active", index <= activeIndex);

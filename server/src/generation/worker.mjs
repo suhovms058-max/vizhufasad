@@ -32,6 +32,12 @@ export function createGenerationWorker({
     const generation = await repository.findById(job.data.generationId).catch(() => null);
     if (!generation || ["completed", "failed_refunded", "cancelled"].includes(generation.status)) return;
     const exhausted = job.attemptsMade >= Number(job.opts.attempts || 1);
+    const qualityProviderOutage = generation.status === "retrying"
+      && generation.failure_code === "GENERATION_QUALITY_UNAVAILABLE";
+    if (qualityProviderOutage) {
+      metrics.increment("quality_provider_recovery_pending");
+      return;
+    }
     if (exhausted) {
       await processor.refundAndFail(
         generation,

@@ -43,6 +43,15 @@ export class GenerationQueue {
 
   async enqueue(generationId, priority) {
     try {
+      const existing = await this.queue.getJob(generationId);
+      if (existing) {
+        const state = await existing.getState();
+        if (["failed", "completed"].includes(state)) {
+          await existing.remove();
+        } else {
+          return { id: existing.id, deduplicated: true };
+        }
+      }
       const job = await this.queue.add(
         "standard",
         { generationId },
@@ -52,7 +61,7 @@ export class GenerationQueue {
           deduplication: { id: generationId },
         },
       );
-      return { id: job.id, deduplicated: job.id === generationId };
+      return { id: job.id, deduplicated: false };
     } catch (error) {
       throw new GenerationError("GENERATION_QUEUE_UNAVAILABLE", 503, {
         retryable: true,

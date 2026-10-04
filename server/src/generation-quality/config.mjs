@@ -1,6 +1,6 @@
 import { GenerationQualityError } from "./contract.mjs";
 
-const providers = new Set(["auto", "yandex", "openai", "none"]);
+const providers = new Set(["auto", "yandex", "genapi", "openai", "none"]);
 
 function integer(environment, name, fallback, minimum, maximum) {
   const parsed = Number.parseInt(environment[name] ?? String(fallback), 10);
@@ -20,6 +20,7 @@ export function loadGenerationQualityConfig(environment = process.env) {
   const enabled = String(environment.GENERATION_QUALITY_ENABLED ?? "true") === "true";
   const configured = {
     yandex: Boolean(environment.YANDEX_API_KEY && environment.YANDEX_FOLDER_ID),
+    genapi: Boolean(environment.GENAPI_API_KEY),
     openai: Boolean(environment.OPENAI_API_KEY),
   };
   const requestedPrimary = providerName(
@@ -27,7 +28,9 @@ export function loadGenerationQualityConfig(environment = process.env) {
     "GENERATION_QUALITY_PRIMARY_PROVIDER",
   );
   const primary = requestedPrimary === "auto"
-    ? (configured.yandex ? "yandex" : configured.openai ? "openai" : "none")
+    ? (configured.yandex ? "yandex"
+      : configured.genapi ? "genapi"
+        : configured.openai ? "openai" : "none")
     : requestedPrimary;
   const requestedFallback = providerName(
     environment.GENERATION_QUALITY_FALLBACK_PROVIDER,
@@ -36,7 +39,9 @@ export function loadGenerationQualityConfig(environment = process.env) {
   const fallback = requestedFallback === "auto"
     ? (primary !== "yandex" && configured.yandex
       ? "yandex"
-      : primary !== "openai" && configured.openai ? "openai" : "none")
+      : primary !== "genapi" && configured.genapi
+        ? "genapi"
+        : primary !== "openai" && configured.openai ? "openai" : "none")
     : requestedFallback;
   if (primary !== "none" && !configured[primary]) {
     throw new GenerationQualityError("GENERATION_QUALITY_PRIMARY_NOT_CONFIGURED");
@@ -58,6 +63,7 @@ export function loadGenerationQualityConfig(environment = process.env) {
     fallback,
     models: Object.freeze({
       yandex: environment.GENERATION_QUALITY_YANDEX_MODEL || environment.YANDEX_MODEL || "qwen3.6-35b-a3b",
+      genapi: environment.GENERATION_QUALITY_GENAPI_MODEL || "gemini-3-5-flash",
       openai: environment.GENERATION_QUALITY_OPENAI_MODEL || environment.OPENAI_MODEL || "gpt-4.1-mini",
     }),
     timeoutMs: integer(environment, "GENERATION_QUALITY_TIMEOUT_MS", 45_000, 1_000, 120_000),

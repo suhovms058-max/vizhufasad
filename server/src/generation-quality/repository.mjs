@@ -67,12 +67,16 @@ export class GenerationQualityRepository {
     return completed.rows[0] ?? null;
   }
 
-  async markProviderUnavailable(assessmentId) {
+  async markProviderUnavailable(assessmentId, attempts = []) {
+    const failureReasons = attempts
+      .map((attempt) => String(attempt?.code || "").trim())
+      .filter(Boolean)
+      .slice(0, 10);
     const result = await this.pool.query(
       `update generation_quality_assessments set status = 'provider_unavailable',
-        finished_at = now(), updated_at = now()
+        failure_reasons = $2::jsonb, finished_at = now(), updated_at = now()
        where id = $1 and status = 'processing' returning *`,
-      [assessmentId],
+      [assessmentId, JSON.stringify(failureReasons)],
     );
     return result.rows[0] ?? null;
   }

@@ -50,6 +50,11 @@ function finalQueueAttempt(job) {
   return job.attemptsMade + 1 >= Number(job.opts.attempts || 1);
 }
 
+function isQualityProviderOutage(error) {
+  return error instanceof GenerationQualityError
+    && error.code === "GENERATION_QUALITY_UNAVAILABLE";
+}
+
 export class GenerationProcessor {
   constructor({
     repository,
@@ -360,7 +365,10 @@ export class GenerationProcessor {
             assessmentNumber: candidateNumber,
           });
         } catch (error) {
-          await this.qualityRepository.markProviderUnavailable(assessment.id);
+          await this.qualityRepository.markProviderUnavailable(
+            assessment.id,
+            Array.isArray(error?.details) ? error.details : [],
+          );
           throw error;
         }
         const completedAssessment = await this.qualityRepository.completeAssessment(assessment.id, quality);
@@ -434,6 +442,14 @@ export class GenerationProcessor {
       const retryable = isRetryableGenerationError(error)
         || error instanceof GenerationQualityError && error.retryable
         || !(error instanceof GenerationError || error instanceof GenerationQualityError);
+      // A quality-provider outage must never discard an already paid-for candidate.
+      // Keep the generation recoverable; the watchdog will recycle the exhausted
+      // BullMQ job and the next run will reuse the persisted candidate instead of
+      // calling the image provider again.
+      if (isQualityProviderOutage(error)) {
+        await this.repository.markRetrying(generationId, code);
+        throw error instanceof Error ? error : new Error(code);
+      }
       if (retryable && !finalQueueAttempt(job)) {
         await this.repository.markRetrying(generationId, code);
         throw error instanceof Error ? error : new Error(code);

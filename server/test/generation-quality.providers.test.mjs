@@ -1,6 +1,8 @@
 import assert from "node:assert/strict";
 import test from "node:test";
-import { YandexGenerationQualityProvider } from "../src/generation-quality/providers.mjs";
+import {
+  GenApiGenerationQualityProvider, YandexGenerationQualityProvider,
+} from "../src/generation-quality/providers.mjs";
 
 const observation = {
   sameHouse: 0.95, floors: 0.98, roof: 0.9, windows: 0.91, doors: 0.92,
@@ -43,4 +45,37 @@ test("Yandex provider sends two images and strict JSON schema without leaking ke
   assert.equal(captured.headers.Authorization, "Api-Key secret-key");
   assert.equal(JSON.stringify(body).includes("secret-key"), false);
   assert.equal(result.requestId, "response-1");
+});
+
+test("GenAPI provider uses its regional proxy and multimodal chat format", async () => {
+  let captured;
+  let capturedUrl;
+  const provider = new GenApiGenerationQualityProvider({
+    apiKey: "genapi-secret", model: "gemini-3-5-flash",
+    fetchImplementation: async (url, options) => {
+      capturedUrl = url;
+      captured = options;
+      return {
+        ok: true,
+        headers: new Headers(),
+        async json() {
+          return {
+            id: "genapi-response-1",
+            choices: [{ finish_reason: "stop", message: { content: JSON.stringify(observation) } }],
+          };
+        },
+      };
+    },
+  });
+  const result = await provider.compare({
+    sourceImage: Buffer.from("source"), candidateImage: Buffer.from("candidate"),
+    prompt: "compare", signal: AbortSignal.timeout(1000),
+  });
+  const body = JSON.parse(captured.body);
+  assert.equal(capturedUrl, "https://proxy.gen-api.ru/v1/chat/completions");
+  assert.equal(body.model, "gemini-3-5-flash");
+  assert.equal(body.messages[0].content.filter((item) => item.type === "image_url").length, 2);
+  assert.equal(captured.headers.Authorization, "Bearer genapi-secret");
+  assert.equal(JSON.stringify(body).includes("genapi-secret"), false);
+  assert.equal(result.requestId, "genapi-response-1");
 });

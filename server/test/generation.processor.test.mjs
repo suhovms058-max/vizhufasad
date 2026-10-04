@@ -1,6 +1,7 @@
 import assert from "node:assert/strict";
 import test from "node:test";
 import sharp from "sharp";
+import { GenerationQualityError } from "../src/generation-quality/contract.mjs";
 import { GenerationError } from "../src/generation/contract.mjs";
 import { GenerationProcessor } from "../src/generation/processor.mjs";
 
@@ -27,6 +28,7 @@ function qualityResult(decision, number, overrides = {}) {
 
 function harness({
   providerError,
+  qualityError,
   attemptsMade = 0,
   attempts = 3,
   qualityDecisions = ["passed"],
@@ -125,6 +127,7 @@ function harness({
   };
   const qualityOrchestrator = {
     async assess({ assessmentNumber }) {
+      if (qualityError) throw qualityError;
       if (qualityResults[assessmentNumber - 1]) return qualityResults[assessmentNumber - 1];
       const decision = qualityDecisions[assessmentNumber - 1] || "rejected_refund";
       return qualityResult(decision, assessmentNumber);
@@ -359,6 +362,24 @@ test("final provider failure refunds and becomes failed_refunded", async () => {
     events.filter((event) => ["refund", "failed-refunded"].includes(event[0])).map((event) => event[0]),
     ["refund", "failed-refunded"],
   );
+});
+
+test("final quality-provider outage preserves the paid candidate for watchdog recovery", async () => {
+  const { processor, job, events, getStatus } = harness({
+    qualityError: new GenerationQualityError("GENERATION_QUALITY_UNAVAILABLE", {
+      retryable: true,
+      details: [{ provider: "openai", status: "failed", code: "QUALITY_PROVIDER_TIMEOUT" }],
+    }),
+    attemptsMade: 2,
+    attempts: 3,
+  });
+  await assert.rejects(processor.process(job), /GENERATION_QUALITY_UNAVAILABLE/);
+  assert.equal(getStatus(), "retrying");
+  assert.equal(events.filter((event) => event[0] === "provider").length, 1);
+  assert.equal(events.some((event) => event[0] === "refund"), false);
+  assert.deepEqual(events.filter((event) => event[0] === "quality-unavailable"), [
+    ["quality-unavailable"],
+  ]);
 });
 
 test("worker restart reuses a persisted unassessed candidate instead of generating a duplicate", async () => {

@@ -76,6 +76,7 @@ function yandexRequestBody({ model, sourceImage, candidateImage, prompt }) {
 
 async function callYandexChatCompletions({
   fetchImplementation, endpoint, headers, model, sourceImage, candidateImage, prompt, signal,
+  providerName = "yandex",
 }) {
   let response;
   try {
@@ -96,7 +97,10 @@ async function callYandexChatCompletions({
   }
   if (!response.ok) {
     const retryable = [408, 409, 429].includes(response.status) || response.status >= 500;
-    throw new GenerationQualityError(`QUALITY_YANDEX_HTTP_${response.status}`, { retryable });
+    throw new GenerationQualityError(
+      `QUALITY_${providerName.toUpperCase()}_HTTP_${response.status}`,
+      { retryable },
+    );
   }
   try {
     const payload = await response.json();
@@ -200,6 +204,30 @@ export class OpenAiGenerationQualityProvider extends ResponsesGenerationQualityP
   }
 }
 
+export class GenApiGenerationQualityProvider {
+  constructor({ apiKey, model, fetchImplementation = fetch }) {
+    this.name = "genapi";
+    this.apiKey = apiKey;
+    this.model = model;
+    this.endpoint = "https://proxy.gen-api.ru/v1/chat/completions";
+    this.fetchImplementation = fetchImplementation;
+  }
+
+  compare({ sourceImage, candidateImage, prompt, signal }) {
+    return callYandexChatCompletions({
+      fetchImplementation: this.fetchImplementation,
+      endpoint: this.endpoint,
+      headers: { Authorization: `Bearer ${this.apiKey}` },
+      providerName: this.name,
+      model: this.model,
+      sourceImage,
+      candidateImage,
+      prompt,
+      signal,
+    });
+  }
+}
+
 export function createGenerationQualityProviders(config, environment = process.env) {
   const result = {};
   if (config.primary === "yandex" || config.fallback === "yandex") {
@@ -213,6 +241,12 @@ export function createGenerationQualityProviders(config, environment = process.e
     result.openai = new OpenAiGenerationQualityProvider({
       apiKey: environment.OPENAI_API_KEY,
       model: config.models.openai,
+    });
+  }
+  if (config.primary === "genapi" || config.fallback === "genapi") {
+    result.genapi = new GenApiGenerationQualityProvider({
+      apiKey: environment.GENAPI_API_KEY,
+      model: config.models.genapi,
     });
   }
   return result;
