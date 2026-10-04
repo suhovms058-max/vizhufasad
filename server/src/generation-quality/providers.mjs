@@ -40,15 +40,21 @@ function requestBody({ model, sourceImage, candidateImage, prompt }) {
   };
 }
 
-function yandexRequestBody({ model, sourceImage, candidateImage, prompt }) {
+function chatRequestBody({ model, sourceImage, candidateImage, prompt, providerName }) {
   const schema = structuredClone(VLM_QUALITY_RESULT_SCHEMA);
   delete schema.properties.detectedChanges.uniqueItems;
-  return {
+  const genapi = providerName === "genapi";
+  const body = {
     model,
     messages: [{
       role: "user",
       content: [
-        { type: "text", text: prompt },
+        {
+          type: "text",
+          text: genapi
+            ? `${prompt}\nReturn JSON strictly matching this schema: ${JSON.stringify(schema)}`
+            : prompt,
+        },
         { type: "text", text: "IMAGE 1 — source photograph:" },
         {
           type: "image_url",
@@ -61,17 +67,20 @@ function yandexRequestBody({ model, sourceImage, candidateImage, prompt }) {
         },
       ],
     }],
-    max_tokens: 1_500,
-    reasoning_effort: "none",
-    response_format: {
-      type: "json_schema",
-      json_schema: {
-        name: GENERATION_QUALITY_SCHEMA_VERSION,
-        strict: true,
-        schema,
+    max_tokens: genapi ? 2_000 : 1_500,
+    response_format: genapi
+      ? { type: "json_object" }
+      : {
+        type: "json_schema",
+        json_schema: {
+          name: GENERATION_QUALITY_SCHEMA_VERSION,
+          strict: true,
+          schema,
+        },
       },
-    },
   };
+  if (!genapi) body.reasoning_effort = "none";
+  return body;
 }
 
 async function callYandexChatCompletions({
@@ -84,8 +93,8 @@ async function callYandexChatCompletions({
       method: "POST",
       signal,
       headers: { ...headers, "Content-Type": "application/json" },
-      body: JSON.stringify(yandexRequestBody({
-        model, sourceImage, candidateImage, prompt,
+      body: JSON.stringify(chatRequestBody({
+        model, sourceImage, candidateImage, prompt, providerName,
       })),
     });
   } catch (error) {
