@@ -63,7 +63,7 @@ export function loadGenerationQualityConfig(environment = process.env) {
     fallback,
     models: Object.freeze({
       yandex: environment.GENERATION_QUALITY_YANDEX_MODEL || environment.YANDEX_MODEL || "qwen3.6-35b-a3b",
-      genapi: environment.GENERATION_QUALITY_GENAPI_MODEL || "gpt-4.1-mini",
+      genapi: environment.GENERATION_QUALITY_GENAPI_MODEL || "gpt-4o-mini",
       openai: environment.GENERATION_QUALITY_OPENAI_MODEL || environment.OPENAI_MODEL || "gpt-4.1-mini",
     }),
     timeoutMs: integer(environment, "GENERATION_QUALITY_TIMEOUT_MS", 45_000, 1_000, 120_000),

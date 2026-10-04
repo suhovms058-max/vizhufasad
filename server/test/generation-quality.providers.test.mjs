@@ -51,7 +51,7 @@ test("GenAPI provider uses its regional proxy and multimodal chat format", async
   let captured;
   let capturedUrl;
   const provider = new GenApiGenerationQualityProvider({
-    apiKey: "genapi-secret", model: "gpt-4.1-mini",
+    apiKey: "genapi-secret", model: "gpt-4o-mini",
     fetchImplementation: async (url, options) => {
       capturedUrl = url;
       captured = options;
@@ -73,7 +73,7 @@ test("GenAPI provider uses its regional proxy and multimodal chat format", async
   });
   const body = JSON.parse(captured.body);
   assert.equal(capturedUrl, "https://proxy.gen-api.ru/v1/chat/completions");
-  assert.equal(body.model, "gpt-4.1-mini");
+  assert.equal(body.model, "gpt-4o-mini");
   assert.equal(body.max_tokens, 2_000);
   assert.equal(body.reasoning_effort, undefined);
   assert.equal(body.response_format.type, "json_object");
