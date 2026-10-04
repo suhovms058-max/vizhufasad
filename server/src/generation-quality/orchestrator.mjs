@@ -84,6 +84,11 @@ function evaluate({ observation, structural, allowedChanges, thresholds, assessm
   )) failures.push("spatial_layout_below_threshold");
   if (structural.protectedZones < thresholds.protectedZones) failures.push("protected_zones_below_threshold");
   const entranceZoneScore = Number(structural.zones?.entranceGroup ?? 10_000);
+  const entranceGeometryConfirmed = allowedChanges.entranceGroup !== true
+    && vlm.entranceGroup >= thresholds.protectedElement
+    && entranceZoneScore >= thresholds.entranceGroup
+    && structural.contours >= thresholds.contours
+    && structural.protectedZones >= thresholds.protectedZones;
   if (entranceZoneScore < thresholds.entranceGroup && (
     vlm.entranceGroup < thresholds.protectedElement
     || (
@@ -94,7 +99,11 @@ function evaluate({ observation, structural, allowedChanges, thresholds, assessm
   if (vlm.artifacts < thresholds.artifacts) failures.push("artifacts_below_threshold");
   if (vlm.style < thresholds.style) failures.push("style_below_threshold");
   if (vlm.finish < thresholds.finish) failures.push("finish_below_threshold");
-  if (observation.detectedChanges.includes("unfinished_facade")) failures.push("unfinished_facade_detected");
+  // The source photo is often intentionally unfinished. Some VLMs describe
+  // that source condition in detectedChanges even when IMAGE 2 is complete.
+  // Treat the numeric candidate-finish score as the authoritative signal.
+  if (observation.detectedChanges.includes("unfinished_facade")
+    && vlm.finish < thresholds.finish) failures.push("unfinished_facade_detected");
   if (overallScore < thresholds.overall) failures.push("overall_below_threshold");
   if (allowedChanges.windows !== true
     && observation.sourceWindowCount !== observation.candidateWindowCount) {
@@ -109,6 +118,7 @@ function evaluate({ observation, structural, allowedChanges, thresholds, assessm
     if (!protectedChange) continue;
     const [criterion, failure] = protectedChange;
     if (change === "doors_changed" && doorGeometryConfirmed) continue;
+    if (change === "entrance_group_changed" && entranceGeometryConfirmed) continue;
     if (criterion == null || allowedChanges[criterion] !== true) failures.push(failure);
   }
   return {

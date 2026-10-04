@@ -136,6 +136,17 @@ test("combined finish requires a dominant continuous wall finish", () => {
   assert.match(prompt, /RETRY FINISH LOCK/u);
 });
 
+test("explicit materials are mandatory and cannot be replaced with generic plaster", () => {
+  const input = normalizeGenerationInput({
+    style: "современный",
+    materials: ["панели", "металл"],
+  });
+  const prompt = composeGenerationPrompt(input).prompt;
+  assert.match(prompt, /Every named material is mandatory/u);
+  assert.match(prompt, /visibly use every one of them/u);
+  assert.match(prompt, /Never substitute generic smooth plaster/u);
+});
+
 test("PHOMI automatic texture selection receives a specific generator instruction", () => {
   const input = normalizeGenerationInput({
     style: "современный",

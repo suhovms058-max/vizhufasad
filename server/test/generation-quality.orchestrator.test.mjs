@@ -108,6 +108,53 @@ test("complete material system is accepted despite a conservative 0.60 finish sc
   assert.ok(!result.failureReasons.includes("finish_below_threshold"));
 });
 
+test("source-only unfinished signal does not reject a candidate at the calibrated finish threshold", async () => {
+  const quality = new GenerationQualityOrchestrator({
+    config: calibratedConfig,
+    providers: {
+      primary: { name: "primary", model: "mock", async compare() {
+        return {
+          observation: observation({ finish: 0.50, detectedChanges: ["unfinished_facade"] }),
+          requestId: "request",
+        };
+      } },
+    },
+    structuralAnalyzer: async () => ({
+      version: "test", contours: 9800, spatialLayout: 8400,
+      protectedZones: 9700, zones: { roof: 9700 }, edgeDensityDelta: 0,
+    }),
+  });
+  const result = await quality.assess(request);
+  assert.equal(result.decision, "passed");
+  assert.equal(result.failureReasons.includes("unfinished_facade_detected"), false);
+});
+
+test("railing-only entrance signal passes when VLM and structural geometry meet thresholds", async () => {
+  const quality = new GenerationQualityOrchestrator({
+    config: calibratedConfig,
+    providers: {
+      primary: { name: "primary", model: "mock", async compare() {
+        return {
+          observation: observation({
+            entranceGroup: 0.70,
+            detectedChanges: ["entrance_group_changed"],
+          }),
+          requestId: "request",
+        };
+      } },
+    },
+    structuralAnalyzer: async () => ({
+      version: "test", contours: 9850, spatialLayout: 8400,
+      protectedZones: 9700,
+      zones: { roof: 9700, entranceGroup: 8100 },
+      edgeDensityDelta: 0,
+    }),
+  });
+  const result = await quality.assess(request);
+  assert.equal(result.decision, "passed");
+  assert.equal(result.failureReasons.includes("entrance_group_changed_detected"), false);
+});
+
 test("weak roof contour rejects even when the VLM overlooks a changed roof", async () => {
   const quality = new GenerationQualityOrchestrator({
     config,

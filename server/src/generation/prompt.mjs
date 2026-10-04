@@ -38,7 +38,7 @@ function finishInstruction(input, automaticMaterials) {
     ].join(" ");
   }
   return [
-    `Required finish materials: ${input.materials.join(", ")}. Show their real texture, scale, joints, edges and installation logic over the visible wall surfaces.`,
+    `Required finish materials: ${input.materials.join(", ")}. Every named material is mandatory and must be unmistakably visible on a meaningful facade area, not merely implied by color. When multiple materials are named, visibly use every one of them in a coherent composition. Show their real texture, scale, joints, edges and installation logic over the visible wall surfaces. Never substitute generic smooth plaster or a paint-like coating for selected panels, metal, brick, clinker, stone, wood, fibre-cement or PHOMI.`,
     rawSurfaceRule,
   ].join(" ");
 }

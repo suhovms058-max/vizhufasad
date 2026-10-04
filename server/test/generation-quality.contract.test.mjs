@@ -48,8 +48,10 @@ test("quality prompt counts outer openings and permits safety railings on existi
   assert.match(prompt, /do not report balconies_terraces_changed/u);
   assert.match(prompt, /Score entranceGroup separately/u);
   assert.match(prompt, /replaced with direct steps/u);
+  assert.match(prompt, /Never include entrance_group_changed only because IMAGE 2 adds/u);
   assert.match(prompt, /raw aerated-concrete blocks/u);
   assert.match(prompt, /unfinished_facade/u);
+  assert.match(prompt, /judge unfinished_facade from IMAGE 2 only/u);
   assert.match(prompt, /underside of every existing roof overhang/u);
   assert.match(prompt, /continuous realistic soffit lining/u);
   assert.match(prompt, /required facade completion, not a structural roof change/u);
