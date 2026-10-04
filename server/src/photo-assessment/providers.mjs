@@ -138,8 +138,8 @@ function yandexRequestBody({ model, image }) {
   };
 }
 
-async function callYandexChatCompletions({
-  fetchImplementation, endpoint, headers, model, image, signal,
+async function callChatCompletions({
+  fetchImplementation, endpoint, headers, model, image, signal, name = "yandex",
 }) {
   let response;
   try {
@@ -159,7 +159,7 @@ async function callYandexChatCompletions({
   if (!response.ok) {
     const retryable = response.status === 408 || response.status === 409
       || response.status === 429 || response.status >= 500;
-    throw new PhotoAssessmentProviderError(`YANDEX_HTTP_${response.status}`, {
+    throw new PhotoAssessmentProviderError(`${name.toUpperCase()}_HTTP_${response.status}`, {
       retryable,
       status: response.status,
     });
@@ -224,7 +224,7 @@ export class YandexPhotoAssessmentProvider {
   }
 
   assess({ image, signal }) {
-    return callYandexChatCompletions({
+    return callChatCompletions({
       fetchImplementation: this.fetchImplementation,
       endpoint: this.endpoint,
       headers: {
@@ -234,6 +234,33 @@ export class YandexPhotoAssessmentProvider {
       model: `gpt://${this.folderId}/${this.model}`,
       image,
       signal,
+    });
+  }
+}
+
+export class GenApiPhotoAssessmentProvider {
+  constructor({
+    apiKey,
+    model,
+    fetchImplementation = fetch,
+    endpoint = "https://proxy.gen-api.ru/v1/chat/completions",
+  }) {
+    this.name = "genapi";
+    this.model = model;
+    this.apiKey = apiKey;
+    this.fetchImplementation = fetchImplementation;
+    this.endpoint = endpoint;
+  }
+
+  assess({ image, signal }) {
+    return callChatCompletions({
+      fetchImplementation: this.fetchImplementation,
+      endpoint: this.endpoint,
+      headers: { Authorization: `Bearer ${this.apiKey}` },
+      model: this.model,
+      image,
+      signal,
+      name: this.name,
     });
   }
 }
@@ -251,6 +278,12 @@ export function createPhotoAssessmentProviders(config, environment = process.env
     providers.openai = new OpenAiPhotoAssessmentProvider({
       apiKey: environment.OPENAI_API_KEY,
       model: config.models.openai,
+    });
+  }
+  if (config.primary === "genapi" || config.fallback === "genapi") {
+    providers.genapi = new GenApiPhotoAssessmentProvider({
+      apiKey: environment.GENAPI_API_KEY,
+      model: config.models.genapi,
     });
   }
   return providers;

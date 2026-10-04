@@ -1,7 +1,7 @@
 import assert from "node:assert/strict";
 import test from "node:test";
 import {
-  OpenAiPhotoAssessmentProvider, YandexPhotoAssessmentProvider,
+  GenApiPhotoAssessmentProvider, OpenAiPhotoAssessmentProvider, YandexPhotoAssessmentProvider,
 } from "../src/photo-assessment/providers.mjs";
 
 const observation = {
@@ -95,4 +95,27 @@ test("Yandex provider reports an unfinished chat completion as retryable", async
     provider.assess({ image: Buffer.from("image") }),
     (error) => error.code === "PROVIDER_INCOMPLETE_OUTPUT" && error.retryable === true,
   );
+});
+
+test("GenAPI provider uses its OpenAI-compatible multimodal chat endpoint", async () => {
+  const provider = new GenApiPhotoAssessmentProvider({
+    apiKey: "test-genapi-key",
+    model: "gemini-3-5-flash",
+    fetchImplementation: async (url, options) => {
+      const body = JSON.parse(options.body);
+      assert.equal(url, "https://proxy.gen-api.ru/v1/chat/completions");
+      assert.equal(options.headers.Authorization, "Bearer test-genapi-key");
+      assert.equal(body.model, "gemini-3-5-flash");
+      assert.equal(body.response_format.type, "json_schema");
+      assert.equal(body.messages[0].content[1].type, "image_url");
+      return new Response(JSON.stringify({
+        id: "genapi-chat-1",
+        choices: [{
+          finish_reason: "stop",
+          message: { content: JSON.stringify(observation) },
+        }],
+      }), { status: 200, headers: { "content-type": "application/json" } });
+    },
+  });
+  assert.deepEqual((await provider.assess({ image: Buffer.from("image") })).observation, observation);
 });
