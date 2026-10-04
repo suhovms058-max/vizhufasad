@@ -294,9 +294,15 @@ export class GenerationProcessor {
       }
 
       const previousRetry = previous.find((assessment) => assessment.decision === "retry_required");
-      if (previousRetry && !automaticQualityRetryPolicy(previousRetry.failure_reasons).eligible) {
-        await this.refundAndFail(generation, "GENERATION_ARCHITECTURE_REJECTED");
-        throw new UnrecoverableError("GENERATION_ARCHITECTURE_REJECTED");
+      if (previousRetry) {
+        const previousRetryPolicy = automaticQualityRetryPolicy(previousRetry.failure_reasons);
+        if (!previousRetryPolicy.eligible) {
+          const rejectionCode = previousRetryPolicy.architecturalReasons.length > 0
+            ? "GENERATION_ARCHITECTURE_REJECTED"
+            : "GENERATION_QUALITY_REJECTED";
+          await this.refundAndFail(generation, rejectionCode);
+          throw new UnrecoverableError(rejectionCode);
+        }
       }
       let candidateNumber = previousRetry ? 2 : 1;
       let retryReasons = previousRetry?.failure_reasons || [];
@@ -389,8 +395,11 @@ export class GenerationProcessor {
           fallbackAssessments.push(completedAssessment);
           const retryPolicy = automaticQualityRetryPolicy(quality.failureReasons);
           if (!retryPolicy.eligible) {
-            await this.refundAndFail(generation, "GENERATION_ARCHITECTURE_REJECTED");
-            throw new UnrecoverableError("GENERATION_ARCHITECTURE_REJECTED");
+            const rejectionCode = retryPolicy.architecturalReasons.length > 0
+              ? "GENERATION_ARCHITECTURE_REJECTED"
+              : "GENERATION_QUALITY_REJECTED";
+            await this.refundAndFail(generation, rejectionCode);
+            throw new UnrecoverableError(rejectionCode);
           }
           retryReasons = quality.failureReasons;
           retryObservation = quality.vlmResult;

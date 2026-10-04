@@ -11,6 +11,7 @@ test("auto routing prefers the region-compatible GenAPI vision provider over Ope
   assert.equal(config.primary, "genapi");
   assert.equal(config.fallback, "openai");
   assert.equal(config.models.genapi, "gpt-4o-mini");
+  assert.equal(config.thresholds.finish, 5000);
 });
 
 test("explicit Yandex primary keeps GenAPI as automatic fallback", () => {

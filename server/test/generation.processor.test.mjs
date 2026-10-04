@@ -255,24 +255,22 @@ test("a paid request whose recovery id cannot be persisted is never submitted ag
   assert.equal(events.some((event) => event[0] === "retrying"), false);
 });
 
-test("eligible finish rejection triggers one stricter candidate and then passes", async () => {
+test("unfinished facade refunds after one candidate without a hidden paid retry", async () => {
   const { processor, job, events, getStatus } = harness({
     qualityResults: [
       qualityResult("retry_required", 1, {
         failureReasons: ["finish_below_threshold", "unfinished_facade_detected"],
       }),
-      qualityResult("passed", 2),
     ],
   });
-  await processor.process(job);
-  assert.equal(getStatus(), "completed");
-  assert.equal(events.filter((event) => event[0] === "provider").length, 2);
+  await assert.rejects(processor.process(job), /GENERATION_QUALITY_REJECTED/);
+  assert.equal(getStatus(), "failed_refunded");
+  assert.equal(events.filter((event) => event[0] === "provider").length, 1);
   assert.deepEqual(events.filter((event) => event[0] === "quality-complete"), [
     ["quality-complete", "retry_required"],
-    ["quality-complete", "passed"],
   ]);
-  assert.equal(events.filter((event) => event[0] === "commit").length, 1);
-  assert.equal(events.some((event) => event[0] === "refund"), false);
+  assert.equal(events.filter((event) => event[0] === "commit").length, 0);
+  assert.equal(events.filter((event) => event[0] === "refund").length, 1);
 });
 
 test("architectural rejection refunds after one provider call instead of buying a blind retry", async () => {

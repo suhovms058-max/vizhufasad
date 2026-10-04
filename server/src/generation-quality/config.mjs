@@ -85,7 +85,11 @@ export function loadGenerationQualityConfig(environment = process.env) {
       entranceGroup: integer(environment, "GENERATION_QUALITY_MIN_ENTRANCE_GROUP", 6000, 0, 10_000),
       artifacts: integer(environment, "GENERATION_QUALITY_MIN_ARTIFACTS", 7500, 0, 10_000),
       style: integer(environment, "GENERATION_QUALITY_MIN_STYLE", 6500, 0, 10_000),
-      finish: integer(environment, "GENERATION_QUALITY_MIN_FINISH", 7800, 0, 10_000),
+      // The VLM rubric reserves values below 0.50 for visibly unfinished
+      // facades (raw blockwork, paint-only treatment, exposed eaves).  A
+      // higher default made complete material systems fail on subjective
+      // texture/detail judgements and could trigger another paid generation.
+      finish: integer(environment, "GENERATION_QUALITY_MIN_FINISH", 5000, 0, 10_000),
     }),
   });
 }

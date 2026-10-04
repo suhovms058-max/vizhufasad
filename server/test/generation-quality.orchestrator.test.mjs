@@ -25,6 +25,11 @@ const config = {
   },
 };
 
+const calibratedConfig = {
+  ...config,
+  thresholds: { ...config.thresholds, finish: 5000 },
+};
+
 function orchestrator(vlm) {
   return new GenerationQualityOrchestrator({
     config,
@@ -83,6 +88,24 @@ test("painted raw blockwork is retried and then rejected even when geometry is p
   assert.equal(second.decision, "rejected_refund");
   assert.ok(first.failureReasons.includes("finish_below_threshold"));
   assert.ok(first.failureReasons.includes("unfinished_facade_detected"));
+});
+
+test("complete material system is accepted despite a conservative 0.60 finish score", async () => {
+  const quality = new GenerationQualityOrchestrator({
+    config: calibratedConfig,
+    providers: {
+      primary: { name: "primary", model: "mock", async compare() {
+        return { observation: observation({ finish: 0.60 }), requestId: "request" };
+      } },
+    },
+    structuralAnalyzer: async () => ({
+      version: "test", contours: 9000, spatialLayout: 9000,
+      protectedZones: 9000, zones: { roof: 9500 }, edgeDensityDelta: 0,
+    }),
+  });
+  const result = await quality.assess(request);
+  assert.equal(result.decision, "passed");
+  assert.ok(!result.failureReasons.includes("finish_below_threshold"));
 });
 
 test("weak roof contour rejects even when the VLM overlooks a changed roof", async () => {
