@@ -106,7 +106,9 @@ test("GenAPI provider uses its OpenAI-compatible multimodal chat endpoint", asyn
       assert.equal(url, "https://proxy.gen-api.ru/v1/chat/completions");
       assert.equal(options.headers.Authorization, "Bearer test-genapi-key");
       assert.equal(body.model, "gemini-3-5-flash");
-      assert.equal(body.response_format.type, "json_schema");
+      assert.equal(body.reasoning_effort, undefined);
+      assert.equal(body.response_format.type, "json_object");
+      assert.match(body.messages[0].content[0].text, /Верни JSON строго по этой схеме/u);
       assert.equal(body.messages[0].content[1].type, "image_url");
       return new Response(JSON.stringify({
         id: "genapi-chat-1",

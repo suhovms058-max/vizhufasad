@@ -110,15 +110,21 @@ async function callResponsesApi({
   }
 }
 
-function yandexRequestBody({ model, image }) {
+function chatRequestBody({ model, image, name }) {
   const schema = structuredClone(providerObservationSchema);
   delete schema.properties.issueCodes.uniqueItems;
-  return {
+  const genapi = name === "genapi";
+  const body = {
     model,
     messages: [{
       role: "user",
       content: [
-        { type: "text", text: photoAssessmentPrompt },
+        {
+          type: "text",
+          text: genapi
+            ? `${photoAssessmentPrompt}\nВерни JSON строго по этой схеме: ${JSON.stringify(schema)}`
+            : photoAssessmentPrompt,
+        },
         {
           type: "image_url",
           image_url: { url: `data:image/jpeg;base64,${image.toString("base64")}` },
@@ -126,16 +132,19 @@ function yandexRequestBody({ model, image }) {
       ],
     }],
     max_tokens: 1_500,
-    reasoning_effort: "none",
-    response_format: {
-      type: "json_schema",
-      json_schema: {
-        name: PHOTO_ASSESSMENT_SCHEMA_VERSION,
-        strict: true,
-        schema,
+    response_format: genapi
+      ? { type: "json_object" }
+      : {
+        type: "json_schema",
+        json_schema: {
+          name: PHOTO_ASSESSMENT_SCHEMA_VERSION,
+          strict: true,
+          schema,
+        },
       },
-    },
   };
+  if (!genapi) body.reasoning_effort = "none";
+  return body;
 }
 
 async function callChatCompletions({
@@ -147,7 +156,7 @@ async function callChatCompletions({
       method: "POST",
       signal,
       headers: { ...headers, "Content-Type": "application/json" },
-      body: JSON.stringify(yandexRequestBody({ model, image })),
+      body: JSON.stringify(chatRequestBody({ model, image, name })),
     });
   } catch (error) {
     const timeout = error?.name === "AbortError" || error?.name === "TimeoutError";
