@@ -5,6 +5,7 @@ import {
   PHOTO_USAGE_RIGHTS_HASH, PHOTO_USAGE_RIGHTS_VERSION,
 } from "../legal/photo-consent.mjs";
 import { ProjectError } from "./service.mjs";
+import { APP_ASSET_VERSION } from "../ui/assets.mjs";
 
 const STYLES = [
   "современный", "минимализм", "скандинавский", "барнхаус", "шале",
@@ -58,7 +59,6 @@ const STYLE_OPTIONS = [
   },
 ];
 const SELECTION_ASSET_VERSION = "20260825-2";
-const APP_ASSET_VERSION = "20261004-2";
 const MATERIALS = [
   ["штукатурка", "Ровная матовая поверхность", "/material-plaster.webp"],
   ["кирпич", "Тёплая кладка с заметным швом", "/material-brick.webp"],

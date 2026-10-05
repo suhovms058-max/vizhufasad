@@ -1,6 +1,7 @@
 import express from "express";
 import rateLimit from "express-rate-limit";
 import { createRequireSession } from "../auth/http.mjs";
+import { versionedAppAsset } from "../ui/assets.mjs";
 
 function escapeHtml(value) {
   return String(value ?? "")
@@ -48,7 +49,7 @@ function adminPage(data, { issuedCode = null, error = null } = {}) {
   </nav>` : "";
   return `<!doctype html><html lang="ru"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1">
   <meta name="color-scheme" content="dark"><title>Администрирование — ВИЖУФАСАД</title>
-  <link rel="shortcut icon" href="/favicon-32x32.png"><link rel="icon" href="/favicon.svg" type="image/svg+xml"><link rel="stylesheet" href="/assets/app-ui.css"></head><body>
+  <link rel="shortcut icon" href="/favicon-32x32.png"><link rel="icon" href="/favicon.svg" type="image/svg+xml"><link rel="stylesheet" href="${versionedAppAsset("/assets/app-ui.css")}"></head><body>
   <header class="app-header"><a class="brand brand-home" href="/"><span>ВИЖУФАСАД</span></a><nav><a href="/app">Проекты</a><a href="/app/balance">Баланс</a><a href="/app/admin" aria-current="page">Админка</a></nav></header>
   <main class="app-main admin-main"><section class="page-heading"><div><p class="eyebrow">Закрытый раздел владельца</p><h1>Работы и партнёрские коды</h1><p class="muted">Полные коды не хранятся и после выпуска показываются только один раз.</p></div></section>
   ${error ? `<div class="notice error" role="alert">${escapeHtml(error)}</div>` : ""}
