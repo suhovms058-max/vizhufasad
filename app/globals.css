@@ -15,6 +15,18 @@
   --text-light-muted: #b9bbb4;
 }
 
+/* Keep every public-site control comfortably tappable without changing the
+   desktop composition. The dot rail scrolls so all ten styles remain
+   available on narrow phones. */
+@media (max-width: 720px) {
+  .carouselControls { display: grid; grid-template-columns: 44px minmax(0,1fr) 44px 44px; gap: 6px; }
+  .carouselDots { min-width: 0; margin: 0; overflow-x: auto; overscroll-behavior-inline: contain; scrollbar-width: none; }
+  .carouselDots::-webkit-scrollbar { display: none; }
+  .carouselDot { flex: 0 0 24px; width: 24px; }
+  .footerGroup a,.footerOwner a,.footerPrivacyButton { display: inline-flex; min-height: 44px; align-items: center; }
+  .seoHeader .seoHeaderCta,.seoJournalHeader nav a { display: inline-flex; min-height: 44px; align-items: center; }
+}
+
 * { box-sizing: border-box; }
 html { scroll-behavior: smooth; }
 body { margin: 0; color: var(--cream); background: #111311; font-family: var(--font-inter), Arial, sans-serif; }
