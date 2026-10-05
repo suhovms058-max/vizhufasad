@@ -44,6 +44,7 @@ function evaluate({ observation, structural, allowedChanges, thresholds, assessm
   const candidateDoorCount = Number(observation.candidateDoorCount);
   const doorCountsMatch = sourceDoorCount === candidateDoorCount;
   const doorZoneScore = Number(structural.zones?.doors || 0);
+  const windowZoneScore = Number(structural.zones?.windows || 0);
   const roofZoneScore = Number(structural.zones?.roof || 0);
   // New cladding, trims, lighting and removal of construction clutter can make
   // the VLM describe an existing door as changed. Do not reject that signal by
@@ -53,6 +54,14 @@ function evaluate({ observation, structural, allowedChanges, thresholds, assessm
     && structural.contours >= thresholds.contours
     && structural.protectedZones >= thresholds.protectedZones
     && doorZoneScore >= Math.max(0, thresholds.protectedElement - 1_000);
+  // Vision models sometimes split one glazed unit into multiple windows in
+  // only one image. Independent pixel-zone evidence wins over that count when
+  // the complete window layout is otherwise strongly preserved.
+  const windowGeometryConfirmed = allowedChanges.windows !== true
+    && vlm.windows >= thresholds.protectedElement
+    && structural.contours >= thresholds.contours
+    && structural.protectedZones >= thresholds.protectedZones
+    && windowZoneScore >= Math.max(thresholds.protectedElement, 8_500);
   const protectedDetectedChanges = {
     different_house: [null, "different_house_detected"],
     floors_changed: ["floors", "floors_changed_detected"],
@@ -106,7 +115,8 @@ function evaluate({ observation, structural, allowedChanges, thresholds, assessm
     && vlm.finish < thresholds.finish) failures.push("unfinished_facade_detected");
   if (overallScore < thresholds.overall) failures.push("overall_below_threshold");
   if (allowedChanges.windows !== true
-    && observation.sourceWindowCount !== observation.candidateWindowCount) {
+    && observation.sourceWindowCount !== observation.candidateWindowCount
+    && !windowGeometryConfirmed) {
     failures.push("windows_count_mismatch");
   }
   if (allowedChanges.doors !== true
@@ -118,6 +128,7 @@ function evaluate({ observation, structural, allowedChanges, thresholds, assessm
     if (!protectedChange) continue;
     const [criterion, failure] = protectedChange;
     if (change === "doors_changed" && doorGeometryConfirmed) continue;
+    if (change === "windows_changed" && windowGeometryConfirmed) continue;
     if (change === "entrance_group_changed" && entranceGeometryConfirmed) continue;
     if (criterion == null || allowedChanges[criterion] !== true) failures.push(failure);
   }

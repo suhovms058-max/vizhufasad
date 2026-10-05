@@ -189,6 +189,33 @@ test("extra protected window rejects even when all numeric scores are high", asy
   assert.ok(first.failureReasons.includes("windows_count_mismatch"));
 });
 
+test("window count disagreement passes when independent window geometry is strong", async () => {
+  const quality = new GenerationQualityOrchestrator({
+    config: calibratedConfig,
+    providers: {
+      primary: { name: "primary", model: "mock", async compare() {
+        return {
+          observation: observation({
+            windows: 0.8,
+            sourceWindowCount: 7,
+            candidateWindowCount: 6,
+          }),
+          requestId: "request",
+        };
+      } },
+    },
+    structuralAnalyzer: async () => ({
+      version: "test", contours: 9682, spatialLayout: 5265,
+      protectedZones: 9539,
+      zones: { roof: 9796, windows: 9593, doors: 9132, entranceGroup: 8970 },
+      edgeDensityDelta: 990,
+    }),
+  });
+  const result = await quality.assess(request);
+  assert.equal(result.decision, "passed");
+  assert.equal(result.failureReasons.includes("windows_count_mismatch"), false);
+});
+
 test("reported protected opening change rejects even when counts and scores match", async () => {
   const result = await orchestrator(observation({
     detectedChanges: ["windows_changed"],
