@@ -46,6 +46,13 @@ function evaluate({ observation, structural, allowedChanges, thresholds, assessm
   const doorZoneScore = Number(structural.zones?.doors || 0);
   const windowZoneScore = Number(structural.zones?.windows || 0);
   const roofZoneScore = Number(structural.zones?.roof || 0);
+  const hiddenRoofGeometryConfirmed = allowedChanges.roof !== true
+    && observation.sourceRoofVisibility === "not_visible"
+    && observation.candidateIntroducedRoofVolume === false
+    && vlm.roof >= thresholds.protectedElement
+    && vlm.sameHouse >= thresholds.sameHouse
+    && structural.contours >= thresholds.contours
+    && structural.protectedZones >= thresholds.protectedZones;
   // New cladding, trims, lighting and removal of construction clutter can make
   // the VLM describe an existing door as changed. Do not reject that signal by
   // itself when the opening count and independent structural evidence agree.
@@ -81,8 +88,15 @@ function evaluate({ observation, structural, allowedChanges, thresholds, assessm
     }
   }
   if (structural.contours < thresholds.contours) failures.push("contours_below_threshold");
-  if (allowedChanges.roof !== true && roofZoneScore < thresholds.roofContours) {
+  if (allowedChanges.roof !== true
+    && roofZoneScore < thresholds.roofContours
+    && !hiddenRoofGeometryConfirmed) {
     failures.push("roof_contours_below_threshold");
+  }
+  if (allowedChanges.roof !== true
+    && observation.sourceRoofVisibility === "not_visible"
+    && observation.candidateIntroducedRoofVolume === true) {
+    failures.push("roof_invented_from_hidden_source");
   }
   // Material seams, timber slats and landscaping legitimately change local
   // edge density. A low layout-density score is therefore blocking only when
@@ -130,6 +144,7 @@ function evaluate({ observation, structural, allowedChanges, thresholds, assessm
     if (change === "doors_changed" && doorGeometryConfirmed) continue;
     if (change === "windows_changed" && windowGeometryConfirmed) continue;
     if (change === "entrance_group_changed" && entranceGeometryConfirmed) continue;
+    if (change === "roof_changed" && hiddenRoofGeometryConfirmed) continue;
     if (criterion == null || allowedChanges[criterion] !== true) failures.push(failure);
   }
   return {

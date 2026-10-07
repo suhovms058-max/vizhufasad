@@ -9,6 +9,7 @@ function observation(overrides = {}) {
     balconiesTerraces: 0.91, entranceGroup: 0.93, position: 0.95, perspective: 0.94,
     sourceWindowCount: 3, candidateWindowCount: 3,
     sourceDoorCount: 1, candidateDoorCount: 1,
+    sourceRoofVisibility: "fully_visible", candidateIntroducedRoofVolume: false,
     artifacts: 0.92, style: 0.9, finish: 0.9, detectedChanges: [], summary: "Pass",
     ...overrides,
   };
@@ -171,6 +172,56 @@ test("weak roof contour rejects even when the VLM overlooks a changed roof", asy
   const result = await quality.assess(request);
   assert.equal(result.decision, "retry_required");
   assert.ok(result.failureReasons.includes("roof_contours_below_threshold"));
+});
+
+test("hidden roof passes an isolated roof-zone mismatch when the visible building geometry is preserved", async () => {
+  const quality = new GenerationQualityOrchestrator({
+    config,
+    providers: {
+      primary: { name: "primary", model: "mock", async compare() {
+        return {
+          observation: observation({
+            roof: 0.95,
+            sourceRoofVisibility: "not_visible",
+            candidateIntroducedRoofVolume: false,
+          }),
+          requestId: "request",
+        };
+      } },
+    },
+    structuralAnalyzer: async () => ({
+      version: "test", contours: 8307, spatialLayout: 4398,
+      protectedZones: 7918, zones: { roof: 6114 }, edgeDensityDelta: 478,
+    }),
+  });
+  const result = await quality.assess(request);
+  assert.equal(result.decision, "passed");
+  assert.equal(result.failureReasons.includes("roof_contours_below_threshold"), false);
+});
+
+test("hidden roof still rejects when the candidate invents a visible roof volume", async () => {
+  const quality = new GenerationQualityOrchestrator({
+    config,
+    providers: {
+      primary: { name: "primary", model: "mock", async compare() {
+        return {
+          observation: observation({
+            roof: 0.95,
+            sourceRoofVisibility: "not_visible",
+            candidateIntroducedRoofVolume: true,
+          }),
+          requestId: "request",
+        };
+      } },
+    },
+    structuralAnalyzer: async () => ({
+      version: "test", contours: 8307, spatialLayout: 4398,
+      protectedZones: 7918, zones: { roof: 6114 }, edgeDensityDelta: 478,
+    }),
+  });
+  const result = await quality.assess(request);
+  assert.equal(result.decision, "retry_required");
+  assert.ok(result.failureReasons.includes("roof_invented_from_hidden_source"));
 });
 
 test("explicitly allowed roof change does not reject an otherwise good result", async () => {

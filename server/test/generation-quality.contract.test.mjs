@@ -34,6 +34,8 @@ test("provider contract and VLM schema are strict", () => {
   assert.ok(VLM_QUALITY_RESULT_SCHEMA.required.includes("candidateWindowCount"));
   assert.ok(VLM_QUALITY_RESULT_SCHEMA.required.includes("finish"));
   assert.ok(VLM_QUALITY_RESULT_SCHEMA.required.includes("entranceGroup"));
+  assert.ok(VLM_QUALITY_RESULT_SCHEMA.required.includes("sourceRoofVisibility"));
+  assert.ok(VLM_QUALITY_RESULT_SCHEMA.required.includes("candidateIntroducedRoofVolume"));
 });
 
 test("quality prompt counts outer openings and permits safety railings on existing slabs", () => {
@@ -45,6 +47,7 @@ test("quality prompt counts outer openings and permits safety railings on existi
   assert.match(prompt, /Sashes, panes, mullions/u);
   assert.match(prompt, /already-existing projecting slab or platform/u);
   assert.match(prompt, /Adding only a guardrail or handrail/u);
+  assert.match(prompt, /required safety completion/u);
   assert.match(prompt, /do not report balconies_terraces_changed/u);
   assert.match(prompt, /Score entranceGroup separately/u);
   assert.match(prompt, /replaced with direct steps/u);
@@ -55,6 +58,9 @@ test("quality prompt counts outer openings and permits safety railings on existi
   assert.match(prompt, /underside of every existing roof overhang/u);
   assert.match(prompt, /continuous realistic soffit lining/u);
   assert.match(prompt, /required facade completion, not a structural roof change/u);
+  assert.match(prompt, /Classify sourceRoofVisibility/u);
+  assert.match(prompt, /candidateIntroducedRoofVolume/u);
+  assert.match(prompt, /do not penalize roof details that cannot be observed/u);
 });
 
 test("quality config selects Yandex first and fails closed for enabled generation", () => {

@@ -1,6 +1,6 @@
-export const GENERATION_QUALITY_SCHEMA_VERSION = "generation-quality-assessment-v4";
-export const GENERATION_QUALITY_PROMPT_VERSION = "facade-quality-compare-v7";
-export const GENERATION_QUALITY_POLICY_VERSION = "facade-quality-policy-v5";
+export const GENERATION_QUALITY_SCHEMA_VERSION = "generation-quality-assessment-v5";
+export const GENERATION_QUALITY_PROMPT_VERSION = "facade-quality-compare-v8";
+export const GENERATION_QUALITY_POLICY_VERSION = "facade-quality-policy-v6";
 
 export const QUALITY_DECISIONS = Object.freeze([
   "passed", "retry_required", "rejected_refund", "accepted_fallback",
@@ -32,6 +32,11 @@ export const VLM_QUALITY_RESULT_SCHEMA = Object.freeze({
     candidateWindowCount: { type: "integer", minimum: 0, maximum: 100 },
     sourceDoorCount: { type: "integer", minimum: 0, maximum: 100 },
     candidateDoorCount: { type: "integer", minimum: 0, maximum: 100 },
+    sourceRoofVisibility: {
+      type: "string",
+      enum: ["fully_visible", "partially_visible", "not_visible"],
+    },
+    candidateIntroducedRoofVolume: { type: "boolean" },
     detectedChanges: {
       type: "array",
       maxItems: 20,
@@ -52,6 +57,7 @@ export const VLM_QUALITY_RESULT_SCHEMA = Object.freeze({
     "sameHouse", "floors", "roof", "windows", "doors",
     "balconiesTerraces", "entranceGroup", "position", "perspective", "artifacts", "style", "finish",
     "sourceWindowCount", "candidateWindowCount", "sourceDoorCount", "candidateDoorCount",
+    "sourceRoofVisibility", "candidateIntroducedRoofVolume",
     "detectedChanges", "summary",
   ],
 });

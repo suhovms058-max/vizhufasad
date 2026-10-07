@@ -38,6 +38,8 @@ test("generation input defaults to gentle and protects structure", () => {
   assert.match(composed.prompt, /fully completed/u);
   assert.match(composed.prompt, /cornice\/eaves/u);
   assert.match(composed.prompt, /EAVES COMPLETION — mandatory when unfinished/u);
+  assert.match(composed.prompt, /UNOBSERVABLE ROOF RULE/u);
+  assert.match(composed.prompt, /Never add a visible ridge, gable, hip, pitched roof/u);
   assert.match(composed.prompt, /continuous, buildable soffit lining/u);
   assert.match(composed.prompt, /exact original eave depth/u);
   assert.match(composed.prompt, /every already-existing column/u);
@@ -45,6 +47,7 @@ test("generation input defaults to gentle and protects structure", () => {
   assert.match(composed.prompt, /#EEE7DB, #3B302A/u);
   assert.match(composed.prompt, /подшить карниз деревом/u);
   assert.match(composed.prompt, /automatically add realistic guardrails or handrails/u);
+  assert.match(composed.prompt, /even when the unfinished source has no railing yet/u);
   assert.match(composed.prompt, /Do not invent a new balcony/u);
   assert.match(composed.prompt, /only permitted automatically inferred addition/u);
   assert.match(composed.prompt, /Automatically clean up the visible construction area/u);
