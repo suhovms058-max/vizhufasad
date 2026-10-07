@@ -13,6 +13,19 @@ function required(environment, name) {
   return value;
 }
 
+function canonicalOrigin(value) {
+  let url;
+  try {
+    url = new URL(String(value || ""));
+  } catch {
+    throw new Error("SITE_ORIGIN must be an absolute http(s) origin");
+  }
+  if (!["http:", "https:"].includes(url.protocol) || url.username || url.password || url.pathname !== "/" || url.search || url.hash) {
+    throw new Error("SITE_ORIGIN must be an absolute http(s) origin without path, query or credentials");
+  }
+  return url.origin;
+}
+
 export function loadPaymentConfig(environment = process.env) {
   const enabled = flag(environment.FEATURE_PAYMENTS_ENABLED, false, "FEATURE_PAYMENTS_ENABLED");
   const subscriptionsEnabled = flag(
@@ -46,6 +59,7 @@ export function loadPaymentConfig(environment = process.env) {
     ? readFileSync(result2PublicKeyFile, "utf8").trim()
     : inlineResult2PublicKey;
 
+  const siteOrigin = canonicalOrigin(environment.SITE_ORIGIN || "http://localhost:8080");
   const config = {
     enabled,
     subscriptionsEnabled,
@@ -64,11 +78,19 @@ export function loadPaymentConfig(environment = process.env) {
     result2Url: String(environment.ROBOKASSA_RESULT2_URL || "").trim() || null,
     result2PublicKey,
     result2PublicKeyFile,
-    siteOrigin: String(environment.SITE_ORIGIN || "http://localhost:8080").replace(/\/$/u, ""),
+    siteOrigin,
+    resultUrl: `${siteOrigin}/api/payments/webhooks/robokassa/result`,
+    successUrl: `${siteOrigin}/app/balance`,
+    failUrl: `${siteOrigin}/app/balance`,
     merchantName: String(environment.LEGAL_MERCHANT_NAME || "").trim() || null,
     merchantInn: String(environment.LEGAL_MERCHANT_INN || "").trim() || null,
+    merchantOgrnip: String(environment.LEGAL_MERCHANT_OGRNIP || "").trim() || null,
     merchantEmail: String(environment.LEGAL_MERCHANT_EMAIL || environment.LEADS_EMAIL || "").trim() || null,
+    merchantPhone: String(environment.LEGAL_MERCHANT_PHONE || "").trim() || null,
     merchantStatus: String(environment.LEGAL_MERCHANT_STATUS || "").trim() || null,
+    merchantRegistrationDate: String(environment.LEGAL_MERCHANT_REGISTRATION_DATE || "").trim() || null,
+    merchantRegistrationAuthority: String(environment.LEGAL_MERCHANT_REGISTRATION_AUTHORITY || "").trim() || null,
+    merchantAddress: String(environment.LEGAL_MERCHANT_ADDRESS || "").trim() || null,
   };
   if (enabled) {
     if (config.provider !== "robokassa") throw new Error("PAYMENT_PROVIDER must be robokassa");
@@ -80,10 +102,29 @@ export function loadPaymentConfig(environment = process.env) {
     config.password2 = required(environment, "ROBOKASSA_PASSWORD2");
     config.merchantName = required(environment, "LEGAL_MERCHANT_NAME");
     config.merchantInn = required(environment, "LEGAL_MERCHANT_INN");
+    config.merchantOgrnip = required(environment, "LEGAL_MERCHANT_OGRNIP");
     config.merchantEmail = required(environment, "LEGAL_MERCHANT_EMAIL");
+    config.merchantPhone = required(environment, "LEGAL_MERCHANT_PHONE");
     config.merchantStatus = required(environment, "LEGAL_MERCHANT_STATUS");
+    config.merchantRegistrationDate = required(environment, "LEGAL_MERCHANT_REGISTRATION_DATE");
+    config.merchantRegistrationAuthority = required(environment, "LEGAL_MERCHANT_REGISTRATION_AUTHORITY");
+    config.merchantAddress = required(environment, "LEGAL_MERCHANT_ADDRESS");
+    if (!/^\d{12}$/u.test(config.merchantInn)) throw new Error("LEGAL_MERCHANT_INN must contain 12 digits for an individual entrepreneur");
+    if (!/^\d{15}$/u.test(config.merchantOgrnip)) throw new Error("LEGAL_MERCHANT_OGRNIP must contain 15 digits");
     if (Boolean(config.result2Url) !== Boolean(config.result2PublicKey)) {
       throw new Error("ROBOKASSA_RESULT2_URL and ResultUrl2 public key must be configured together");
+    }
+    if (environment.NODE_ENV === "production") {
+      if (config.siteOrigin !== "https://vizhufasad.ru") {
+        throw new Error("Production payments require SITE_ORIGIN=https://vizhufasad.ru");
+      }
+      const expectedResult2Url = `${config.siteOrigin}/api/payments/webhooks/robokassa/result2`;
+      if (!config.result2Url || !config.result2PublicKey) {
+        throw new Error("Production payments require signed Robokassa ResultUrl2");
+      }
+      if (config.result2Url !== expectedResult2Url) {
+        throw new Error(`ROBOKASSA_RESULT2_URL must be ${expectedResult2Url}`);
+      }
     }
   }
   return Object.freeze(config);

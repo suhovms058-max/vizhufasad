@@ -1,237 +1,148 @@
 "use client";
 
 import { PointerEvent, useEffect, useRef, useState } from "react";
+import { facadeStyles } from "./facadeStyleCatalog";
 
-const slideDuration = 1000;
+const Arrow = () => (
+  <svg viewBox="0 0 24 24" aria-hidden="true"><path d="M5 12h14m-5-5 5 5-5 5" /></svg>
+);
+
+const Check = () => (
+  <svg viewBox="0 0 24 24" aria-hidden="true"><path d="m5 12 4 4L19 6" /></svg>
+);
 
 const slides = [
   {
     src: "/facade-before-bright.webp",
     mobileSrc: "/facade-before-bright-960.webp",
-    title: "Исходное фото",
-    details: "Дом до выбора отделки",
+    title: "Без отделки",
+    details: "Исходная фотография дома",
     alt: "Исходная фотография дома без фасадной отделки",
+    duration: 2300,
   },
-  {
-    src: "/facade-after-bright.webp",
-    mobileSrc: "/facade-after-bright-960.webp",
-    title: "Современный",
-    details: "Штукатурка · дерево · камень",
-    alt: "Современный вариант отделки фасада этого же дома",
-  },
-  {
-    src: "/facade-minimalism-bright.webp",
-    mobileSrc: "/facade-minimalism-bright-960.webp",
-    title: "Минимализм",
-    details: "Штукатурка · панели · спокойная палитра",
-    alt: "Минималистичный вариант отделки фасада этого же дома",
-  },
-  {
-    src: "/facade-scandinavian-bright.webp",
-    mobileSrc: "/facade-scandinavian-bright-960.webp",
-    title: "Скандинавский",
-    details: "Фиброцемент · термодерево · камень",
-    alt: "Скандинавский вариант отделки фасада этого же дома",
-  },
-  {
-    src: "/facade-barnhouse-bright.webp",
-    mobileSrc: "/facade-barnhouse-bright-960.webp",
-    title: "Барнхаус",
-    details: "Фальц · дерево · тёмные плоскости",
-    alt: "Вариант отделки фасада этого же дома в стиле барнхаус",
-  },
-  {
-    src: "/facade-chalet-bright.webp",
-    mobileSrc: "/facade-chalet-bright-960.webp",
-    title: "Шале",
-    details: "Камень · дерево · тёплая отделка",
-    alt: "Вариант отделки фасада этого же дома в стиле шале",
-  },
-  {
-    src: "/facade-classic-bright.webp",
-    mobileSrc: "/facade-classic-bright-960.webp",
-    title: "Классический",
-    details: "Светлая штукатурка · симметрия · декор",
-    alt: "Классический вариант отделки фасада этого же дома",
-  },
-  {
-    src: "/facade-neoclassical-bright.webp",
-    mobileSrc: "/facade-neoclassical-bright-960.webp",
-    title: "Неоклассика",
-    details: "Штукатурка · фасадный декор · камень",
-    alt: "Неоклассический вариант отделки фасада этого же дома",
-  },
-  {
-    src: "/facade-contemporary-bright.webp",
-    mobileSrc: "/facade-contemporary-bright-960.webp",
-    title: "Контемпорари",
-    details: "Камень · панели · выразительные детали",
-    alt: "Вариант отделки фасада этого же дома в стиле контемпорари",
-  },
-  {
-    src: "/facade-loft-bright.webp",
-    mobileSrc: "/facade-loft-bright-960.webp",
-    title: "Лофт",
-    details: "Кирпич · металл · индустриальный характер",
-    alt: "Вариант отделки фасада этого же дома в стиле лофт",
-  },
-  {
-    src: "/facade-dark-high-tech-bright.webp",
-    mobileSrc: "/facade-dark-high-tech-bright-960.webp",
-    title: "Тёмный хай-тек",
-    details: "Графитовые панели · стекло · точная подсветка",
-    alt: "Вариант отделки фасада этого же дома в стиле тёмный хай-тек",
-  },
-] as const;
+  ...facadeStyles.map((style) => ({
+    src: style.image,
+    mobileSrc: style.slug === "sovremennyy"
+      ? "/facade-after-bright-960.webp"
+      : style.slug === "skandinavskiy"
+        ? "/facade-scandinavian-bright-960.webp"
+        : style.slug === "neoklassicheskiy"
+          ? "/facade-neoclassical-bright-960.webp"
+          : style.image,
+    title: style.title,
+    details: style.materials.slice(0, 3).join(" · "),
+    alt: style.imageAlt,
+    duration: 1750,
+  })),
+];
 
-const finishedSlideCount = slides.length - 1;
-
-export function HeroFacadeCarousel() {
+export function HeroFacadeCarousel({ appUrl }: { appUrl: string }) {
   const [activeIndex, setActiveIndex] = useState(0);
+  const [previousIndex, setPreviousIndex] = useState(slides.length - 1);
   const [userPaused, setUserPaused] = useState(false);
+  const [interactionPaused, setInteractionPaused] = useState(false);
   const [reducedMotion, setReducedMotion] = useState(false);
   const pointerStartX = useRef<number | null>(null);
 
-  const paused = userPaused || reducedMotion;
+  const paused = userPaused || interactionPaused || reducedMotion;
   const activeSlide = slides[activeIndex];
+  const previousSlide = slides[previousIndex];
 
   useEffect(() => {
     const media = window.matchMedia("(prefers-reduced-motion: reduce)");
     const syncPreference = () => setReducedMotion(media.matches);
-
     syncPreference();
     media.addEventListener("change", syncPreference);
     return () => media.removeEventListener("change", syncPreference);
   }, []);
 
-  useEffect(() => {
-    const useMobileImages = window.matchMedia("(max-width: 1100px)").matches;
-    const preloaders = slides.slice(1).map((slide) => {
-      const image = new Image();
-      image.decoding = "async";
-      image.src = useMobileImages ? slide.mobileSrc : slide.src;
-      return image;
-    });
-
-    return () => preloaders.forEach((image) => { image.src = ""; });
-  }, []);
+  const show = (nextIndex: number) => {
+    setPreviousIndex(activeIndex);
+    setActiveIndex((nextIndex + slides.length) % slides.length);
+  };
 
   useEffect(() => {
     if (paused) return;
-
-    const timeout = window.setTimeout(() => {
-      setActiveIndex((current) => (current + 1) % slides.length);
-    }, slideDuration);
-
+    const timeout = window.setTimeout(() => show(activeIndex + 1), activeSlide.duration);
     return () => window.clearTimeout(timeout);
-  }, [paused]);
+  }, [activeIndex, activeSlide.duration, paused]);
 
-  const showPrevious = () => {
-    setActiveIndex((current) => (current - 1 + slides.length) % slides.length);
-  };
-
-  const showNext = () => {
-    setActiveIndex((current) => (current + 1) % slides.length);
-  };
-
-  const handlePointerDown = (event: PointerEvent<HTMLDivElement>) => {
+  const handlePointerDown = (event: PointerEvent<HTMLElement>) => {
     pointerStartX.current = event.clientX;
   };
 
-  const handlePointerUp = (event: PointerEvent<HTMLDivElement>) => {
+  const handlePointerUp = (event: PointerEvent<HTMLElement>) => {
     if (pointerStartX.current === null) return;
-
     const distance = event.clientX - pointerStartX.current;
     pointerStartX.current = null;
-
     if (Math.abs(distance) < 45) return;
-    if (distance > 0) showPrevious();
-    else showNext();
+    show(activeIndex + (distance > 0 ? -1 : 1));
   };
 
   return (
-    <div
-      className="heroVisual"
-      id="hero-examples"
-      role="region"
-      aria-roledescription="карусель"
-      aria-label={`Исходный дом и ${finishedSlideCount} вариантов отделки фасада`}
+    <section
+      className="vf4-hero"
+      id="top"
+      aria-label="Один дом в десяти вариантах фасада"
+      onMouseEnter={() => setInteractionPaused(true)}
+      onMouseLeave={() => setInteractionPaused(false)}
+      onFocusCapture={() => setInteractionPaused(true)}
+      onBlurCapture={(event) => {
+        if (!event.currentTarget.contains(event.relatedTarget)) setInteractionPaused(false);
+      }}
+      onPointerDown={handlePointerDown}
+      onPointerUp={handlePointerUp}
+      onPointerCancel={() => { pointerStartX.current = null; }}
     >
-      <div className="visualTop">
-        <span>ПРОЕКТ 01 / ЧАСТНЫЙ ДОМ</span>
-        <span className="status"><i /> ПРИМЕРЫ РЕШЕНИЙ</span>
+      <div className="vf4-hero-media" aria-live="polite">
+        <picture className="vf4-hero-layer vf4-hero-previous" aria-hidden="true">
+          <source media="(max-width: 760px)" srcSet={previousSlide.mobileSrc} />
+          <img src={previousSlide.src} alt="" width="1568" height="1003" decoding="async" />
+        </picture>
+        <picture className="vf4-hero-layer vf4-hero-current" key={activeSlide.src}>
+          <source media="(max-width: 760px)" srcSet={activeSlide.mobileSrc} />
+          <img src={activeSlide.src} alt={activeSlide.alt} width="1568" height="1003" decoding="async" loading={activeIndex === 0 ? "eager" : "lazy"} fetchPriority={activeIndex === 0 ? "high" : "auto"} />
+        </picture>
+        <div className="vf4-hero-vignette" aria-hidden="true" />
+        <div className="vf4-scan" aria-hidden="true" />
       </div>
 
-      <div
-        className="heroCarousel"
-        onPointerDown={handlePointerDown}
-        onPointerUp={handlePointerUp}
-        onPointerCancel={() => { pointerStartX.current = null; }}
-      >
-        {slides.map((slide, index) => {
-          const isActive = index === activeIndex;
-          return (
-            <div
-              className={`carouselSlide${isActive ? " isActive" : ""}`}
-              key={slide.src}
-              aria-hidden={!isActive}
-            >
-              <picture>
-                <source media="(max-width: 1100px)" srcSet={slide.mobileSrc} />
-                <img
-                  src={slide.src}
-                  alt={slide.alt}
-                  width="1568"
-                  height="1003"
-                  decoding="async"
-                  loading={index === 0 ? "eager" : "lazy"}
-                  fetchPriority={index === 0 ? "high" : "auto"}
-                />
-              </picture>
-            </div>
-          );
-        })}
-
-        <div className="carouselShade" aria-hidden="true" />
-        <div className="carouselMeta">
-          <span>{activeIndex === 0 ? "ДО ОТДЕЛКИ" : `ВАРИАНТ ${activeIndex} ИЗ ${finishedSlideCount}`}</span>
-          <strong>{activeSlide.title}</strong>
-          <small>{activeSlide.details}</small>
-        </div>
-
-        <div className="carouselControls">
-          <button className="carouselArrow" type="button" onClick={showPrevious} aria-label="Предыдущий вариант">←</button>
-          <div className="carouselDots" aria-label="Выбор изображения">
-            {slides.map((slide, index) => (
-              <button
-                className={`carouselDot${index === activeIndex ? " isActive" : ""}`}
-                type="button"
-                key={slide.src}
-                onClick={() => setActiveIndex(index)}
-                aria-label={`Показать: ${slide.title}`}
-                aria-current={index === activeIndex ? "true" : undefined}
-              />
-            ))}
+      <div className="vf4-shell vf4-hero-inner">
+        <div className="vf4-hero-copy">
+          <h1>
+            <span><i>Создайте дизайн</i></span>
+            <span><i>фасада <strong>своего</strong></i></span>
+            <span><i><strong>дома</strong> по фото</i></span>
+          </h1>
+          <p>Загрузите фотографию, выберите стиль, материалы и цвета. Сервис создаст визуализацию и проверит, сохранились ли окна, двери, кровля и пропорции дома.</p>
+          <div className="vf4-hero-actions">
+            <a className="vf4-button vf4-button-primary" href={appUrl}>Создать фасад бесплатно <Arrow /></a>
+            <a className="vf4-button vf4-button-ghost" href="#proof">Посмотреть сравнение</a>
           </div>
-          <button className="carouselArrow" type="button" onClick={showNext} aria-label="Следующий вариант">→</button>
-          <button
-            className="carouselToggle"
-            type="button"
-            onClick={() => setUserPaused((current) => !current)}
-            disabled={reducedMotion}
-            aria-label={reducedMotion ? "Автоматическая смена отключена в настройках движения" : userPaused ? "Запустить смену изображений" : "Остановить смену изображений"}
-          >
-            {reducedMotion ? "—" : userPaused ? "▶" : "Ⅱ"}
-          </button>
+          <div className="vf4-trust">
+            <span><Check /> Первая визуализация бесплатно</span>
+            <span><Check /> Автопроверка деталей дома</span>
+            <span><Check /> Проекты сохраняются</span>
+          </div>
+        </div>
+
+        <div className="vf4-hero-bottom">
+          <div className="vf4-style-controls" aria-label="Выберите вариант фасада">
+            {slides.map((slide, index) => (
+              <button type="button" className="vf4-style-control" key={slide.src} aria-current={index === activeIndex ? "true" : undefined} onClick={() => show(index)}>
+                {slide.title}
+              </button>
+            ))}
+            <button type="button" className="vf4-style-control vf4-pause" onClick={() => setUserPaused((value) => !value)} disabled={reducedMotion} aria-label={userPaused ? "Продолжить автоматическую смену" : "Остановить автоматическую смену"}>
+              {reducedMotion ? "Авто выключено" : userPaused ? "Продолжить" : "Пауза"}
+            </button>
+          </div>
+          <aside className="vf4-hero-status">
+            <div><small>{activeIndex === 0 ? "Исходное фото" : "Вариант на этом доме"}</small><strong>{activeSlide.title}</strong><p>{activeSlide.details}</p></div>
+            <span>{String(activeIndex + 1).padStart(2, "0")} / {String(slides.length).padStart(2, "0")}</span>
+          </aside>
         </div>
       </div>
-
-      <div className="visualBottom">
-        <span><b>{finishedSlideCount}</b> стилей для сравнения</span>
-        <span>Один дом — разные стили и материалы</span>
-        <span>Статус виден в кабинете</span>
-      </div>
-      <p className="visualFootnote">Демонстрационные примеры. Результат показывается после автоматической проверки</p>
-    </div>
+    </section>
   );
 }

@@ -1,6 +1,7 @@
 import type { ReactNode } from "react";
 import { Bodoni_Moda, Cormorant_Garamond, Inter } from "next/font/google";
 import "./globals.css";
+import "./home-v4.css";
 import { JsonLd } from "./JsonLd";
 
 const siteOrigin = process.env.NEXT_PUBLIC_SITE_ORIGIN || "https://vizhufasad.ru";
@@ -65,7 +66,7 @@ export default function RootLayout({ children }: { children: ReactNode }) {
         <JsonLd data={{
           "@context": "https://schema.org",
           "@graph": [
-            { "@type": "Organization", "@id": `${siteOrigin}/#organization`, name: "ВИЖУФАСАД", url: siteOrigin, email: "vizhufasad0058@bk.ru" },
+            { "@type": "Organization", "@id": `${siteOrigin}/#organization`, name: "ВИЖУФАСАД", url: siteOrigin, email: "vizhufasad0058@bk.ru", telephone: "+79374122669" },
             { "@type": "WebSite", "@id": `${siteOrigin}/#website`, url: siteOrigin, name: "ВИЖУФАСАД", alternateName: "Вижу фасад", publisher: { "@id": `${siteOrigin}/#organization` }, inLanguage: "ru-RU" },
           ],
         }} />

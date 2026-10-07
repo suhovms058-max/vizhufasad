@@ -284,19 +284,28 @@ function settingsStep(project, balance, costs, features, access) {
   const allowedMaterials = new Set(access.materials);
   const selectedStyle = allowedStyles.has(config.style) ? config.style : "автоподбор";
   const selectedPalette = config.palette?.[0] || "автоподбор";
-  return `<section id="generation-app" class="flow" data-project-id="${escapeHtml(project.id)}" data-image-id="${escapeHtml(project.image_id)}"
+  return `<section id="generation-app" class="creator-flow" data-project-id="${escapeHtml(project.id)}" data-image-id="${escapeHtml(project.image_id)}"
     data-standard-cost="${escapeHtml(costs.standard)}" data-pro-cost="${escapeHtml(costs.pro)}" data-balance="${escapeHtml(balance)}" data-pro-enabled="${features.pro}">
     <script id="initial-configuration" type="application/json">${jsonData(config)}</script>
-    <div class="flow-heading"><p class="eyebrow">Шаг 3 из 3</p><h1>Настройте фасад</h1>
-    <p>Баланс: <strong>${escapeHtml(vfCoinsLabel(balance))}</strong>${Number(balance) < Number(costs.standard) ? " · право на первую бесплатную генерацию проверяется при запуске" : ""}</p></div>
-    <form id="generation-form" class="settings-form panel" data-wizard-current="1">
+    <div class="creator-heading"><div><p class="eyebrow">Шаг 2 из 3 · настройка проекта</p><h1>Настройте фасад</h1>
+    <p>Соберите понятное задание для визуализации. Выбор сохраняется автоматически.</p></div><div class="creator-balance"><span>Баланс</span><strong>${escapeHtml(vfCoinsLabel(balance))}</strong><a href="/app/balance">Пополнить</a></div></div>
+    <div class="creator-studio">
+      <aside class="creator-preview" aria-label="Исходный дом и выбранные настройки">
+        <div class="creator-preview-media"><img src="${escapeHtml(project.thumbnailUrl || "")}" alt="Исходная фотография проекта ${escapeHtml(project.title)}"><span>Фото подходит · проверено</span><i aria-hidden="true"></i></div>
+        <div class="creator-preview-copy"><p class="eyebrow">Проект</p><h2>${escapeHtml(project.title)}</h2><dl>
+          <div><dt>Стиль</dt><dd id="creator-summary-style">${escapeHtml(selectedStyle)}</dd></div>
+          <div><dt>Материалы</dt><dd id="creator-summary-materials">${selectedMaterials.size ? escapeHtml([...selectedMaterials].join(", ")) : "Автоподбор"}</dd></div>
+          <div><dt>Палитра</dt><dd id="creator-summary-palette">${escapeHtml(selectedPalette)}</dd></div>
+        </dl><div class="creator-preserve"><span aria-hidden="true">✓</span><p><strong>Архитектура защищена</strong><small id="creator-summary-preserve">Архитектура, проёмы, кровля и входная группа защищены</small></p></div></div>
+      </aside>
+    <form id="generation-form" class="settings-form creator-controls panel" data-wizard-current="1">
       <ol class="settings-progress" aria-label="Шаги настройки фасада">
-        <li aria-current="step"><span>1</span><strong>Задача и стиль</strong></li>
-        <li><span>2</span><strong>Отделка и цвета</strong></li>
-        <li><span>3</span><strong>Пожелания и запуск</strong></li>
+        <li aria-current="step"><span>1</span><strong>Образ</strong></li>
+        <li><span>2</span><strong>Материалы</strong></li>
+        <li><span>3</span><strong>Сохраняем дом</strong></li>
       </ol>
       <div class="settings-step" data-wizard-step="1">
-      <div class="settings-step-heading"><p class="eyebrow">Настройка 1 из 3</p><h2>Как должен измениться фасад</h2><p>Выберите глубину изменений, качество результата и архитектурное направление.</p></div>
+      <div class="settings-step-heading"><p class="eyebrow">Образ · 1 из 3</p><h2>Как должен выглядеть дом</h2><p>Сначала задайте характер изменений и стилевое направление. Детали отделки выберем на следующем экране.</p></div>
       <fieldset><legend>Уровень изменений</legend><div class="mode-grid">${[["gentle", "Бережный", "Освежить отделку без изменения архитектуры"], ["balanced", "Сбалансированный", "Заметнее обновить сочетание материалов"], ["conceptual", "Концептуальный", "Создать выразительное решение в пределах ограничений"]].map(([value, label, description]) => `<label class="mode"><input type="radio" name="transformationLevel" value="${value}" ${(config.transformationLevel || "gentle") === value ? "checked" : ""}><span><strong>${label}</strong><small>${description}</small></span></label>`).join("")}</div></fieldset>
       <fieldset><legend>Качество результата</legend><p class="hint">Ваш пакет: <strong>${escapeHtml(access.label)}</strong>. Дополнительные возможности открываются с более старшими пакетами.</p><div class="generation-tier-grid">
         <label class="generation-tier"><input type="radio" name="generationKind" value="standard" checked><span><strong>Генерация · ${escapeHtml(vfCoinsLabel(costs.standard))}</strong><small>Быстрый способ подобрать отделку и цветовое решение.</small></span></label>
@@ -307,7 +316,7 @@ function settingsStep(project, balance, costs, features, access) {
       <label class="visually-hidden" for="style">Выбранный стиль</label><select class="visually-hidden" id="style" name="style">${STYLES.filter((item) => allowedStyles.has(item)).map((item) => option(item, selectedStyle)).join("")}</select><p class="hint">В пакете «${escapeHtml(access.label)}» доступно ${escapeHtml(stylesLabel(access.styles.length - 1))} и автоподбор. <a href="/app/balance">Посмотреть старшие пакеты</a></p></fieldset>
       </div>
       <div class="settings-step hidden" data-wizard-step="2">
-      <div class="settings-step-heading"><p class="eyebrow">Настройка 2 из 3</p><h2>Отделка и цветовое решение</h2><p>Материалы, палитра и ваши уточнения автоматически попадут в задание генератору.</p></div>
+      <div class="settings-step-heading"><p class="eyebrow">Материалы · 2 из 3</p><h2>Соберите отделку и палитру</h2><p>Можно выбрать несколько материалов. Сервис объединит их с выбранным стилем в одно задание.</p></div>
       <fieldset><legend>Отделка</legend><p class="hint">Можно сочетать несколько материалов. Финальная совместимость системы требует проверки основания.</p>
       <div class="choice-grid material-grid">${MATERIALS.filter(([value]) => allowedMaterials.has(value)).map(([value, description, image, title = value]) => {
         const card = `<label class="choice material-choice${value === "гибкая керамика PHOMI" ? " partner-material-toggle" : ""}"><input type="checkbox" name="materials" value="${escapeHtml(value)}" ${selectedMaterials.has(value) ? "checked" : ""}><span><img class="material-photo" src="${escapeHtml(image)}?v=${SELECTION_ASSET_VERSION}" alt="Фактура материала: ${escapeHtml(value)}" width="480" height="480" loading="lazy" decoding="async"><i class="material-shade" aria-hidden="true"></i><b${title !== value ? ' class="material-title-verbatim"' : ""}>${escapeHtml(title)}</b><small>${escapeHtml(description)}</small></span></label>`;
@@ -318,15 +327,15 @@ function settingsStep(project, balance, costs, features, access) {
       <label for="palette-description">Описание цветов</label><input id="palette-description" name="paletteDescription" maxlength="120" value="${escapeHtml(config.palette?.slice(1).join(", ") || "")}" placeholder="Например: молочный, натуральное дерево, графит"></fieldset>
       </div>
       <div class="settings-step hidden" data-wizard-step="3">
-      <div class="settings-step-heading"><p class="eyebrow">Настройка 3 из 3</p><h2>Пожелания и запуск</h2><p>Дом останется тем же, а временный строительный беспорядок и участок сервис приведёт к аккуратному завершённому виду.</p></div>
+      <div class="settings-step-heading"><p class="eyebrow">Сохраняем дом · 3 из 3</p><h2>Защитите важные элементы</h2><p>Дом останется тем же, а временный строительный беспорядок и участок сервис приведёт к аккуратному завершённому виду.</p></div>
       <section class="panel assessment system-preserve-note" aria-label="Что сервис сохранит автоматически"><h3>Архитектура дома защищена автоматически</h3><p>Сохраняются геометрия, этажность, кровля, окна, двери, балконы, террасы, входные площадки и лестницы, положение дома и ракурс. Новые этажи не добавляются.</p><p>Входная группа получает отделку в стиле нового фасада, но её исходные размеры, форма и расположение не меняются.</p><p>Строительный мусор и временные предметы перед фасадом можно убрать, а участок — аккуратно благоустроить.</p></section>
       <fieldset><legend>Пожелания</legend><label for="wishes">Что важно учесть</label><textarea id="wishes" name="wishes" maxlength="700" rows="5" placeholder="Материалы, цвета, отделка карниза, цоколя, существующих опор…">${escapeHtml(config.wishes || "")}</textarea><p class="hint">Пожелания автоматически попадут в задание генератору. Они не могут отменить защиту архитектуры дома.</p><p class="counter"><span id="wishes-count">0</span>/700</p></fieldset>
       <label class="confirm"><input id="cost-confirm" type="checkbox" required><span id="cost-confirm-text">${Number(balance) < Number(costs.standard) ? "Подтверждаю запуск: сервис проверит право на первую бесплатную генерацию. При отказе ВФ-коин не списывается." : `Подтверждаю: с баланса будет списан ${escapeHtml(vfCoinsLabel(costs.standard))} за генерацию фасада. Проверка фото и скачивание бесплатны.`}</span></label>
       </div>
       <p id="draft-status" class="muted" role="status" aria-live="polite"></p>
       <p id="generation-message" class="form-message" role="status" aria-live="polite"></p>
-      <div class="settings-wizard-actions"><button id="settings-back" class="secondary hidden" type="button">Назад</button><button id="settings-next" type="button">Продолжить</button><button id="generation-start" class="hidden" type="submit">Запустить генерацию</button><a class="button secondary" href="/app">Вернуться в проекты</a></div>
-    </form></section>`;
+      <div class="settings-wizard-actions"><button id="settings-back" class="secondary hidden" type="button">← Назад</button><button id="settings-next" type="button">Продолжить <span aria-hidden="true">→</span></button><button id="generation-start" class="hidden" type="submit">Создать вариант фасада</button><a class="button secondary" href="/app">Сохранить и выйти</a></div>
+    </form></div></section>`;
 }
 
 function statusSteps() {
@@ -487,9 +496,8 @@ export function createProjectPagesRouter({
       };
       const projectPicker = !project && projects.length ? `<section class="panel"><h2>Или выберите проект</h2><div class="compact-projects">${projects.map((item) => `<a href="/app/new?project=${escapeHtml(item.id)}">${escapeHtml(item.title)}</a>`).join("")}</div></section>` : "";
       const body = project && project.image_id && !forceReplace
-        ? `<nav class="breadcrumbs"><a href="/app">Проекты</a><span>/</span><span>${escapeHtml(project.title)}</span></nav>
-          <section class="source-summary"><img src="${escapeHtml(project.thumbnailUrl)}" alt="Исходное фото"><div><p class="eyebrow">Шаг 2 из 3</p><h1>Фото проекта</h1><a href="/app/new?project=${escapeHtml(project.id)}&replace=1">Заменить фото</a></div></section>
-          ${assessmentBlock(project)}${accepted ? settingsStep(project, wallet.balance, costs, accessibleFeatures, access) : uploadStep(project)}`
+        ? `<nav class="breadcrumbs"><a href="/app">Проекты</a><span>/</span><span>${escapeHtml(project.title)}</span>${accepted ? `<a class="breadcrumbs-action" href="/app/new?project=${escapeHtml(project.id)}&replace=1">Заменить фото</a>` : ""}</nav>
+          ${accepted ? settingsStep(project, wallet.balance, costs, accessibleFeatures, access) : `<section class="source-summary"><img src="${escapeHtml(project.thumbnailUrl)}" alt="Исходное фото"><div><p class="eyebrow">Шаг 2 из 3</p><h1>Фото проекта</h1><a href="/app/new?project=${escapeHtml(project.id)}&replace=1">Заменить фото</a></div></section>${assessmentBlock(project)}${uploadStep(project)}`}`
         : `${uploadStep(project)}${projectPicker}`;
       return response.type("html").send(page("Новый проект", body, { scripts: ["/assets/app-new.js", "/assets/app-generation.js"] }));
     } catch (error) {

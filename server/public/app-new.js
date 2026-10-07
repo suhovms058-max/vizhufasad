@@ -320,13 +320,26 @@
     const wizardProgress = [...form.querySelectorAll(".settings-progress li")];
     const wizardBack = form.querySelector("#settings-back");
     const wizardNext = form.querySelector("#settings-next");
+    const summaryStyle = root.querySelector("#creator-summary-style");
+    const summaryMaterials = root.querySelector("#creator-summary-materials");
+    const summaryPalette = root.querySelector("#creator-summary-palette");
+    const summaryPreserve = root.querySelector("#creator-summary-preserve");
     let saveTimer;
     let wizardStep = Math.min(3, Math.max(1, Number(safeStorage.get(wizardStorageKey)) || 1));
 
     const showWizardStep = (nextStep, focusHeading = false) => {
+      const previousStep = wizardStep;
       wizardStep = Math.min(3, Math.max(1, nextStep));
       form.dataset.wizardCurrent = String(wizardStep);
-      wizardSteps.forEach((step) => step.classList.toggle("hidden", Number(step.dataset.wizardStep) !== wizardStep));
+      wizardSteps.forEach((step) => {
+        const active = Number(step.dataset.wizardStep) === wizardStep;
+        step.classList.toggle("hidden", !active);
+        step.classList.remove("is-entering");
+        if (active && focusHeading && previousStep !== wizardStep) {
+          step.style.setProperty("--creator-step-direction", wizardStep > previousStep ? "24px" : "-24px");
+          requestAnimationFrame(() => step.classList.add("is-entering"));
+        }
+      });
       wizardProgress.forEach((item, index) => {
         const active = index + 1 === wizardStep;
         item.toggleAttribute("aria-current", active);
@@ -405,6 +418,22 @@
         negativeConstraints: [],
       };
     };
+    const flashSummary = (element) => {
+      element?.classList.remove("creator-summary-flash");
+      requestAnimationFrame(() => element?.classList.add("creator-summary-flash"));
+    };
+    const updateSummary = () => {
+      const config = configuration();
+      const materials = config.materials.length ? config.materials.join(", ") : "Автоподбор";
+      const palette = config.palette.filter(Boolean).join(" · ") || "Автоподбор";
+      if (summaryStyle && summaryStyle.textContent !== config.style) { summaryStyle.textContent = config.style; flashSummary(summaryStyle); }
+      if (summaryMaterials && summaryMaterials.textContent !== materials) { summaryMaterials.textContent = materials; flashSummary(summaryMaterials); }
+      if (summaryPalette && summaryPalette.textContent !== palette) { summaryPalette.textContent = palette; flashSummary(summaryPalette); }
+      if (summaryPreserve) {
+        const preserveText = "Архитектура, проёмы, кровля и входная группа защищены";
+        if (summaryPreserve.textContent !== preserveText) { summaryPreserve.textContent = preserveText; flashSummary(summaryPreserve); }
+      }
+    };
     const applyDraft = (config) => {
       if (!config || typeof config !== "object") return;
       if (config.style) form.elements.style.value = config.style;
@@ -450,12 +479,13 @@
     };
     updateCount();
     updateGenerationKind();
+    updateSummary();
     showWizardStep(wizardStep);
     window.vizhufasadTrack?.("settings_opened");
     wizardBack.addEventListener("click", () => showWizardStep(wizardStep - 1, true));
     wizardNext.addEventListener("click", () => showWizardStep(wizardStep + 1, true));
-    form.addEventListener("input", () => { updateCount(); updateGenerationKind(); scheduleSave(); });
-    form.addEventListener("change", scheduleSave);
+    form.addEventListener("input", () => { updateCount(); updateGenerationKind(); updateSummary(); scheduleSave(); });
+    form.addEventListener("change", () => { updateSummary(); scheduleSave(); });
     form.addEventListener("submit", async (event) => {
       event.preventDefault();
       if (!form.reportValidity()) return;
