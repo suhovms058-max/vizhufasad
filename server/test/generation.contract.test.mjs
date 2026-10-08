@@ -50,7 +50,11 @@ test("generation input defaults to gentle and protects structure", () => {
   assert.match(composed.prompt, /even when the unfinished source has no railing yet/u);
   assert.match(composed.prompt, /Do not invent a new balcony/u);
   assert.match(composed.prompt, /only permitted automatically inferred addition/u);
-  assert.match(composed.prompt, /Automatically clean up the visible construction area/u);
+  assert.match(composed.prompt, /PROFESSIONAL LANDSCAPE DESIGN — mandatory/u);
+  assert.match(composed.prompt, /clean pedestrian paths to every visible entrance/u);
+  assert.match(composed.prompt, /practical driveway or parking surface where vehicle access already exists/u);
+  assert.match(composed.prompt, /Never hide the facade, doors, windows, plinth, stairs or material transitions/u);
+  assert.match(composed.prompt, /Do not invent a pool, gazebo, pergola, fountain/u);
   assert.match(composed.prompt, /inventory every visible original window and door/u);
   assert.match(composed.prompt, /Never add an opening to a blank wall/u);
   assert.match(composed.prompt, /RAW-SURFACE REPLACEMENT/u);
@@ -111,6 +115,18 @@ test("generation input applies the fixed automated preservation policy", () => {
   assert.equal(input.preserve.floors, true);
   assert.equal(input.preserve.noNewFloors, true);
   assert.match(composeGenerationPrompt(input).prompt, /Never add a new storey/u);
+});
+
+test("localized editor keeps the existing landscape outside the edit boundary", () => {
+  const input = normalizeGenerationInput({
+    style: "современный",
+    materials: ["камень"],
+  });
+  const prompt = composeGenerationPrompt(input, {
+    edit: { scope: "plinth", command: "заменить отделку цоколя" },
+  }).prompt;
+  assert.match(prompt, /Keep the original environment, season, lighting direction and camera optics unchanged/u);
+  assert.doesNotMatch(prompt, /PROFESSIONAL LANDSCAPE DESIGN/u);
 });
 
 test("automatic material selection requires a visible finished facade system", () => {

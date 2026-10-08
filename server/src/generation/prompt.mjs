@@ -72,6 +72,19 @@ function finishInstruction(input, automaticMaterials) {
   ].join(" ");
 }
 
+function landscapeInstruction(input, edit) {
+  if (edit || input.preserve.plot) {
+    return "Keep the original environment, season, lighting direction and camera optics unchanged.";
+  }
+  return [
+    "PROFESSIONAL LANDSCAPE DESIGN — mandatory: complete every visible unfinished part of the plot around the house as a restrained, realistic and buildable landscape composition matched to the facade style, climate, scale and camera view.",
+    "Remove temporary construction debris, loose materials, tools, machinery, parked vehicles, bare spoil heaps and accidental clutter. Replace unfinished ground with a coherent system of maintained lawn or suitable groundcover, clean pedestrian paths to every visible entrance, a practical driveway or parking surface where vehicle access already exists, and a small number of well-composed planting beds with low shrubs, grasses and perennials.",
+    "Create a clear landscape hierarchy rather than scattering plants randomly: keep the main facade and entrance visually open, frame important volumes with low planting, use continuous path edges and repeat a restrained plant palette. The result must look professionally designed and realistically maintainable, not like an empty lawn, a wild garden or decorative vegetation pasted across the image.",
+    "Preserve the exact house position, permanent terrain levels, plot boundaries, existing access direction, visible retaining structures, stairs, terraces and drainage logic. Do not invent a pool, gazebo, pergola, fountain, outdoor kitchen, new fence, retaining wall, large tree or other structure unless it already exists in the source or the client explicitly requested it.",
+    "Never hide the facade, doors, windows, plinth, stairs or material transitions behind trees or tall shrubs. Keep new plants below window-sill height near the facade, respect practical clearance from walls and paths, and preserve the original perspective, season and lighting direction.",
+  ].join(" ");
+}
+
 const preserveLabels = {
   geometry: "building geometry and footprint",
   floors: "number of storeys",
@@ -142,9 +155,7 @@ export function composeGenerationPrompt(input, {
     allowedItems.length
       ? `The user explicitly allows changes to: ${allowedItems.join("; ")}.`
       : "",
-    input.preserve.plot
-      ? "Keep the original environment, season, lighting direction and camera optics."
-      : "Automatically clean up the visible construction area around the facade: remove temporary debris, loose building materials, tools, machinery, parked vehicles and other non-architectural clutter. Turn unfinished foreground into restrained, realistic landscaping with plausible lawn, paths and planting that fit the house. Do not move the house, change permanent terrain, hide the facade or invent structures.",
+    landscapeInstruction(input, edit),
     "The result is a facade visualization concept, not a construction drawing.",
     input.preserve.noNewFloors
       ? "Never add a new storey, even when other facade changes are allowed."
