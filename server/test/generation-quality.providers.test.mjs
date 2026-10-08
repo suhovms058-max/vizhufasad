@@ -85,3 +85,26 @@ test("GenAPI provider uses its regional proxy and multimodal chat format", async
   assert.equal(JSON.stringify(body).includes("genapi-secret"), false);
   assert.equal(result.requestId, "genapi-response-1");
 });
+
+test("quality provider includes the annotated zone map as a third image", async () => {
+  let captured;
+  const provider = new GenApiGenerationQualityProvider({
+    apiKey: "genapi-secret", model: "gpt-4o-mini",
+    fetchImplementation: async (_url, options) => {
+      captured = options;
+      return {
+        ok: true, headers: new Headers(),
+        async json() {
+          return { id: "zone-response", choices: [{ finish_reason: "stop", message: { content: JSON.stringify(observation) } }] };
+        },
+      };
+    },
+  });
+  await provider.compare({
+    sourceImage: Buffer.from("source"), candidateImage: Buffer.from("candidate"),
+    controlImage: Buffer.from("zone-map"), prompt: "compare", signal: AbortSignal.timeout(1000),
+  });
+  const content = JSON.parse(captured.body).messages[0].content;
+  assert.equal(content.filter((item) => item.type === "image_url").length, 3);
+  assert.ok(content.some((item) => item.type === "text" && /annotated control reference/u.test(item.text)));
+});

@@ -3,8 +3,11 @@ export const GENERATION_KINDS = Object.freeze(["standard", "pro", "edit"]);
 export const GENERATION_EDIT_SCOPES = Object.freeze([
   "full_facade", "walls", "plinth", "roof", "entrance", "custom_mask",
 ]);
-export const GENERATION_PROMPT_VERSION = "standard-facade-v15";
+export const GENERATION_PROMPT_VERSION = "standard-facade-v16";
 export const GENERATION_INPUT_VERSION = "1";
+export const MATERIAL_ZONE_COLORS = Object.freeze([
+  "#FF6B35", "#00B8D9", "#8B5CF6", "#22C55E",
+]);
 export const SYSTEM_PRESERVE_POLICY = Object.freeze({
   geometry: true,
   floors: true,
@@ -107,6 +110,59 @@ function cleanPalette(value) {
   });
 }
 
+function cleanMaterialZones(value, materials) {
+  if (value == null) return [];
+  if (!Array.isArray(value) || value.length > MATERIAL_ZONE_COLORS.length) {
+    throw new GenerationError("INVALID_MATERIAL_ZONES");
+  }
+  const selected = new Set(materials);
+  let totalPoints = 0;
+  const seenMaterials = new Set();
+  return value.map((zone, zoneIndex) => {
+    if (!zone || typeof zone !== "object" || Array.isArray(zone)) {
+      throw new GenerationError("INVALID_MATERIAL_ZONES");
+    }
+    const material = cleanText(zone.material, "material_zone", 120, { required: true });
+    if (!selected.has(material) || /^(автоподбор|auto|комбинированная|combined)$/iu.test(material)
+      || seenMaterials.has(material)) {
+      throw new GenerationError("INVALID_MATERIAL_ZONE_MATERIAL");
+    }
+    seenMaterials.add(material);
+    const polygonsInput = Array.isArray(zone.polygons) ? zone.polygons : [];
+    const strokesInput = Array.isArray(zone.strokes) ? zone.strokes : [];
+    if (!polygonsInput.length && !strokesInput.length) throw new GenerationError("INVALID_MATERIAL_ZONE_POLYGONS");
+    if (polygonsInput.length > 24 || strokesInput.length > 80) throw new GenerationError("INVALID_MATERIAL_ZONE_POLYGONS");
+    const cleanPoints = (shape, minimum, maximum, errorCode) => {
+      if (!Array.isArray(shape) || shape.length < minimum || shape.length > maximum) {
+        throw new GenerationError(errorCode);
+      }
+      totalPoints += shape.length;
+      if (totalPoints > 6_000) throw new GenerationError(errorCode);
+      return Object.freeze(shape.map((point) => {
+        const x = Number(point?.x);
+        const y = Number(point?.y);
+        if (!Number.isFinite(x) || !Number.isFinite(y) || x < 0 || x > 1 || y < 0 || y > 1) {
+          throw new GenerationError("INVALID_MATERIAL_ZONE_POINT");
+        }
+        return Object.freeze({ x: Math.round(x * 10_000) / 10_000, y: Math.round(y * 10_000) / 10_000 });
+      }));
+    };
+    const polygons = polygonsInput.map((polygon) => cleanPoints(polygon, 3, 32, "INVALID_MATERIAL_ZONE_POLYGONS"));
+    const strokes = strokesInput.map((stroke) => cleanPoints(stroke, 1, 240, "INVALID_MATERIAL_ZONE_STROKES"));
+    const brushSize = strokes.length ? Number(zone.brushSize) : 0.02;
+    if (strokes.length && (!Number.isFinite(brushSize) || brushSize < 0.008 || brushSize > 0.2)) {
+      throw new GenerationError("INVALID_MATERIAL_ZONE_BRUSH");
+    }
+    return Object.freeze({
+      material,
+      color: MATERIAL_ZONE_COLORS[zoneIndex],
+      brushSize: Math.round(brushSize * 10_000) / 10_000,
+      polygons: Object.freeze(polygons),
+      strokes: Object.freeze(strokes),
+    });
+  });
+}
+
 function preserveSettings() {
   return { ...SYSTEM_PRESERVE_POLICY };
 }
@@ -119,10 +175,12 @@ export function normalizeGenerationInput(value = {}) {
   if (!modeSet.has(mode)) throw new GenerationError("INVALID_TRANSFORMATION_LEVEL");
   const version = String(value.version || GENERATION_INPUT_VERSION);
   if (version !== GENERATION_INPUT_VERSION) throw new GenerationError("UNSUPPORTED_GENERATION_INPUT_VERSION");
+  const materials = cleanList(value.materials, "materials");
   return Object.freeze({
     version,
     style: cleanText(value.style, "style", 100, { required: true }),
-    materials: cleanList(value.materials, "materials"),
+    materials,
+    materialZones: Object.freeze(cleanMaterialZones(value.materialZones, materials)),
     palette: cleanPalette(value.palette),
     preserve: Object.freeze(preserveSettings(value.preserve)),
     transformationLevel: mode,

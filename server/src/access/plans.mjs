@@ -16,6 +16,7 @@ export const PLAN_ACCESS = Object.freeze({
     comparison: false,
     editor: false,
     upscale: false,
+    materialZones: false,
   }),
   OPTIMUM: Object.freeze({
     code: "OPTIMUM",
@@ -32,6 +33,7 @@ export const PLAN_ACCESS = Object.freeze({
     comparison: true,
     editor: false,
     upscale: false,
+    materialZones: true,
   }),
   MAXIMUM: Object.freeze({
     code: "MAXIMUM",
@@ -49,6 +51,7 @@ export const PLAN_ACCESS = Object.freeze({
     comparison: true,
     editor: true,
     upscale: true,
+    materialZones: true,
   }),
 });
 
@@ -70,6 +73,9 @@ export class PlanAccessService {
     const access = await this.forUser(userId);
     if (kind === "pro" && !access.pro) return { allowed: false, code: "PRO_PLAN_REQUIRED", access };
     if (kind === "edit" && !access.editor) return { allowed: false, code: "EDIT_PLAN_REQUIRED", access };
+    if (input.materialZones?.length && !access.materialZones) {
+      return { allowed: false, code: "MATERIAL_ZONES_PLAN_REQUIRED", access };
+    }
     if (!access.styles.includes(input.style)) return { allowed: false, code: "PLAN_STYLE_REQUIRED", access };
     const unavailable = (input.materials || []).filter((material) => !access.materials.includes(material));
     if (unavailable.length) return { allowed: false, code: "PLAN_MATERIAL_REQUIRED", access };

@@ -82,7 +82,7 @@ test("/app/new explains the private free photo check before upload", async () =>
   assert.match(html, /data-rights-hash="[a-f0-9]{64}"/u);
   assert.match(html, /id="photo-usage-rights"/u);
   assert.match(html, /\/legal\/photo-processing-consent/u);
-  assert.match(html, /app-new\.js\?v=\d{8}-\d+/u);
+  assert.match(html, /app-new\.js\?v=[a-z0-9-]+/u);
   assert.match(html, /id="remove-photo"/u);
   assert.doesNotMatch(html, /телефон|специалист|отправить заявку/iu);
 });
@@ -112,6 +112,20 @@ test("/app/new shows only server-entitled Start styles and materials", async () 
   assert.ok(html.indexOf('id="phomi-material-subsystem"') < html.indexOf('value="фиброцемент"'));
   assert.match(html, /Доступно в пакетах «Оптимум» и «Максимум»/u);
   assert.match(html, /data-pro-enabled="false"/u);
+  assert.match(html, /data-material-zones-enabled="false"/u);
+  assert.match(html, /Распределение материалов по зонам доступно/u);
+});
+
+test("/app/new renders the inline material-zone editor for Optimum", async () => {
+  const { status, html } = await render("/app/new?project=project-1", { plan: "OPTIMUM" });
+  assert.equal(status, 200);
+  assert.match(html, /data-material-zones-enabled="true"/u);
+  assert.match(html, /id="material-zone-open"/u);
+  assert.match(html, /id="material-zone-editor" class="material-zone-editor hidden"/u);
+  assert.match(html, /id="material-zone-canvas"/u);
+  assert.match(html, /Обведите точки по углам поверхности/u);
+  assert.match(html, /Замкнуть контур/u);
+  assert.match(html, /Сохранить раскладку/u);
 });
 
 test("completed result renders owner-only before/after, configuration and free watermark", async () => {

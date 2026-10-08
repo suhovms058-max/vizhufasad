@@ -32,6 +32,9 @@ export function composeGenerationQualityPrompt({ input, allowedChanges, entrance
       `Protected criteria: ${protectedElements || "same house and artifacts only"}.`,
       allowedElements ? `The user explicitly permits changes to: ${allowedElements}. Do not penalize those changes.` : "",
       `Requested style: ${input.style}. Materials: ${input.materials.join(", ") || "provider choice"}. Palette: ${input.palette.join(", ") || "provider choice"}. Wishes: ${input.wishes || "none"}.`,
+      input.materialZones?.length
+        ? `IMAGE 3 is the annotated control reference. Its numbered polygonal material zones are binding: ${input.materialZones.map((zone, index) => `zone ${index + 1}, ${zone.color} = ${zone.material}`).join("; ")}. Judge whether IMAGE 2 places each named material on the corresponding real architectural surface. Polygon edges may align to the nearest true facade boundary, but moving a material to another volume, omitting it, scattering it as patches, or covering an unrelated zone is non-compliant. If any requested zone is materially wrong, score finish below 0.50.`
+        : entranceGroup ? "IMAGE 3 is the annotated control reference for the cyan entrance-group rectangle." : "",
       input.materials.length > 0 && input.materials.length <= 3
         ? `Treat the explicit material list as a binding visual contract. Every selected material (${input.materials.join(", ")}) must be clearly identifiable in IMAGE 2 on a sufficiently large, coherent facade zone. Railings, gutters, window frames and tiny soffit remnants do not by themselves satisfy a selected facade material. If any selected material is missing, visually replaced by generic smooth plaster, or present only as a tiny accessory, score finish below 0.50. If plaster was not selected, a predominantly smooth rendered or paint-like facade is non-compliant and finish must be below 0.50.`
         : "",

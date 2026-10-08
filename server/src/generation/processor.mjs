@@ -14,8 +14,9 @@ import { composeGenerationPrompt } from "./prompt.mjs";
 import { bestFallbackAssessment } from "../generation-quality/delivery-policy.mjs";
 import { automaticQualityRetryPolicy } from "../generation-quality/retry-policy.mjs";
 import {
-  createEntranceControlReference, entranceGroupObservation,
+  entranceGroupObservation,
 } from "../entrance-group.mjs";
+import { createFacadeControlReference } from "./material-zones.mjs";
 
 function outputDimensions(width, height) {
   const sourceWidth = Math.max(1, Number(width));
@@ -274,7 +275,7 @@ export class GenerationProcessor {
       const entranceGroup = entranceGroupObservation(generation.source_assessment);
       const entranceControlImage = generation.kind === "edit"
         ? null
-        : await createEntranceControlReference(sourceImage, entranceGroup);
+        : await createFacadeControlReference(sourceImage, input.materialZones, entranceGroup);
       const previous = await this.qualityRepository.listForGeneration(generationId);
       const alreadyPassed = previous.find((assessment) => ["passed", "accepted_fallback"].includes(assessment.decision));
       if (alreadyPassed?.diagnostic_key) {
@@ -367,7 +368,8 @@ export class GenerationProcessor {
         let quality;
         try {
           quality = await this.qualityOrchestrator.assess({
-            sourceImage, candidateImage, input, allowedChanges, entranceGroup,
+            sourceImage, candidateImage, controlImage: entranceControlImage,
+            input, allowedChanges, entranceGroup,
             assessmentNumber: candidateNumber,
           });
         } catch (error) {

@@ -131,6 +131,54 @@ test("PHOMI textures expand from the material card and leave AI selection option
   await expect(nextMaterial).toBeVisible();
 });
 
+test("material zones use precise polygon contours with mouse or touch and remain responsive", async ({ page }, testInfo) => {
+  await page.goto("/app/new?project=project-e2e");
+  await page.getByRole("button", { name: "Продолжить" }).click();
+  const stone = page.locator('input[name="materials"][value="камень"]');
+  const wood = page.locator('input[name="materials"][value="дерево"]');
+  await stone.locator("xpath=..").click();
+  await wood.locator("xpath=..").click();
+  await expect(stone).toBeChecked();
+  await expect(wood).toBeChecked();
+  await page.getByRole("button", { name: "Открыть редактор зон" }).click();
+
+  const editor = page.locator("#material-zone-editor");
+  const canvas = page.locator("#material-zone-canvas");
+  await expect(editor).toBeVisible();
+  await expect(page.getByRole("toolbar", { name: "Материал активной зоны" })).toBeVisible();
+  await page.getByRole("button", { name: "камень", exact: true }).click();
+  const box = await canvas.boundingBox();
+  expect(box).not.toBeNull();
+  for (const position of [{ x: .14, y: .62 }, { x: .72, y: .62 }, { x: .72, y: .8 }, { x: .14, y: .8 }]) {
+    if (testInfo.project.name.startsWith("mobile")) await canvas.tap({ position: { x: box.width * position.x, y: box.height * position.y } });
+    else await canvas.click({ position: { x: box.width * position.x, y: box.height * position.y } });
+  }
+  await page.getByRole("button", { name: "Замкнуть контур" }).click();
+  await page.getByRole("button", { name: "дерево", exact: true }).click();
+  for (const position of [{ x: .6, y: .25 }, { x: .81, y: .25 }, { x: .81, y: .5 }, { x: .6, y: .5 }]) {
+    if (testInfo.project.name.startsWith("mobile")) await canvas.tap({ position: { x: box.width * position.x, y: box.height * position.y } });
+    else await canvas.click({ position: { x: box.width * position.x, y: box.height * position.y } });
+  }
+  await page.getByRole("button", { name: "Замкнуть контур" }).click();
+  await expect(page.locator(".material-zone-list-item")).toHaveCount(2);
+  await page.getByRole("button", { name: "Сохранить раскладку" }).click();
+  await expect(editor).toBeHidden();
+  await expect(page.getByRole("button", { name: "Изменить раскладку" })).toBeVisible();
+  await expect.poll(() => page.evaluate(() => {
+    const value = localStorage.getItem("vizhufasad:stage10:draft:project-e2e");
+    if (!value) return 0;
+    try {
+      const zones = JSON.parse(value).materialZones || [];
+      const polygonCount = zones.reduce((total, zone) => total + zone.polygons.length, 0);
+      const hasStraightCorners = zones.every((zone) => zone.polygons.every((polygon) => polygon.length === 4));
+      return zones.length === 2 && polygonCount === 2 && hasStraightCorners ? 2 : 0;
+    } catch { return 0; }
+  })).toBe(2);
+  await expect.poll(() => page.evaluate(() => document.documentElement.scrollWidth <= document.documentElement.clientWidth)).toBe(true);
+  const accessibility = await new AxeBuilder({ page }).analyze();
+  expect(accessibility.violations.filter((item) => ["critical", "serious"].includes(item.impact))).toEqual([]);
+});
+
 test("free-trial denial offers payment and support without opening a generation", async ({ page }) => {
   await page.goto("/app/new?project=project-e2e");
   await expect(page.getByRole("heading", { name: "Настройте фасад" })).toBeVisible();

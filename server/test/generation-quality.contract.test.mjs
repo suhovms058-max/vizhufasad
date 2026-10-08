@@ -80,6 +80,24 @@ test("quality prompt rejects omitted explicit materials and smooth PHOMI substit
   assert.match(prompt, /score finish below 0\.50/u);
 });
 
+test("quality prompt verifies each material against the annotated client zone", () => {
+  const { prompt } = composeGenerationQualityPrompt({
+    input: {
+      style: "modern", materials: ["камень", "дерево"], palette: [], wishes: "",
+      materialZones: [
+        { material: "камень", color: "#FF6B35", strokes: [[{ x: 0.1, y: 0.8 }]] },
+        { material: "дерево", color: "#00B8D9", strokes: [[{ x: 0.7, y: 0.3 }]] },
+      ],
+    },
+    allowedChanges: {},
+  });
+  assert.match(prompt, /IMAGE 3 is the annotated control reference/u);
+  assert.match(prompt, /#FF6B35 = камень/u);
+  assert.match(prompt, /#00B8D9 = дерево/u);
+  assert.match(prompt, /moving a material to another volume/u);
+  assert.match(prompt, /score finish below 0\.50/u);
+});
+
 test("quality config selects Yandex first and fails closed for enabled generation", () => {
   const config = loadGenerationQualityConfig({
     FEATURE_STANDARD_GENERATION_ENABLED: "true",

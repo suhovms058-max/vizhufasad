@@ -173,6 +173,49 @@ test("explicit materials receive an architectural zoning plan instead of patchwo
   assert.match(prompt, /Metal used only for railings/u);
 });
 
+test("client material zones are normalized and become binding spatial instructions", () => {
+  const input = normalizeGenerationInput({
+    style: "современный",
+    materials: ["штукатурка", "камень", "дерево"],
+    materialZones: [
+      { material: "камень", polygons: [[{ x: 0.12, y: 0.72 }, { x: 0.62, y: 0.72 }, { x: 0.62, y: 0.86 }, { x: 0.12, y: 0.86 }]] },
+      { material: "дерево", polygons: [[{ x: 0.68, y: 0.31 }, { x: 0.82, y: 0.31 }, { x: 0.82, y: 0.48 }, { x: 0.68, y: 0.48 }]] },
+    ],
+  });
+  assert.equal(input.materialZones.length, 2);
+  assert.equal(input.materialZones[0].color, "#FF6B35");
+  assert.equal(input.materialZones[1].color, "#00B8D9");
+  const prompt = composeGenerationPrompt(input).prompt;
+  assert.match(prompt, /CLIENT MATERIAL ZONE MAP/u);
+  assert.match(prompt, /#FF6B35: камень/u);
+  assert.match(prompt, /#00B8D9: дерево/u);
+  assert.match(prompt, /complete real architectural surface inside its polygon/u);
+  assert.match(prompt, /takes priority over automatic material allocation/u);
+});
+
+test("material zones reject unselected, automatic, duplicate and invalid coordinates", () => {
+  const base = { style: "современный", materials: ["камень", "дерево"] };
+  assert.throws(
+    () => normalizeGenerationInput({ ...base, materialZones: [{ material: "металл", brushSize: 0.04, strokes: [[{ x: 0.5, y: 0.5 }]] }] }),
+    (error) => error.code === "INVALID_MATERIAL_ZONE_MATERIAL",
+  );
+  assert.throws(
+    () => normalizeGenerationInput({ style: "современный", materials: ["автоподбор"], materialZones: [{ material: "автоподбор", brushSize: 0.04, strokes: [[{ x: 0.5, y: 0.5 }]] }] }),
+    (error) => error.code === "INVALID_MATERIAL_ZONE_MATERIAL",
+  );
+  assert.throws(
+    () => normalizeGenerationInput({ ...base, materialZones: [
+      { material: "камень", brushSize: 0.04, strokes: [[{ x: 0.5, y: 0.5 }]] },
+      { material: "камень", brushSize: 0.04, strokes: [[{ x: 0.6, y: 0.6 }]] },
+    ] }),
+    (error) => error.code === "INVALID_MATERIAL_ZONE_MATERIAL",
+  );
+  assert.throws(
+    () => normalizeGenerationInput({ ...base, materialZones: [{ material: "камень", brushSize: 0.04, strokes: [[{ x: 1.2, y: 0.5 }]] }] }),
+    (error) => error.code === "INVALID_MATERIAL_ZONE_POINT",
+  );
+});
+
 test("named PHOMI is required as a visible material rather than a color hint", () => {
   const input = normalizeGenerationInput({
     style: "современный",

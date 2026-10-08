@@ -165,7 +165,7 @@ export class GenerationQualityOrchestrator {
     this.validate = ajv.compile(VLM_QUALITY_RESULT_SCHEMA);
   }
 
-  async assess({ sourceImage, candidateImage, input, allowedChanges, assessmentNumber, entranceGroup = null }) {
+  async assess({ sourceImage, candidateImage, controlImage = null, input, allowedChanges, assessmentNumber, entranceGroup = null }) {
     const structural = await this.structuralAnalyzer(sourceImage, candidateImage, { allowedChanges, entranceGroup });
     const qualityPrompt = composeGenerationQualityPrompt({ input, allowedChanges, entranceGroup });
     const route = [];
@@ -180,7 +180,7 @@ export class GenerationQualityOrchestrator {
         const timeout = AbortSignal.timeout(this.config.timeoutMs);
         try {
           const result = await provider.compare({
-            sourceImage, candidateImage, prompt: qualityPrompt.prompt, signal: timeout,
+            sourceImage, candidateImage, controlImage, prompt: qualityPrompt.prompt, signal: timeout,
           });
           if (!this.validate(result.observation)) {
             throw new GenerationQualityError("QUALITY_PROVIDER_SCHEMA_INVALID", { retryable: true });

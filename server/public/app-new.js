@@ -324,6 +324,26 @@
     const summaryMaterials = root.querySelector("#creator-summary-materials");
     const summaryPalette = root.querySelector("#creator-summary-palette");
     const summaryPreserve = root.querySelector("#creator-summary-preserve");
+    const zoneEditorEnabled = root.dataset.materialZonesEnabled === "true";
+    const zoneOpen = form.querySelector("#material-zone-open");
+    const zoneEditor = form.querySelector("#material-zone-editor");
+    const zoneCanvas = form.querySelector("#material-zone-canvas");
+    const zoneImage = form.querySelector("#material-zone-image");
+    const zoneMaterialBar = form.querySelector("#material-zone-materials");
+    const zoneList = form.querySelector("#material-zone-list");
+    const zoneClose = form.querySelector("#material-zone-close");
+    const zoneUndo = form.querySelector("#material-zone-undo");
+    const zoneDelete = form.querySelector("#material-zone-delete");
+    const zoneClear = form.querySelector("#material-zone-clear");
+    const zoneDone = form.querySelector("#material-zone-done");
+    const zoneStatus = form.querySelector("#material-zone-status");
+    const zoneColors = ["#FF6B35", "#00B8D9", "#8B5CF6", "#22C55E"];
+    let materialZones = [];
+    let activeZoneMaterial = "";
+    let activeZoneIndex = -1;
+    let draftPolygon = [];
+    let previewPoint = null;
+    let zoneHistory = [];
     let saveTimer;
     let wizardStep = Math.min(3, Math.max(1, Number(safeStorage.get(wizardStorageKey)) || 1));
 
@@ -370,6 +390,268 @@
     }));
     styleSelect.addEventListener("change", updateStyleCards);
 
+    const eligibleZoneMaterials = () => [...form.querySelectorAll('input[name="materials"]:checked')]
+      .map((input) => input.value)
+      .filter((material) => !/^(автоподбор|комбинированная|гибкая керамика PHOMI)$/iu.test(material));
+    const zoneForMaterial = (material) => {
+      let zone = materialZones.find((item) => item.material === material);
+      if (!zone) {
+        zone = { material, polygons: [] };
+        materialZones.push(zone);
+      }
+      return zone;
+    };
+    const snapshotZones = () => JSON.parse(JSON.stringify(materialZones));
+    const pushZoneHistory = () => {
+      zoneHistory.push(snapshotZones());
+      if (zoneHistory.length > 30) zoneHistory.shift();
+      if (zoneUndo) zoneUndo.disabled = zoneHistory.length === 0 && draftPolygon.length === 0;
+    };
+    const materialMeta = (material) => {
+      const input = [...form.querySelectorAll('input[name="materials"]')].find((item) => item.value === material);
+      const image = input?.closest("label")?.querySelector(".material-photo");
+      return { image: image?.currentSrc || image?.src || "", label: material };
+    };
+    const drawPolygon = (context, polygon, width, height, color, { draft = false } = {}) => {
+      if (!polygon.length) return;
+      context.beginPath();
+      context.moveTo(polygon[0].x * width, polygon[0].y * height);
+      polygon.slice(1).forEach((point) => context.lineTo(point.x * width, point.y * height));
+      if (!draft) context.closePath();
+      context.fillStyle = `${color}${draft ? "24" : "38"}`;
+      context.strokeStyle = color;
+      context.lineWidth = draft ? 2 : 2.5;
+      context.lineJoin = "miter";
+      context.setLineDash(draft ? [7, 5] : []);
+      if (!draft) context.fill();
+      context.stroke();
+      context.setLineDash([]);
+      polygon.forEach((point, pointIndex) => {
+        context.beginPath();
+        context.arc(point.x * width, point.y * height, pointIndex === 0 ? 6 : 4, 0, Math.PI * 2);
+        context.fillStyle = pointIndex === 0 ? "#fff" : color;
+        context.fill();
+        context.strokeStyle = "#101410";
+        context.lineWidth = 1.5;
+        context.stroke();
+      });
+    };
+    const renderZoneCanvas = () => {
+      if (!zoneCanvas) return;
+      const context = zoneCanvas.getContext("2d");
+      const width = zoneCanvas.clientWidth;
+      const height = zoneCanvas.clientHeight;
+      const ratio = window.devicePixelRatio || 1;
+      if (zoneCanvas.width !== Math.round(width * ratio) || zoneCanvas.height !== Math.round(height * ratio)) {
+        zoneCanvas.width = Math.max(1, Math.round(width * ratio));
+        zoneCanvas.height = Math.max(1, Math.round(height * ratio));
+      }
+      context.setTransform(ratio, 0, 0, ratio, 0, 0);
+      context.clearRect(0, 0, width, height);
+      materialZones.forEach((zone, index) => {
+        zone.polygons.forEach((polygon) => drawPolygon(context, polygon, width, height, zoneColors[index % zoneColors.length]));
+      });
+      if (draftPolygon.length) {
+        const zoneIndex = Math.max(0, materialZones.findIndex((zone) => zone.material === activeZoneMaterial));
+        const draft = previewPoint ? [...draftPolygon, previewPoint] : draftPolygon;
+        drawPolygon(context, draft, width, height, zoneColors[zoneIndex % zoneColors.length], { draft: true });
+      }
+    };
+    const updateZoneStatus = (text) => {
+      if (!zoneStatus) return;
+      const completed = materialZones.reduce((total, zone) => total + zone.polygons.length, 0);
+      zoneStatus.textContent = text || (draftPolygon.length
+        ? `Точек: ${draftPolygon.length}. Добавьте минимум три и замкните контур.`
+        : completed ? `Готово зон: ${completed}. Можно добавить ещё или сохранить раскладку.`
+          : "Выберите материал и поставьте точки по углам нужной поверхности.");
+      if (zoneClose) zoneClose.disabled = draftPolygon.length < 3;
+      if (zoneDelete) zoneDelete.disabled = activeZoneIndex < 0;
+      if (zoneUndo) zoneUndo.disabled = !draftPolygon.length && !zoneHistory.length;
+    };
+    const renderZoneList = () => {
+      if (!zoneList) return;
+      zoneList.replaceChildren();
+      let serial = 0;
+      materialZones.forEach((zone, zoneIndex) => zone.polygons.forEach((_polygon, polygonIndex) => {
+        serial += 1;
+        const itemSerial = serial;
+        const meta = materialMeta(zone.material);
+        const button = document.createElement("button");
+        button.type = "button";
+        button.className = "material-zone-list-item";
+        button.setAttribute("aria-pressed", String(activeZoneIndex === itemSerial - 1));
+        button.innerHTML = `<img src="${meta.image}" alt=""><span><small>Зона ${String(itemSerial).padStart(2, "0")}</small><b>${meta.label}</b></span><i style="--zone-color:${zoneColors[zoneIndex % zoneColors.length]}" aria-hidden="true"></i>`;
+        button.addEventListener("click", () => {
+          activeZoneIndex = itemSerial - 1;
+          activeZoneMaterial = zone.material;
+          renderZoneMaterials();
+          updateZoneStatus(`Выбрана зона ${itemSerial}: ${zone.material}.`);
+        });
+        button.dataset.zoneIndex = String(zoneIndex);
+        button.dataset.polygonIndex = String(polygonIndex);
+        zoneList.append(button);
+      }));
+      if (!serial) {
+        const empty = document.createElement("p");
+        empty.className = "material-zone-empty";
+        empty.textContent = "Пока нет зон";
+        zoneList.append(empty);
+      }
+    };
+    const renderZoneMaterials = () => {
+      if (!zoneMaterialBar) return;
+      const selectedEligible = eligibleZoneMaterials();
+      const eligible = selectedEligible.slice(0, zoneColors.length);
+      materialZones = materialZones.filter((zone) => eligible.includes(zone.material));
+      if (!eligible.includes(activeZoneMaterial)) activeZoneMaterial = eligible[0] || "";
+      zoneMaterialBar.replaceChildren();
+      eligible.forEach((material, index) => {
+        const button = document.createElement("button");
+        button.type = "button";
+        button.className = "material-zone-chip";
+        button.dataset.material = material;
+        button.setAttribute("aria-label", material);
+        button.setAttribute("aria-pressed", String(material === activeZoneMaterial));
+        const meta = materialMeta(material);
+        const image = document.createElement("img");
+        image.src = meta.image;
+        image.alt = "";
+        const copy = document.createElement("span");
+        copy.innerHTML = `<b>${material}</b><small>Выбрать для контура</small>`;
+        const marker = document.createElement("i");
+        marker.style.setProperty("--zone-color", zoneColors[index]);
+        marker.setAttribute("aria-hidden", "true");
+        button.append(image, copy, marker);
+        button.addEventListener("click", () => {
+          if (draftPolygon.length) return updateZoneStatus("Сначала замкните или отмените текущий контур.");
+          activeZoneMaterial = material;
+          renderZoneMaterials();
+          updateZoneStatus(`Материал: ${material}. Поставьте первую точку на углу поверхности.`);
+        });
+        zoneMaterialBar.append(button);
+      });
+      if (!eligible.length) updateZoneStatus("Выберите выше хотя бы один конкретный материал, затем откройте разметку.");
+      else if (selectedEligible.length > zoneColors.length) updateZoneStatus("Для точной разметки используются первые четыре выбранных материала. Уберите лишние материалы, если хотите разметить другой вариант.");
+      renderZoneList();
+      renderZoneCanvas();
+      updateZoneStatus();
+    };
+    const resizeZoneCanvas = () => requestAnimationFrame(renderZoneCanvas);
+    const normalizedPointer = (event) => {
+      const bounds = zoneCanvas.getBoundingClientRect();
+      return {
+        x: Math.max(0, Math.min(1, (event.clientX - bounds.left) / bounds.width)),
+        y: Math.max(0, Math.min(1, (event.clientY - bounds.top) / bounds.height)),
+      };
+    };
+    const snapPoint = (point, previous) => {
+      if (!previous) return point;
+      const dx = Math.abs(point.x - previous.x);
+      const dy = Math.abs(point.y - previous.y);
+      if (dx < 0.035) return { x: previous.x, y: point.y };
+      if (dy < 0.035) return { x: point.x, y: previous.y };
+      return point;
+    };
+    const closeDraftPolygon = () => {
+      if (draftPolygon.length < 3 || !activeZoneMaterial) return;
+      pushZoneHistory();
+      const zone = zoneForMaterial(activeZoneMaterial);
+      zone.polygons.push(draftPolygon.map((point) => ({ ...point })));
+      draftPolygon = [];
+      previewPoint = null;
+      activeZoneIndex = materialZones.reduce((total, item) => total + item.polygons.length, 0) - 1;
+      renderZoneMaterials();
+      updateZoneStatus("Контур замкнут. Можно выбрать другой материал или добавить ещё одну зону.");
+      scheduleSave();
+    };
+    const activeZoneLocation = () => {
+      if (activeZoneIndex < 0) return null;
+      let cursor = 0;
+      for (let zoneIndex = 0; zoneIndex < materialZones.length; zoneIndex += 1) {
+        for (let polygonIndex = 0; polygonIndex < materialZones[zoneIndex].polygons.length; polygonIndex += 1) {
+          if (cursor === activeZoneIndex) return { zoneIndex, polygonIndex };
+          cursor += 1;
+        }
+      }
+      return null;
+    };
+    if (zoneEditorEnabled && zoneCanvas) {
+      zoneOpen?.addEventListener("click", () => {
+        const opening = zoneEditor.classList.contains("hidden");
+        zoneEditor.classList.toggle("hidden", !opening);
+        zoneOpen.setAttribute("aria-expanded", String(opening));
+        zoneOpen.textContent = opening ? "Скрыть редактор" : "Открыть редактор зон";
+        if (opening) { renderZoneMaterials(); resizeZoneCanvas(); }
+      });
+      zoneImage?.addEventListener("load", resizeZoneCanvas);
+      new ResizeObserver(resizeZoneCanvas).observe(zoneCanvas.parentElement);
+      zoneCanvas.addEventListener("pointerdown", (event) => {
+        if (!activeZoneMaterial) return updateZoneStatus("Сначала выберите конкретный материал.");
+        event.preventDefault();
+        const point = snapPoint(normalizedPointer(event), draftPolygon.at(-1));
+        const first = draftPolygon[0];
+        const bounds = zoneCanvas.getBoundingClientRect();
+        const closeDistance = 14 / Math.min(bounds.width, bounds.height);
+        if (draftPolygon.length >= 3 && first && Math.hypot(first.x - point.x, first.y - point.y) <= closeDistance) return closeDraftPolygon();
+        draftPolygon.push(point);
+        activeZoneIndex = -1;
+        previewPoint = null;
+        renderZoneCanvas();
+        updateZoneStatus();
+      });
+      zoneCanvas.addEventListener("pointermove", (event) => {
+        if (!draftPolygon.length || event.pointerType === "touch") return;
+        previewPoint = snapPoint(normalizedPointer(event), draftPolygon.at(-1));
+        renderZoneCanvas();
+      });
+      zoneCanvas.addEventListener("dblclick", (event) => { event.preventDefault(); closeDraftPolygon(); });
+      zoneClose?.addEventListener("click", closeDraftPolygon);
+      zoneUndo?.addEventListener("click", () => {
+        if (draftPolygon.length) {
+          draftPolygon.pop();
+          previewPoint = null;
+          renderZoneCanvas();
+          updateZoneStatus("Последняя точка удалена.");
+          return;
+        }
+        const previous = zoneHistory.pop();
+        if (previous) materialZones = previous;
+        activeZoneIndex = -1;
+        renderZoneMaterials();
+        scheduleSave();
+      });
+      zoneDelete?.addEventListener("click", () => {
+        const location = activeZoneLocation();
+        if (!location) return;
+        pushZoneHistory();
+        materialZones[location.zoneIndex].polygons.splice(location.polygonIndex, 1);
+        materialZones = materialZones.filter((zone) => zone.polygons.length);
+        activeZoneIndex = -1;
+        renderZoneMaterials();
+        updateZoneStatus("Выбранная зона удалена.");
+        scheduleSave();
+      });
+      zoneClear?.addEventListener("click", () => {
+        if (!draftPolygon.length && !materialZones.some((zone) => zone.polygons.length)) return;
+        pushZoneHistory();
+        materialZones = [];
+        draftPolygon = [];
+        activeZoneIndex = -1;
+        renderZoneMaterials();
+        updateZoneStatus("Все зоны очищены.");
+        scheduleSave();
+      });
+      zoneDone?.addEventListener("click", () => {
+        zoneEditor.classList.add("hidden");
+        zoneOpen.setAttribute("aria-expanded", "false");
+        if (draftPolygon.length >= 3) closeDraftPolygon();
+        else draftPolygon = [];
+        zoneOpen.textContent = materialZones.some((zone) => zone.polygons.length) ? "Изменить раскладку" : "Открыть редактор зон";
+        zoneOpen.focus();
+        scheduleSave();
+      });
+    }
+
     const updatePhomiSubsystem = ({ clear = false } = {}) => {
       if (!phomiToggle || !phomiSubsystem) return;
       if (clear && !phomiToggle.checked) phomiChoices.forEach((input) => { input.checked = false; });
@@ -408,6 +690,12 @@
         version: "1",
         style: data.get("style"),
         materials: data.getAll("materials"),
+        materialZones: zoneEditorEnabled
+          ? materialZones.filter((zone) => zone.polygons.length).map((zone) => ({
+            material: zone.material,
+            polygons: zone.polygons,
+          }))
+          : [],
         palette: [
           data.get("palettePreset"),
           ...description.split(",").map((item) => item.trim()).filter(Boolean),
@@ -443,7 +731,11 @@
       form.elements.paletteDescription.value = config.palette?.slice(1).join(", ") || "";
       if (config.transformationLevel) form.elements.transformationLevel.value = config.transformationLevel;
       form.elements.wishes.value = config.wishes || "";
+      materialZones = Array.isArray(config.materialZones)
+        ? JSON.parse(JSON.stringify(config.materialZones)).map((zone) => ({ material: zone.material, polygons: Array.isArray(zone.polygons) ? zone.polygons : [] })).filter((zone) => zone.polygons.length)
+        : [];
       updateStyleCards();
+      renderZoneMaterials();
     };
     const save = async () => {
       const config = configuration();
@@ -485,7 +777,10 @@
     wizardBack.addEventListener("click", () => showWizardStep(wizardStep - 1, true));
     wizardNext.addEventListener("click", () => showWizardStep(wizardStep + 1, true));
     form.addEventListener("input", () => { updateCount(); updateGenerationKind(); updateSummary(); scheduleSave(); });
-    form.addEventListener("change", () => { updateSummary(); scheduleSave(); });
+    form.addEventListener("change", (event) => {
+      if (event.target?.name === "materials") renderZoneMaterials();
+      updateSummary(); scheduleSave();
+    });
     form.addEventListener("submit", async (event) => {
       event.preventDefault();
       if (!form.reportValidity()) return;

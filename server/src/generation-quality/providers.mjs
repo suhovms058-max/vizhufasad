@@ -13,7 +13,7 @@ function responseText(payload) {
   throw new GenerationQualityError("QUALITY_PROVIDER_EMPTY_OUTPUT", { retryable: true });
 }
 
-function requestBody({ model, sourceImage, candidateImage, prompt }) {
+function requestBody({ model, sourceImage, candidateImage, controlImage, prompt }) {
   return {
     model,
     store: false,
@@ -26,6 +26,10 @@ function requestBody({ model, sourceImage, candidateImage, prompt }) {
         { type: "input_image", image_url: `data:image/jpeg;base64,${sourceImage.toString("base64")}`, detail: "low" },
         { type: "input_text", text: "IMAGE 2 — generated candidate:" },
         { type: "input_image", image_url: `data:image/jpeg;base64,${candidateImage.toString("base64")}`, detail: "low" },
+        ...(controlImage ? [
+          { type: "input_text", text: "IMAGE 3 — annotated control reference:" },
+          { type: "input_image", image_url: `data:image/jpeg;base64,${controlImage.toString("base64")}`, detail: "low" },
+        ] : []),
       ],
     }],
     text: {
@@ -40,7 +44,7 @@ function requestBody({ model, sourceImage, candidateImage, prompt }) {
   };
 }
 
-function chatRequestBody({ model, sourceImage, candidateImage, prompt, providerName }) {
+function chatRequestBody({ model, sourceImage, candidateImage, controlImage, prompt, providerName }) {
   const schema = structuredClone(VLM_QUALITY_RESULT_SCHEMA);
   delete schema.properties.detectedChanges.uniqueItems;
   const genapi = providerName === "genapi";
@@ -65,6 +69,10 @@ function chatRequestBody({ model, sourceImage, candidateImage, prompt, providerN
           type: "image_url",
           image_url: { url: `data:image/jpeg;base64,${candidateImage.toString("base64")}` },
         },
+        ...(controlImage ? [
+          { type: "text", text: "IMAGE 3 — annotated control reference:" },
+          { type: "image_url", image_url: { url: `data:image/jpeg;base64,${controlImage.toString("base64")}` } },
+        ] : []),
       ],
     }],
     max_tokens: genapi ? 2_000 : 1_500,
@@ -84,7 +92,7 @@ function chatRequestBody({ model, sourceImage, candidateImage, prompt, providerN
 }
 
 async function callYandexChatCompletions({
-  fetchImplementation, endpoint, headers, model, sourceImage, candidateImage, prompt, signal,
+  fetchImplementation, endpoint, headers, model, sourceImage, candidateImage, controlImage, prompt, signal,
   providerName = "yandex",
 }) {
   let response;
@@ -94,7 +102,7 @@ async function callYandexChatCompletions({
       signal,
       headers: { ...headers, "Content-Type": "application/json" },
       body: JSON.stringify(chatRequestBody({
-        model, sourceImage, candidateImage, prompt, providerName,
+        model, sourceImage, candidateImage, controlImage, prompt, providerName,
       })),
     });
   } catch (error) {
@@ -136,7 +144,7 @@ class ResponsesGenerationQualityProvider {
     this.fetchImplementation = fetchImplementation;
   }
 
-  async compare({ sourceImage, candidateImage, prompt, signal }) {
+  async compare({ sourceImage, candidateImage, controlImage, prompt, signal }) {
     let response;
     try {
       response = await this.fetchImplementation(this.endpoint, {
@@ -148,7 +156,7 @@ class ResponsesGenerationQualityProvider {
           ...this.headers,
         },
         body: JSON.stringify(requestBody({
-          model: this.model, sourceImage, candidateImage, prompt,
+          model: this.model, sourceImage, candidateImage, controlImage, prompt,
         })),
       });
     } catch (error) {
@@ -189,7 +197,7 @@ export class YandexGenerationQualityProvider {
     this.fetchImplementation = fetchImplementation;
   }
 
-  compare({ sourceImage, candidateImage, prompt, signal }) {
+  compare({ sourceImage, candidateImage, controlImage, prompt, signal }) {
     return callYandexChatCompletions({
       fetchImplementation: this.fetchImplementation,
       endpoint: this.endpoint,
@@ -197,6 +205,7 @@ export class YandexGenerationQualityProvider {
       model: this.model,
       sourceImage,
       candidateImage,
+      controlImage,
       prompt,
       signal,
     });
@@ -222,7 +231,7 @@ export class GenApiGenerationQualityProvider {
     this.fetchImplementation = fetchImplementation;
   }
 
-  compare({ sourceImage, candidateImage, prompt, signal }) {
+  compare({ sourceImage, candidateImage, controlImage, prompt, signal }) {
     return callYandexChatCompletions({
       fetchImplementation: this.fetchImplementation,
       endpoint: this.endpoint,
@@ -231,6 +240,7 @@ export class GenApiGenerationQualityProvider {
       model: this.model,
       sourceImage,
       candidateImage,
+      controlImage,
       prompt,
       signal,
     });

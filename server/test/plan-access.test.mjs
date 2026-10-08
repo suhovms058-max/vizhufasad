@@ -16,7 +16,9 @@ test("packages progressively unlock styles and tools", () => {
     assert.ok(plan.materials.includes("PHOMI — Rome Travertine"));
   }
   assert.equal(start.pro, false);
+  assert.equal(start.materialZones, false);
   assert.equal(optimum.pro, true);
+  assert.equal(optimum.materialZones, true);
   assert.equal(optimum.editor, false);
   assert.equal(maximum.editor, true);
   assert.equal(maximum.upscale, true);
@@ -53,4 +55,7 @@ test("generation access rejects unavailable style, material and kind", async () 
   assert.equal((await service.assertGeneration("u1", "pro", {
     style: "современный", materials: ["дерево"],
   })).code, "PRO_PLAN_REQUIRED");
+  assert.equal((await service.assertGeneration("u1", "standard", {
+    style: "современный", materials: ["дерево"], materialZones: [{ material: "дерево" }],
+  })).code, "MATERIAL_ZONES_PLAN_REQUIRED");
 });

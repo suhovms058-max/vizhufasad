@@ -285,7 +285,8 @@ function settingsStep(project, balance, costs, features, access) {
   const selectedStyle = allowedStyles.has(config.style) ? config.style : "автоподбор";
   const selectedPalette = config.palette?.[0] || "автоподбор";
   return `<section id="generation-app" class="creator-flow" data-project-id="${escapeHtml(project.id)}" data-image-id="${escapeHtml(project.image_id)}"
-    data-standard-cost="${escapeHtml(costs.standard)}" data-pro-cost="${escapeHtml(costs.pro)}" data-balance="${escapeHtml(balance)}" data-pro-enabled="${features.pro}">
+    data-standard-cost="${escapeHtml(costs.standard)}" data-pro-cost="${escapeHtml(costs.pro)}" data-balance="${escapeHtml(balance)}" data-pro-enabled="${features.pro}"
+    data-material-zones-enabled="${access.materialZones === true}">
     <script id="initial-configuration" type="application/json">${jsonData(config)}</script>
     <div class="creator-heading"><div><p class="eyebrow">Шаг 2 из 3 · настройка проекта</p><h1>Настройте фасад</h1>
     <p>Соберите понятное задание для визуализации. Выбор сохраняется автоматически.</p></div><div class="creator-balance"><span>Баланс</span><strong>${escapeHtml(vfCoinsLabel(balance))}</strong><a href="/app/balance">Пополнить</a></div></div>
@@ -321,7 +322,29 @@ function settingsStep(project, balance, costs, features, access) {
       <div class="choice-grid material-grid">${MATERIALS.filter(([value]) => allowedMaterials.has(value)).map(([value, description, image, title = value]) => {
         const card = `<label class="choice material-choice${value === "гибкая керамика PHOMI" ? " partner-material-toggle" : ""}"><input type="checkbox" name="materials" value="${escapeHtml(value)}" ${selectedMaterials.has(value) ? "checked" : ""}><span><img class="material-photo" src="${escapeHtml(image)}?v=${SELECTION_ASSET_VERSION}" alt="Фактура материала: ${escapeHtml(value)}" width="480" height="480" loading="lazy" decoding="async"><i class="material-shade" aria-hidden="true"></i><b${title !== value ? ' class="material-title-verbatim"' : ""}>${escapeHtml(title)}</b><small>${escapeHtml(description)}</small></span></label>`;
         return value === "гибкая керамика PHOMI" ? `${card}${phomiCollectionPreview(selectedMaterials)}` : card;
-      }).join("")}</div></fieldset>
+      }).join("")}</div>
+      <section id="material-zone-card" class="material-zone-card${access.materialZones ? "" : " is-locked"}" aria-labelledby="material-zone-title">
+        <div class="material-zone-intro"><div><p class="eyebrow">Архитектурная раскладка · Оптимум и выше</p><h3 id="material-zone-title">Распределите материалы по фасаду</h3><p>${access.materialZones ? "Обведите точки по углам поверхности. Редактор соединит их прямыми гранями и передаст генератору точный замкнутый контур." : "Распределение материалов по зонам доступно в пакетах «Оптимум» и «Максимум»."}</p></div>
+        ${access.materialZones ? '<button id="material-zone-open" class="secondary" type="button" aria-expanded="false" aria-controls="material-zone-editor">Открыть редактор зон</button>' : '<a class="button secondary" href="/app/balance">Открыть возможность</a>'}</div>
+        ${access.materialZones ? `<div id="material-zone-editor" class="material-zone-editor hidden">
+          <div class="material-zone-guide"><strong>01 · Материал</strong><span>02 · Точки по углам поверхности</span><span>03 · Замкнуть контур</span></div>
+          <div class="material-zone-workspace">
+            <div id="material-zone-canvas-shell" class="material-zone-canvas-shell">
+              <img id="material-zone-image" src="${escapeHtml(project.thumbnailUrl || "")}" alt="Исходный фасад для распределения материалов">
+              <canvas id="material-zone-canvas" aria-label="Разметка зон материалов на фасаде"></canvas>
+              <span class="material-zone-canvas-hint">Ставьте точки по границе поверхности · контур замыкается по первой точке</span>
+            </div>
+            <aside class="material-zone-tools" aria-label="Инструменты разметки">
+              <div><p class="material-zone-tools-title">Материал новой зоны</p><div id="material-zone-materials" class="material-zone-materials" role="toolbar" aria-label="Материал активной зоны"></div></div>
+              <div class="material-zone-mode"><span><b>Контур по точкам</b><small>Прямые грани · привязка к 90°</small></span><i aria-hidden="true">L</i></div>
+              <div class="material-zone-actions"><button id="material-zone-close" type="button" disabled>Замкнуть контур</button><button id="material-zone-undo" class="secondary" type="button" disabled>Отменить точку</button><button id="material-zone-delete" class="secondary" type="button" disabled>Удалить зону</button><button id="material-zone-clear" class="text-button" type="button">Очистить всё</button></div>
+              <div><p class="material-zone-tools-title">Созданные зоны</p><div id="material-zone-list" class="material-zone-list"></div></div>
+              <p id="material-zone-status" class="hint" role="status" aria-live="polite">Сначала выберите хотя бы один конкретный материал выше.</p>
+            </aside>
+          </div>
+          <div class="material-zone-footer"><p><strong>Точность проекта:</strong> цвет линии служит только номером зоны. В генерацию передаются выбранная фактура и её замкнутый архитектурный контур; служебная разметка в результате не появится.</p><button id="material-zone-done" type="button">Сохранить раскладку</button></div>
+        </div>` : ""}
+      </section></fieldset>
       <fieldset><legend>Палитра</legend><p class="hint">Готовое сочетание задаёт настроение, а точные оттенки можно описать ниже.</p>
       <div class="palette-grid">${PALETTES.map(([value, label, colors]) => `<label class="palette-choice"><input type="radio" name="palettePreset" value="${escapeHtml(value)}" ${selectedPalette === value ? "checked" : ""}><span><i class="palette-chips" aria-hidden="true">${colors.map((color) => `<b style="background:${escapeHtml(color)}"></b>`).join("")}</i><strong>${escapeHtml(label)}</strong></span></label>`).join("")}</div>
       <label for="palette-description">Описание цветов</label><input id="palette-description" name="paletteDescription" maxlength="120" value="${escapeHtml(config.palette?.slice(1).join(", ") || "")}" placeholder="Например: молочный, натуральное дерево, графит"></fieldset>
@@ -474,7 +497,7 @@ export function createProjectPagesRouter({
         typeof walletService.catalog === "function" ? walletService.catalog() : { actions: [] },
         planAccessService ? planAccessService.forUser(request.auth.user_id) : Promise.resolve({
           code: "MAXIMUM", label: "Максимум", styles: STYLES, materials: MATERIALS.map(([value]) => value),
-          pro: true, editor: true, upscale: true,
+          pro: true, editor: true, upscale: true, materialZones: true,
         }),
       ]);
       let project = request.query.project
