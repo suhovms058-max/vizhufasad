@@ -139,15 +139,29 @@ test("combined finish requires a dominant continuous wall finish", () => {
   assert.match(prompt, /RETRY FINISH LOCK/u);
 });
 
-test("explicit materials are mandatory and cannot be replaced with generic plaster", () => {
+test("explicit materials receive an architectural zoning plan instead of patchwork", () => {
   const input = normalizeGenerationInput({
     style: "современный",
     materials: ["панели", "металл"],
   });
   const prompt = composeGenerationPrompt(input).prompt;
-  assert.match(prompt, /Every named material is mandatory/u);
-  assert.match(prompt, /visibly use every one of them/u);
+  assert.match(prompt, /ARCHITECTURAL MATERIAL ZONING/u);
+  assert.match(prompt, /one continuous dominant material/u);
+  assert.match(prompt, /one connected architectural zone/u);
+  assert.match(prompt, /Do not scatter any material as isolated patches/u);
+  assert.match(prompt, /roughly 60–85%/u);
   assert.match(prompt, /Never substitute generic smooth plaster/u);
+});
+
+test("more than three selected materials are reduced to a coherent maximum of three", () => {
+  const input = normalizeGenerationInput({
+    style: "современный",
+    materials: ["штукатурка", "камень", "дерево", "металл"],
+  });
+  const prompt = composeGenerationPrompt(input).prompt;
+  assert.match(prompt, /selected 4 materials/u);
+  assert.match(prompt, /Choose the three most architecturally compatible materials/u);
+  assert.match(prompt, /do not force every option into the image/u);
 });
 
 test("PHOMI automatic texture selection receives a specific generator instruction", () => {

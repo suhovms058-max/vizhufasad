@@ -15,11 +15,28 @@ function usesAutomaticPhomiTexture(materials) {
   return materials.some((material) => /^PHOMI — автоподбор фактуры ИИ$/iu.test(String(material).trim()));
 }
 
+function materialZoningInstruction(materials, { automatic = false } = {}) {
+  const selectionRule = automatic
+    ? "Choose one primary material and no more than two compatible secondary materials."
+    : materials.length > 3
+      ? `The client selected ${materials.length} materials. Choose the three most architecturally compatible materials from this list; do not force every option into the image.`
+      : "Use the selected materials, assigning each one a clear architectural role.";
+  return [
+    "ARCHITECTURAL MATERIAL ZONING — mandatory: before rendering, silently read the existing facade as an architect. Identify the main wall mass, plinth/base, entrance volume, projections or recesses, balconies and window bays without changing any geometry.",
+    selectionRule,
+    "Create a clear hierarchy: one continuous dominant material should cover roughly 60–85% of the suitable visible wall area; a secondary material may cover roughly 10–30% as one connected architectural zone; an optional third material may cover roughly 5–15% on the plinth, entrance group, one projection/recess, or a consistent system of reveals.",
+    "Place every secondary material on a complete, intentional zone bounded by real architectural lines such as an external corner, full-height wall plane, recess, projection, floor/slab line, plinth line, entrance portal or aligned window bay. Continue the same material around the visible corner of the same volume when physically plausible.",
+    "Do not scatter any material as isolated patches, random rectangles, small islands, stripes between unrelated windows, checkerboard fragments or disconnected spots across the facade. Do not alternate materials from window to window unless the source already has a strong repeated architectural rhythm. Prefer calm large fields and few clean transitions.",
+    "Typical role logic, only when suitable for the selected style and real construction: plaster, brick, panels, fibre-cement or PHOMI can form the dominant wall field; stone or clinker can define the plinth or entrance volume; wood or metal usually works as a restrained accent on one entrance, recess, projection or soffit system. The final allocation must look buildable, balanced and intentionally designed from every visible side.",
+  ].join(" ");
+}
+
 function finishInstruction(input, automaticMaterials) {
   const rawSurfaceRule = "RAW-SURFACE REPLACEMENT — non-negotiable: if the source shows aerated-concrete blocks, cinder blocks, unfinished masonry, bare concrete, primer or a construction shell, cover every visible raw wall field with a real finished facade system. Preserve the wall plane, all openings and roof geometry, but completely hide raw block joints. A recolour, tint, wash, thin paint-like layer or isolated accents over the same raw blocks is invalid.";
   if (automaticMaterials) {
     return [
       "AUTOMATIC MATERIAL SYSTEM: Select and visibly apply a coherent, buildable facade system: a primary wall finish plus one or two complementary facade materials appropriate to the required style. Show real texture, scale, joints, edges, reveals and installation logic. Do not return raw blockwork, a primer-only shell or a result that merely repaints the existing wall color.",
+      materialZoningInstruction(input.materials, { automatic: true }),
       rawSurfaceRule,
     ].join(" ");
   }
@@ -28,17 +45,20 @@ function finishInstruction(input, automaticMaterials) {
     return [
       "PHOMI TEXTURE AUTO-SELECTION: Choose the PHOMI facade texture that best fits the requested architectural style, palette and existing house proportions. Use a believable option from the available stone, travertine, concrete or wood texture families and apply it with realistic scale, joints, corners and opening reveals.",
       otherMaterials.length ? `Other required finish materials: ${otherMaterials.join(", ")}.` : "",
+      materialZoningInstruction(["гибкая керамика PHOMI", ...otherMaterials]),
       rawSurfaceRule,
     ].filter(Boolean).join(" ");
   }
   if (isCombinedFacade(input.materials)) {
     return [
       "COMBINED FACADE SYSTEM — mandatory: make the complete facade look finished. Use one continuous primary finish across all raw exterior wall surfaces (for example smooth mineral plaster, fibre-cement or large-format facade panels) and place complementary stone, wood or metal accents only as deliberate secondary areas. Finish the plinth, external corners, window/door reveals and existing columns in the same coherent system. The primary finish must visually dominate the raw wall area.",
+      materialZoningInstruction(input.materials, { automatic: true }),
       rawSurfaceRule,
     ].join(" ");
   }
   return [
-    `Required finish materials: ${input.materials.join(", ")}. Every named material is mandatory and must be unmistakably visible on a meaningful facade area, not merely implied by color. When multiple materials are named, visibly use every one of them in a coherent composition. Show their real texture, scale, joints, edges and installation logic over the visible wall surfaces. Never substitute generic smooth plaster or a paint-like coating for selected panels, metal, brick, clinker, stone, wood, fibre-cement or PHOMI.`,
+    `Selected finish materials: ${input.materials.join(", ")}. Show real texture, scale, joints, edges and installation logic. Never substitute generic smooth plaster or a paint-like coating for selected panels, metal, brick, clinker, stone, wood, fibre-cement or PHOMI.`,
+    materialZoningInstruction(input.materials),
     rawSurfaceRule,
   ].join(" ");
 }
