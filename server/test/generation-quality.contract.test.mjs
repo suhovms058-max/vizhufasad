@@ -63,6 +63,23 @@ test("quality prompt counts outer openings and permits safety railings on existi
   assert.match(prompt, /do not penalize roof details that cannot be observed/u);
 });
 
+test("quality prompt rejects omitted explicit materials and smooth PHOMI substitution", () => {
+  const { prompt } = composeGenerationQualityPrompt({
+    input: {
+      style: "modern",
+      materials: ["PHOMI — Rome Travertine", "дерево", "металл"],
+      palette: ["автоподбор"],
+      wishes: "",
+    },
+    allowedChanges: {},
+  });
+  assert.match(prompt, /binding visual contract/u);
+  assert.match(prompt, /Every selected material/u);
+  assert.match(prompt, /predominantly smooth rendered/u);
+  assert.match(prompt, /Smooth plaster in the same color is not PHOMI/u);
+  assert.match(prompt, /score finish below 0\.50/u);
+});
+
 test("quality config selects Yandex first and fails closed for enabled generation", () => {
   const config = loadGenerationQualityConfig({
     FEATURE_STANDARD_GENERATION_ENABLED: "true",

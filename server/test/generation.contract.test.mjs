@@ -136,7 +136,7 @@ test("combined finish requires a dominant continuous wall finish", () => {
   }).prompt;
   assert.match(prompt, /COMBINED FACADE SYSTEM/u);
   assert.match(prompt, /primary finish must visually dominate/u);
-  assert.match(prompt, /RETRY FINISH LOCK/u);
+  assert.match(prompt, /RETRY FINISH AND MATERIAL LOCK/u);
 });
 
 test("explicit materials receive an architectural zoning plan instead of patchwork", () => {
@@ -151,6 +151,22 @@ test("explicit materials receive an architectural zoning plan instead of patchwo
   assert.match(prompt, /Do not scatter any material as isolated patches/u);
   assert.match(prompt, /roughly 60–85%/u);
   assert.match(prompt, /Never substitute generic smooth plaster/u);
+  assert.match(prompt, /EXPLICIT MATERIAL CONTRACT/u);
+  assert.match(prompt, /all 2 client-selected materials/u);
+  assert.match(prompt, /UNSELECTED PLASTER BAN/u);
+  assert.match(prompt, /Metal used only for railings/u);
+});
+
+test("named PHOMI is required as a visible material rather than a color hint", () => {
+  const input = normalizeGenerationInput({
+    style: "современный",
+    materials: ["PHOMI — Rome Travertine", "дерево", "металл"],
+  });
+  const prompt = composeGenerationPrompt(input, { qualityRetryReasons: ["finish_below_threshold"] }).prompt;
+  assert.match(prompt, /NAMED PHOMI PRIORITY/u);
+  assert.match(prompt, /Never replace it with smooth plaster/u);
+  assert.match(prompt, /RETRY FINISH AND MATERIAL LOCK/u);
+  assert.match(prompt, /PHOMI — Rome Travertine, дерево, металл/u);
 });
 
 test("more than three selected materials are reduced to a coherent maximum of three", () => {

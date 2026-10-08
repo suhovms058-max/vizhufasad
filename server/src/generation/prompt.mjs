@@ -28,7 +28,16 @@ function materialZoningInstruction(materials, { automatic = false } = {}) {
     "Place every secondary material on a complete, intentional zone bounded by real architectural lines such as an external corner, full-height wall plane, recess, projection, floor/slab line, plinth line, entrance portal or aligned window bay. Continue the same material around the visible corner of the same volume when physically plausible.",
     "Do not scatter any material as isolated patches, random rectangles, small islands, stripes between unrelated windows, checkerboard fragments or disconnected spots across the facade. Do not alternate materials from window to window unless the source already has a strong repeated architectural rhythm. Prefer calm large fields and few clean transitions.",
     "Typical role logic, only when suitable for the selected style and real construction: plaster, brick, panels, fibre-cement or PHOMI can form the dominant wall field; stone or clinker can define the plinth or entrance volume; wood or metal usually works as a restrained accent on one entrance, recess, projection or soffit system. The final allocation must look buildable, balanced and intentionally designed from every visible side.",
-  ].join(" ");
+    !automatic && materials.length <= 3
+      ? `EXPLICIT MATERIAL CONTRACT — mandatory: all ${materials.length} client-selected materials (${materials.join(", ")}) must be visibly identifiable in IMAGE 2. Give every selected material one sufficiently large, coherent architectural zone; accessories alone do not count. Metal used only for railings, gutters or window frames does not satisfy a selected metal facade finish. Wood used only as a barely visible existing roof underside does not satisfy a selected wood facade finish. Before returning the image, verify that none of the selected materials is missing.`
+      : "",
+    !automatic && !materials.some((material) => /^(штукатурка|plaster)$/iu.test(String(material).trim()))
+      ? "UNSELECTED PLASTER BAN: the client did not select plaster. Do not cover the facade with generic smooth plaster, render, stucco or a paint-like substitute. Use only the selected facade material system for wall fields and accents."
+      : "",
+    !automatic && materials.some((material) => /^PHOMI —/iu.test(String(material).trim()))
+      ? "NAMED PHOMI PRIORITY: the named PHOMI texture is a required visible facade finish, not a color hint. Use it as the dominant wall field or as a large complete architectural volume with recognizable stone, travertine, concrete or wood relief, realistic panel scale, joints, corners and reveals. Never replace it with smooth plaster."
+      : "",
+  ].filter(Boolean).join(" ");
 }
 
 function finishInstruction(input, automaticMaterials) {
@@ -145,7 +154,7 @@ export function composeGenerationPrompt(input, {
       ? `AUTOMATIC QUALITY RETRY: The previous candidate was rejected for: ${qualityRetryReasons.join(", ")}. Correct those failures. Increase source-image fidelity and preserve all protected contours, openings, roof lines, storeys, viewpoint and house position. This is the single automatic retry; do not trade structural fidelity for style.`
       : "",
     qualityRetryReasons.some((reason) => /finish|unfinished_facade/iu.test(reason))
-      ? "RETRY FINISH LOCK: The previous result left a raw construction wall visible or merely recoloured it. Replace the exposed raw blockwork with the required full facade system now. Do not return any exposed aerated-concrete, cinder-block or unfinished masonry as the main wall finish."
+      ? `RETRY FINISH AND MATERIAL LOCK: The previous result did not satisfy the required facade finish. Replace every exposed raw construction wall with the full selected facade system. For an explicit list of up to three materials, visibly use every selected material (${input.materials.join(", ")}) in a coherent architectural zone. Do not omit a selected material, substitute generic plaster, or return exposed aerated-concrete, cinder-block or unfinished masonry.`
       : "",
     openingRetry
       ? "RETRY OPENING LOCK: Copy the source window and door inventory exactly. Any extra, missing, moved, resized or duplicated opening makes this result invalid. Keep every source blank wall free of new openings."
